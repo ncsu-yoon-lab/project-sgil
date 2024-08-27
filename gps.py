@@ -23,3 +23,4 @@ class GPS:
         :return: A tuple of (latitude, longitude, heading)
         """
         return GPSDataPoint(35.77127383, -78.67416417, 116.1800003, 0)
+    
