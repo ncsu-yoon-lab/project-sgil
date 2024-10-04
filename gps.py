@@ -1,6 +1,6 @@
 class GPSDataPoint:
     """
-    A data point from the GPS containing latitude, longitude, heading (in degrees, CCW positive from East.) and
+    A data point from the GPS containing latitude, longitude, heading (in degrees, CW positive from North.) and
     timestamp (in milliseconds).
     TODO: verify units here
     """
