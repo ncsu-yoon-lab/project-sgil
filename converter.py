@@ -37,9 +37,13 @@ class Converter():
 
         return (x, y)
 
-    def xy_to_latlon(self, x, y):
+    def xy_to_latlon(self, point):
         # Convert x and y back to latitude and longitude
         # delta_lat and delta_lon are changes in lat and lon from the origin
+
+        x = point[0]
+        y = point[1]
+
         delta_lat = y / EARTH_RADIUS_M
         delta_lon = x / (EARTH_RADIUS_M * math.cos(math.radians(self.origin[0])))
 
@@ -68,13 +72,8 @@ class Converter():
 
         # Measured by finding heading pointing the x direction (parallel to vector from EB1 to EB3)
         # Degrees
-        OFFSET = 130
 
         # Subtract the offset from the heading
-        yaw = heading - OFFSET
-
-        # If the yaw is still greater than 180, subtract 360 from it so that it can be converted from a range of (0, 360) to (-180, 180) which is required by pure pursuit
-        if yaw > 180:
-            yaw -= 360
+        yaw = -heading + 90
 
         return yaw
