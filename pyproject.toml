@@ -1,0 +1,22 @@
+[project]
+name = "project_sgil"
+version = "0.1.0"
+description = "A tree-based localizatioon method"
+requires-python = ">=3.10"
+
+[project.optional-dependencies]
+dev = [
+    "ruff",
+    "pytest",
+    "pre-commit",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+show-fixes = true
+fixable = ["ALL"]
+
+[tool.ruff.lint]
+ignore = ["PLR2004", "PLR0911"]
+select = ["E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM"]
