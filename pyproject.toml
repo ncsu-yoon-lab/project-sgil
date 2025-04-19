@@ -1,8 +1,9 @@
 [project]
 name = "project_sgil"
 version = "0.1.0"
-description = "A tree-based localizatioon method"
+description = "A tree-based localization method"
 requires-python = ">=3.10"
+dependencies = []  # Dependencies are defined in the setup.py and package.xml files
 
 [project.optional-dependencies]
 dev = [
