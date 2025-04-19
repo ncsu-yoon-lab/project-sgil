@@ -10,6 +10,10 @@
   <exec_depend>rclpy</exec_depend>
   <exec_depend>numpy</exec_depend>
 
+  <!-- Add deps here, should match what's in setup.py -->
+  <exec_depend>python3-opencv</exec_depend>
+  <exec_depend>python3-matplotlib</exec_depend>
+
   <test_depend>pytest</test_depend>
 
   <export>

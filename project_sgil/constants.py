@@ -5,13 +5,13 @@ ORIGIN = (35.770771, -78.674804)
 EARTH_RADIUS_M = 6378137 # [m]
 
 # Path to the CSV of tree locations in lat, lon
-TREE_LOCATIONS_PATH = "../Data/TreeLocations-Manual.csv"
+TREE_LOCATIONS_PATH = "data/TreeLocations-Manual.csv"
 
 # Path to the data logged while traveling
-DATA_LOGGER_PATH = "Data\\PositionDataLogger.csv"
+DATA_LOGGER_PATH = "data\\PositionDataLogger.csv"
 
 # Path to the folder with all the images
-IMAGE_FOLDER_PATH = "Data\\Images"
+IMAGE_FOLDER_PATH = "data\\Images"
 
 # Boolean to plot points of trees
 PLOT = True
