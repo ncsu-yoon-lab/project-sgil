@@ -17,7 +17,8 @@ line-length = 100
 target-version = "py310"
 show-fixes = true
 fixable = ["ALL"]
+unsafe-fixes = true
 
 [tool.ruff.lint]
-ignore = ["PLR2004", "PLR0911"]
+ignore = ["PLR2004", "PLR0911", "T201"]
 select = ["E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM"]

@@ -26,3 +26,14 @@ source .venv/bin/activate
 pip install --upgrade pip setuptools wheel
 pip install -e .[dev]
 ```
+
+## Usage
+
+We use Ruff as our linter and formatter to keep the codebase clean and consistent.
+
+### Lint and format the code
+
+```bash
+ruff check . --fix
+ruff format .
+```
