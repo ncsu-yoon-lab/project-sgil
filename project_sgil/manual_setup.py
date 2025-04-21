@@ -1,6 +1,6 @@
 """
-This program is intended to allow a user to manually select the trees from the ground view and
-used pre-collected and pre-labeled data.
+This program is intended to allow a user to manually select the trees from
+the ground view and used pre-collected and pre-labeled data.
 """
 
 # Import the necessary libraries

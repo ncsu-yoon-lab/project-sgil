@@ -21,25 +21,34 @@ unsafe-fixes = true
 
 [tool.ruff.lint]
 ignore = [
-  "PLR2004",
-  "PLR0911",
-  "T201",
+    "PLR2004",
+    "PLR0911",
+    "T201",
 ]
 extend-ignore = [
-  "D100",
-  "D104",
+    "D100",
+    "D104",
 ]
 select = [
-  "E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM", "D", "ANN"
+    "E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM", "D", "ANN"
 ]
 extend-select = [
-  "ANN201",
-  "ANN202",
-  "ANN204",
-  "ANN205",
+    "ANN201",
+    "ANN202",
+    "ANN204",
+    "ANN205",
+    "D213",
 ]
 
 fixable = ["ALL"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
+
+[tool.docformatter]
+wrap-summaries = 100
+wrap-descriptions = 100
+pre-summary-newline = true
+make-summary-multi-line = true
+recursive = true
+in-place = true

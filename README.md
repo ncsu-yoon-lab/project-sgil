@@ -27,13 +27,18 @@ pip install --upgrade pip setuptools wheel
 pip install -e .[dev]
 ```
 
+### Install pre-commit
+
+```bash
+pre-commit install
+```
+
 ## Usage
 
-We use Ruff as our linter and formatter to keep the codebase clean and consistent.
+We use pre‑commit to automatically run Ruff and Docformatter on every commit.
 
 ### Lint and format the code
 
 ```bash
-ruff check . --fix
-ruff format .
+pre-commit run --all-files
 ```
