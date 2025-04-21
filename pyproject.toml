@@ -3,22 +3,43 @@ name = "project_sgil"
 version = "0.1.0"
 description = "A tree-based localization method"
 requires-python = ">=3.10"
-dependencies = []  # Dependencies are defined in the setup.py and package.xml files
+dependencies = []
 
 [project.optional-dependencies]
 dev = [
     "ruff",
     "pytest",
     "pre-commit",
+    "docformatter",
 ]
 
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 show-fixes = true
-fixable = ["ALL"]
 unsafe-fixes = true
 
 [tool.ruff.lint]
-ignore = ["PLR2004", "PLR0911", "T201"]
-select = ["E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM"]
+ignore = [
+  "PLR2004",
+  "PLR0911",
+  "T201",
+]
+extend-ignore = [
+  "D100",
+  "D104",
+]
+select = [
+  "E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM", "D", "ANN"
+]
+extend-select = [
+  "ANN201",
+  "ANN202",
+  "ANN204",
+  "ANN205",
+]
+
+fixable = ["ALL"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "pep257"

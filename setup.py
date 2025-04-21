@@ -1,15 +1,15 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
-    name='project_sgil',
-    version='0.1.0',
-    packages=find_packages(exclude=['test', 'resource']),
+    name="project_sgil",
+    version="0.1.0",
+    packages=find_packages(exclude=["test", "resource"]),
     install_requires=[
-        'opencv-python',
-        'matplotlib',
+        "opencv-python",
+        "matplotlib",
     ],
     entry_points={
-        'console_scripts': [
+        "console_scripts": [
             # 'node = project_sgil.node:main'
         ],
     },

@@ -2,7 +2,7 @@
 ORIGIN = (35.770771, -78.674804)
 
 # Earth radius
-EARTH_RADIUS_M = 6378137 # [m]
+EARTH_RADIUS_M = 6378137  # [m]
 
 # Path to the CSV of tree locations in lat, lon
 TREE_LOCATIONS_PATH = "data/TreeLocations-Manual.csv"
@@ -16,8 +16,8 @@ IMAGE_FOLDER_PATH = "data\\Images"
 # Boolean to plot points of trees
 PLOT = True
 
-# Vertical FOV 
-H_FOV_DEG = 110 # [degrees]
+# Vertical FOV
+H_FOV_DEG = 110  # [degrees]
 
 # GPS Margin of Error
-GPS_ERROR_M = 5 # [m]
+GPS_ERROR_M = 5  # [m]
