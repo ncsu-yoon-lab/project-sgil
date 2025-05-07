@@ -13,6 +13,7 @@ from constants import *
 from converter import Converter
 from tree_matcher import TreeMatcher
 import pandas as pd
+import random
 
 converter = Converter(ORIGIN[0], ORIGIN[1])
 
@@ -74,7 +75,10 @@ def get_next_image():
     # Get the current image name and increment the index
     image_name = get_next_image.image_list[get_next_image.current_index]
 
-    get_next_image.current_index += 1
+    if RANDOM:
+        get_next_image.current_index = random.randint(1, len(get_next_image.image_list) - 1)
+    else:
+        get_next_image.current_index += 1
 
     pose = get_current_pose(image_name)
 
@@ -96,7 +100,6 @@ def get_next_image():
                 cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
                 # Update the display
                 cv2.imshow("Select Points", displayed_image)
-                # print(f"Point added: ({x}, {y})")
         
         # Create a copy to display and modify
         displayed_image = image.copy()
@@ -113,18 +116,15 @@ def get_next_image():
             key = cv2.waitKey(1) & 0xFF
             # If Enter key is pressed, break the loop
             if key == 13:  # 13 is the ASCII code for Enter
+                cv2.destroyAllWindows()
                 break
         
         # Close all OpenCV windows
         cv2.destroyAllWindows()
     
-    # print(f"Selected {len(selected_points)} points")
-    
     return image_name, selected_points, pose
 
 def main():
-    # Initialize the list of trees
-    sat_tree_locations = []
 
     while True:
         image_name, points, current_pose = get_next_image()
