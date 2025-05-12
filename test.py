@@ -1,6 +1,10 @@
 from itertools import product
 
-lists = [[(1.2, 4.5), (4.3, 2.3),(3.4, 9.9)], [(1.2, 4.5),(4.1, 2.3),(4.1, 0.3)], [(4.1, 2.3),(4.0, 2.3)]]
+lists = [
+    [(1.2, 4.5), (4.3, 2.3), (3.4, 9.9)],
+    [(1.2, 4.5), (4.1, 2.3), (4.1, 0.3)],
+    [(4.1, 2.3), (4.0, 2.3)],
+]
 
 # Generate all combinations taking one element from each sublist
 all_combinations = product(*lists)
