@@ -1,19 +1,17 @@
-'''
-This program is intended to allow a user to manually select the trees from the ground view and 
-used pre-collected and pre-labeled data
-'''
+"""
+This program is intended to allow a user to manually select the trees from
+the ground view and used pre-collected and pre-labeled data.
+"""
 
 # Import the necessary libraries
 import os
+import random
+
 import cv2
-import csv
-import math
-import matplotlib.pyplot as plt
+import pandas as pd
 from constants import *
 from converter import Converter
 from tree_matcher import TreeMatcher
-import pandas as pd
-import random
 
 converter = Converter(ORIGIN[0], ORIGIN[1])
 
@@ -26,39 +24,46 @@ robot_data_log = pd.read_csv(DATA_LOGGER_PATH)
 correct_pose = None
 gps_pose = None
 
-def get_current_pose(image_name):
 
-    matching_rows = robot_data_log[robot_data_log['image_filename'].str.contains(image_name, case=False, na=False)]
-    
+def get_current_pose(image_name):
+    matching_rows = robot_data_log[
+        robot_data_log["image_filename"].str.contains(image_name, case=False, na=False)
+    ]
+
     # Check if we found any matching rows
     if matching_rows.empty:
         return None
-        
+
     # Get the first matching row
     matching_row = matching_rows.iloc[0]
 
-    if pd.isna(matching_row['rtk_heading']):
+    if pd.isna(matching_row["rtk_heading"]):
         return None
-    
+
     gps_pose = get_gps_pose(matching_row)
 
     return gps_pose
 
+
 def get_gps_pose(row):
     global correct_pose, gps_pose
-    xy_point = converter.latlon_to_xy((row['rtk_lat'], row['rtk_lon']))
+    xy_point = converter.latlon_to_xy((row["rtk_lat"], row["rtk_lon"]))
 
     # Taking heading from rtk for now, need to fix eventually
-    yaw_deg = converter.heading_to_yaw(row['rtk_heading'])
+    yaw_deg = converter.heading_to_yaw(row["rtk_heading"])
 
-    correct_pose = (row['rtk_lat'], row['rtk_lon'])
-    gps_pose = (row['rtk_lat'], row['rtk_lon'])
+    correct_pose = (row["rtk_lat"], row["rtk_lon"])
+    gps_pose = (row["rtk_lat"], row["rtk_lon"])
 
     # Backup the position based on the assumed error of the GPS
     reverse_yaw_rad = math.radians((yaw_deg - 180) % 360)
-    xy_point = (math.cos(reverse_yaw_rad) * GPS_ERROR_M + xy_point[0], math.sin(reverse_yaw_rad) * GPS_ERROR_M + xy_point[1])
+    xy_point = (
+        math.cos(reverse_yaw_rad) * GPS_ERROR_M + xy_point[0],
+        math.sin(reverse_yaw_rad) * GPS_ERROR_M + xy_point[1],
+    )
 
     return (xy_point[0], xy_point[1], yaw_deg)
+
 
 def get_next_image():
     # Define static variables to keep track of state
@@ -71,7 +76,7 @@ def get_next_image():
 
     # If all images are processed, return '0' and an empty list
     if get_next_image.current_index >= len(get_next_image.image_list):
-        return '0', [], None
+        return "0", [], None
 
     # Get the current image name and increment the index
     image_name = get_next_image.image_list[get_next_image.current_index]
@@ -85,14 +90,14 @@ def get_next_image():
 
     # List to store selected points
     selected_points = []
-    
+
     if pose is not None:
         # Load the image
         image_path = os.path.join(IMAGE_FOLDER_PATH, image_name)
         image = cv2.imread(image_path)
-        
+
         # Define the mouse callback function
-        def click_event(event, x, y, flags, param):
+        def click_event(event, x, y, flags, param) -> None:
             # Check if left mouse button was clicked
             if event == cv2.EVENT_LBUTTONDOWN:
                 # Add point to list
@@ -101,17 +106,17 @@ def get_next_image():
                 cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
                 # Update the display
                 cv2.imshow("Select Points", displayed_image)
-        
+
         # Create a copy to display and modify
         displayed_image = image.copy()
-        
+
         # Create a window and set the callback function
         cv2.namedWindow("Select Points")
         cv2.setMouseCallback("Select Points", click_event)
-        
+
         # Display initial image
         cv2.imshow("Select Points", displayed_image)
-    
+
         # Wait for keypress - Enter key will finish selection
         while True:
             key = cv2.waitKey(1) & 0xFF
@@ -119,35 +124,38 @@ def get_next_image():
             if key == 13:  # 13 is the ASCII code for Enter
                 cv2.destroyAllWindows()
                 break
-        
+
         # Close all OpenCV windows
         cv2.destroyAllWindows()
-    
+
     return image_name, selected_points, pose
 
-def main():
 
+def main() -> None:
     while True:
         image_name, points, current_pose = get_next_image()
-    
-        if image_name == '0':
+
+        if image_name == "0":
             print("No more images.")
             break
 
         if current_pose is not None:
-
             ground_thetas = []
 
             for point in points:
                 ground_thetas.append(converter.image_x_to_theta(point[0]))
-                
+
             estimated_location_xy = tree_matcher.match_trees(current_pose, ground_thetas)
 
             estimated_location_latlon = converter.xy_to_latlon(estimated_location_xy)
 
             print(estimated_location_latlon)
-            print(f"GPS Error: {converter.haversine(gps_pose[0], gps_pose[1], correct_pose[0], correct_pose[1])}")
-            print(f"SGIL Error: {converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], correct_pose[0], correct_pose[1])}")
+            print(
+                f"GPS Error: {converter.haversine(gps_pose[0], gps_pose[1], correct_pose[0], correct_pose[1])}"
+            )
+            print(
+                f"SGIL Error: {converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], correct_pose[0], correct_pose[1])}"
+            )
 
 
 if __name__ == "__main__":

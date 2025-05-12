@@ -2,20 +2,21 @@ import math
 
 from constants import *
 
-class Converter():
 
-    def __init__(self, lat_origin, lon_origin):
-
+class Converter:
+    def __init__(self, lat_origin, lon_origin) -> None:
         # Sets the origin of the coordinate system
         self.origin = (lat_origin, lon_origin)
 
     def haversine(self, lat1, lon1, lat2, lon2):
-
         # Finds the difference between the lat longs and converts them to radians
         d_lat = math.radians(lat1 - lat2)
         d_lon = math.radians(lon1 - lon2)
 
-        a = math.sin(d_lat / 2) ** 2 + math.cos(math.radians(lat2)) * math.cos(math.radians(lat1)) * math.sin(d_lon / 2) ** 2
+        a = (
+            math.sin(d_lat / 2) ** 2
+            + math.cos(math.radians(lat2)) * math.cos(math.radians(lat1)) * math.sin(d_lon / 2) ** 2
+        )
         c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
         distance = EARTH_RADIUS_M * c
@@ -23,7 +24,6 @@ class Converter():
         return distance
 
     def latlon_to_xy(self, point):
-
         lat = float(point[0])
         lon = float(point[1])
 
@@ -51,25 +51,23 @@ class Converter():
         lon = self.origin[1] + math.degrees(delta_lon)
 
         return (lat, lon)
-    
-    def image_x_to_theta(self, x, image_width=1280):
 
+    def image_x_to_theta(self, x, image_width=1280):
         # Calculate center of image
         center_x = image_width / 2
-        
+
         # Calculate pixel offset from center
         offset_x = x - center_x
-        
+
         # Calculate half the FOV
         dpp = H_FOV_DEG / 2
-        
+
         # Calculate theta
         theta = dpp * offset_x / center_x
-        
+
         return theta
 
     def heading_to_yaw(self, heading) -> float:
-
         # Measured by finding heading pointing the x direction (parallel to vector from EB1 to EB3)
         # Degrees
 
