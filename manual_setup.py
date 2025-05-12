@@ -28,7 +28,7 @@ gps_pose = None
 
 def get_current_pose(image_name):
 
-    matching_rows = robot_data_log[robot_data_log['image_name'].str.contains(image_name, case=False, na=False)]
+    matching_rows = robot_data_log[robot_data_log['image_filename'].str.contains(image_name, case=False, na=False)]
     
     # Check if we found any matching rows
     if matching_rows.empty:
@@ -37,7 +37,7 @@ def get_current_pose(image_name):
     # Get the first matching row
     matching_row = matching_rows.iloc[0]
 
-    if pd.isna(matching_row['gps_track']):
+    if pd.isna(matching_row['rtk_heading']):
         return None
     
     gps_pose = get_gps_pose(matching_row)
@@ -46,12 +46,13 @@ def get_current_pose(image_name):
 
 def get_gps_pose(row):
     global correct_pose, gps_pose
-    xy_point = converter.latlon_to_xy((row['gps_latitude'], row['gps_longitude']))
+    xy_point = converter.latlon_to_xy((row['rtk_lat'], row['rtk_lon']))
 
-    yaw_deg = converter.heading_to_yaw(row['gps_track'])
+    # Taking heading from rtk for now, need to fix eventually
+    yaw_deg = converter.heading_to_yaw(row['rtk_heading'])
 
-    correct_pose = (row['swift_latitude'], row['swift_longitude'])
-    gps_pose = (row['gps_latitude'], row['gps_longitude'])
+    correct_pose = (row['rtk_lat'], row['rtk_lon'])
+    gps_pose = (row['rtk_lat'], row['rtk_lon'])
 
     # Backup the position based on the assumed error of the GPS
     reverse_yaw_rad = math.radians((yaw_deg - 180) % 360)

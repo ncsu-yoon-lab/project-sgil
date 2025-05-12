@@ -9,12 +9,13 @@ TREE_LOCATIONS_PATH = "dataset\\TreeLocations-Manual.csv"
 
 # Path to the data logged while traveling
 DATA_LOGGER_PATH = "dataset\\GroundPositionLogger.csv"
-
+# DATA_LOGGER_PATH = "dataset\\position_data_logger-QLoc.csv"
 # Path to the folder with all the images
 IMAGE_FOLDER_PATH = "dataset\\images"
 
 # Boolean to plot points of trees
-PLOT = True
+# PLOT = True
+PLOT = False
 
 # Random
 RANDOM = False
@@ -26,7 +27,7 @@ HEADING_ERROR_DEG = 5
 H_FOV_DEG = 110 # [degrees]
 
 # GPS Margin of Error
-GPS_ERROR_M = 5 # [m]
+GPS_ERROR_M = 0 #5 # [m]
 
 # Radius of area of interest (AOI)
 AOI_RADIUS_M = 50 # [m]
