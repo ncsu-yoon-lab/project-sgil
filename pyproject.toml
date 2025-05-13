@@ -3,7 +3,11 @@ name = "project_sgil"
 version = "0.1.0"
 description = "A tree-based localization method"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = [
+    "opencv-python",
+    "matplotlib",
+    "numpy",
+]
 
 [project.optional-dependencies]
 dev = [
