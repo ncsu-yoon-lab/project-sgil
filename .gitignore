@@ -148,3 +148,5 @@ CATKIN_IGNORE
 /project_sgil.egg-info
 /.venv
 /build
+
+/dataset/images

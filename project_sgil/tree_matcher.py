@@ -6,6 +6,7 @@ from itertools import product
 import matplotlib.pyplot as plt
 from constants import *
 from converter import Converter
+from data_structs import *
 from shapely.geometry import LineString, Point
 
 
@@ -179,13 +180,13 @@ class TreeMatcher:
         Returns:
             Wedge object containing the theta and trees in the wedge
         """
-        wedge = Wedge()
-        wedge.ground_theta_deg = theta
+        wedge = Wedge(theta)
 
         for tree in satellite_trees:
             rel_angle_deg = self.get_relative_angle(tree, current_pose)
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
-                wedge.trees_xy.append(tree)
+                # TODO: make an ID for the trees
+                wedge.trees.append(Tree(tree[0], tree[1], -1))
 
         return wedge
 
@@ -207,9 +208,9 @@ class TreeMatcher:
         # Loops through the wedges to clean up the ones that do not have a tree and the ones that only have 1 tree
         for wedge in wedges:
             # Checks if the number of trees is 1 and appends that wedge onto the matched wedges
-            if len(wedge.trees_xy) == 1:
+            if len(wedge.trees) == 1:
                 matched_wedges.append(wedge)
-            elif len(wedge.trees_xy) > 1:
+            elif len(wedge.trees) > 1:
                 unmatched_wedges.append(wedge)
 
         # If we only have matched wedges with single trees, we can use them directly
@@ -221,7 +222,7 @@ class TreeMatcher:
         # Starting the list of wedge combinations and adding the list of trees from each combo to the list
         wedge_combinations = []
         for wedge in unmatched_wedges:
-            wedge_combinations.append(wedge.trees_xy)
+            wedge_combinations.append(wedge.trees)
 
         # If we don't have enough combinations to work with
         if not wedge_combinations:
@@ -271,7 +272,7 @@ class TreeMatcher:
 
             # Also add vectors from matched wedges (those with only one tree)
             for wedge in matched_wedges:
-                if wedge.trees_xy:
+                if wedge.trees:
                     start_point = (current_pose[0], current_pose[1])
                     theta_rad = math.radians(wedge.ground_theta_deg)
                     heading_rad = math.radians(current_pose[2])
@@ -312,7 +313,7 @@ class TreeMatcher:
         """
         vectors = []
         for wedge in wedges:
-            if wedge.trees_xy:
+            if wedge.trees:
                 start_point = (current_pose[0], current_pose[1])
                 theta_rad = math.radians(wedge.ground_theta_deg)
                 heading_rad = math.radians(current_pose[2])
@@ -438,10 +439,3 @@ class TreeMatcher:
         rel_angle_deg = ((rel_angle_deg + 180) % 360) - 180
 
         return rel_angle_deg
-
-
-class Wedge:
-    def __init__(self) -> None:
-        self.trees_xy = []
-        self.matched_tree = None
-        self.ground_theta_deg = 0.0

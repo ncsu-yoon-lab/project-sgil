@@ -11,6 +11,7 @@ import cv2
 import pandas as pd
 from constants import *
 from converter import Converter
+from data_structs import *
 from tree_matcher import TreeMatcher
 
 converter = Converter(ORIGIN[0], ORIGIN[1])
@@ -53,16 +54,9 @@ def get_gps_pose(row):
     yaw_deg = converter.heading_to_yaw(row["rtk_heading"])
 
     correct_pose = (row["rtk_lat"], row["rtk_lon"])
-    gps_pose = (row["rtk_lat"], row["rtk_lon"])
+    gps_pose = (row["gps_lat"], row["gps_lon"])
 
-    # Backup the position based on the assumed error of the GPS
-    reverse_yaw_rad = math.radians((yaw_deg - 180) % 360)
-    xy_point = (
-        math.cos(reverse_yaw_rad) * GPS_ERROR_M + xy_point[0],
-        math.sin(reverse_yaw_rad) * GPS_ERROR_M + xy_point[1],
-    )
-
-    return (xy_point[0], xy_point[1], yaw_deg)
+    return Pose2d(xy_point[0], xy_point[1], yaw_deg)
 
 
 def get_next_image():
