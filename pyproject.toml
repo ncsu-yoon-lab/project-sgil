@@ -11,6 +11,7 @@ dev = [
     "pytest",
     "pre-commit",
     "docformatter",
+    "pandas",
 ]
 
 [tool.ruff]
