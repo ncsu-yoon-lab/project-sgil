@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from constants import *
 from converter import Converter
 from shapely.geometry import LineString, Point
+from data_structs import Wedge, Pose2d
 
 
 class TreeMatcher:
@@ -179,8 +180,7 @@ class TreeMatcher:
         Returns:
             Wedge object containing the theta and trees in the wedge
         """
-        wedge = Wedge()
-        wedge.ground_theta_deg = theta
+        wedge = Wedge(theta)
 
         for tree in satellite_trees:
             rel_angle_deg = self.get_relative_angle(tree, current_pose)
@@ -438,10 +438,3 @@ class TreeMatcher:
         rel_angle_deg = ((rel_angle_deg + 180) % 360) - 180
 
         return rel_angle_deg
-
-
-class Wedge:
-    def __init__(self) -> None:
-        self.trees_xy = []
-        self.matched_tree = None
-        self.ground_theta_deg = 0.0

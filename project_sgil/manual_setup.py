@@ -53,14 +53,7 @@ def get_gps_pose(row):
     yaw_deg = converter.heading_to_yaw(row["rtk_heading"])
 
     correct_pose = (row["rtk_lat"], row["rtk_lon"])
-    gps_pose = (row["rtk_lat"], row["rtk_lon"])
-
-    # Backup the position based on the assumed error of the GPS
-    reverse_yaw_rad = math.radians((yaw_deg - 180) % 360)
-    xy_point = (
-        math.cos(reverse_yaw_rad) * GPS_ERROR_M + xy_point[0],
-        math.sin(reverse_yaw_rad) * GPS_ERROR_M + xy_point[1],
-    )
+    gps_pose = (row["gps_lat"], row["gps_lon"])
 
     return (xy_point[0], xy_point[1], yaw_deg)
 
