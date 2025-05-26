@@ -8,6 +8,7 @@ author: Cole Malinchock and Jack Elia
 # Import necessary libraries
 from dataclasses import dataclass, field
 
+@dataclass
 class Tree:
     """
     Represents a tree in 2D space.

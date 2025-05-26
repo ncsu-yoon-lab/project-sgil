@@ -87,7 +87,7 @@ class TreeMatcher:
         for tree in self.all_sat_tree_loc:
 
             # Checks if the distance is within the radius
-            if self.distance(tree, (current_pose[0], current_pose[1])) < AOI_RADIUS_M:
+            if self.distance(tree, (current_pose.x, current_pose.y)) < AOI_RADIUS_M:
 
                 # Checks if the relative angle to the tree is within the expected limit
                 rel_angle_deg = self.get_relative_angle(tree, current_pose)
@@ -127,8 +127,8 @@ class TreeMatcher:
         # Plot current position in red
         if current_pose:
             ax.scatter(
-                current_pose[0],
-                current_pose[1],
+                current_pose.x,
+                current_pose.y,
                 s=100,
                 c="red",
                 marker="*",
@@ -136,13 +136,13 @@ class TreeMatcher:
             )
 
             # Draw line showing heading direction
-            heading_rad = math.radians(current_pose[2])
+            heading_rad = math.radians(current_pose.yaw)
             arrow_length = 5
             dx = arrow_length * math.cos(heading_rad)
             dy = arrow_length * math.sin(heading_rad)
             ax.arrow(
-                current_pose[0],
-                current_pose[1],
+                current_pose.x,
+                current_pose.y,
                 dx,
                 dy,
                 head_width=1,
@@ -154,7 +154,7 @@ class TreeMatcher:
         # Add AOI radius circle
         if current_pose:
             circle = plt.Circle(
-                (current_pose[0], current_pose[1]),
+                (current_pose.x, current_pose.y),
                 AOI_RADIUS_M,
                 fill=False,
                 color="red",
@@ -165,13 +165,13 @@ class TreeMatcher:
 
         # Add field of view indicator
         if current_pose:
-            heading_rad = math.radians(current_pose[2])
+            heading_rad = math.radians(current_pose.yaw)
             half_fov = math.radians(AOI_ANGLE_DEG)
             start_angle = heading_rad - half_fov
             end_angle = heading_rad + half_fov
 
             wedge = plt.matplotlib.patches.Wedge(
-                (current_pose[0], current_pose[1]),
+                (current_pose.x, current_pose.y),
                 AOI_RADIUS_M,
                 math.degrees(start_angle),
                 math.degrees(end_angle),
@@ -195,8 +195,8 @@ class TreeMatcher:
         stats_text = (
             f"Total trees: {len(all_sat_tree_loc)}\n"
             f"AOI trees: {len(aoi_sat_trees) if aoi_sat_trees else 0}\n"
-            f"Position: ({current_pose[0]:.1f}, {current_pose[1]:.1f})\n"
-            f"Heading: {current_pose[2]:.1f}°"
+            f"Position: ({current_pose.x:.1f}, {current_pose.y:.1f})\n"
+            f"Heading: {current_pose.yaw:.1f}°"
         )
         plt.figtext(0.02, 0.02, stats_text, fontsize=10, bbox={"facecolor": "white", "alpha": 0.8})
 
@@ -258,16 +258,16 @@ class TreeMatcher:
         wedge_combinations = [wedge.trees for wedge in unmatched_wedges]
 
         if not wedge_combinations:
-            return (current_pose[0], current_pose[1])
+            return (current_pose.x, current_pose.y)
 
         all_wedge_combinations = list(product(*wedge_combinations))
         unique_wedge_combinations = [
-            combo for combo in all_wedge_combinations if len(set(combo)) == len(combo)
+            combo for combo in all_wedge_combinations if len(set(tree.id for tree in combo)) == len(combo)
         ]
 
         # If there is not a unique wedge combo, return the current position
         if not unique_wedge_combinations:
-            return (current_pose[0], current_pose[1])
+            return (current_pose.x, current_pose.y)
 
         # Initializes the lowest standard deviation
         lowest_std_dev = float("inf")
@@ -281,24 +281,24 @@ class TreeMatcher:
             for i, _tree in enumerate(tree_combo):
                 if i < len(unmatched_wedges):
                     wedge = unmatched_wedges[i]
-                    start_point = (current_pose[0], current_pose[1])
-                    heading_rad = math.radians(current_pose[2])
-                    theta_rad = math.radians(wedge.ground_theta_deg)
+                    start_point = (current_pose.x, current_pose.y)
+                    heading_rad = math.radians(current_pose.yaw)
+                    theta_rad = math.radians(wedge.theta_deg)
                     direction_rad = heading_rad - theta_rad
                     vector_length = 100
-                    end_x = current_pose[0] + vector_length * math.cos(direction_rad)
-                    end_y = current_pose[1] + vector_length * math.sin(direction_rad)
+                    end_x = current_pose.x + vector_length * math.cos(direction_rad)
+                    end_y = current_pose.y + vector_length * math.sin(direction_rad)
                     vectors.append([start_point, (end_x, end_y)])
 
             for wedge in matched_wedges:
                 if wedge.trees:
-                    start_point = (current_pose[0], current_pose[1])
-                    theta_rad = math.radians(wedge.ground_theta_deg)
-                    heading_rad = math.radians(current_pose[2])
+                    start_point = (current_pose.x, current_pose.y)
+                    theta_rad = math.radians(wedge.theta_deg)
+                    heading_rad = math.radians(current_pose.yaw)
                     direction_rad = heading_rad - theta_rad
                     vector_length = 100
-                    end_x = current_pose[0] + vector_length * math.cos(direction_rad)
-                    end_y = current_pose[1] + vector_length * math.sin(direction_rad)
+                    end_x = current_pose.x + vector_length * math.cos(direction_rad)
+                    end_y = current_pose.y + vector_length * math.sin(direction_rad)
                     vectors.append([start_point, (end_x, end_y)])
 
             if len(vectors) >= 2:
@@ -311,7 +311,7 @@ class TreeMatcher:
         # Else return the current position
         if best_centroid:
             return best_centroid
-        return (current_pose[0], current_pose[1])
+        return (current_pose.x, current_pose.y)
 
 
     def create_vectors_from_wedges(self, wedges: list[Wedge], current_pose: Pose2d) -> list[tuple[float, float]]:
@@ -329,14 +329,14 @@ class TreeMatcher:
         # Loops through all the wedges
         for wedge in wedges:
             if wedge.trees:
-                start_point = (current_pose[0], current_pose[1])
-                theta_rad = math.radians(wedge.ground_theta_deg)
-                heading_rad = math.radians(current_pose[2])
+                start_point = (current_pose.x, current_pose.y)
+                theta_rad = math.radians(wedge.theta_deg)
+                heading_rad = math.radians(current_pose.yaw)
                 direction_rad = heading_rad - theta_rad
 
                 vector_length = 100
-                end_x = current_pose[0] + vector_length * math.cos(direction_rad)
-                end_y = current_pose[1] + vector_length * math.sin(direction_rad)
+                end_x = current_pose.x + vector_length * math.cos(direction_rad)
+                end_y = current_pose.y + vector_length * math.sin(direction_rad)
                 vectors.append([start_point, (end_x, end_y)])
                 
         return vectors
@@ -450,7 +450,7 @@ class TreeMatcher:
         :return: Relative angle in degrees (-180, 180).
         """
 
-        current_x, current_y, current_heading = current_pose
+        current_x, current_y, current_heading = current_pose.x, current_pose.y, current_pose.yaw
         target_x, target_y = point
         abs_angle_rad = math.atan2(target_y - current_y, target_x - current_x)
         abs_angle_deg = math.degrees(abs_angle_rad)
