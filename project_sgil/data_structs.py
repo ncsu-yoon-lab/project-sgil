@@ -8,24 +8,47 @@ author: Cole Malinchock and Jack Elia
 # Import necessary libraries
 from dataclasses import dataclass, field
 
+class Tree:
+    """
+    Represents a tree in 2D space.
+
+    :param x: The x-coordinate of the tree.
+    :param y: The y-coordinate of the tree.
+    :param id: A unique identifier for the tree.
+    """
+
+    x: float
+    y: float
+    id: int
+
+      
+@dataclass
+class Wedge:
+    """
+    Represents an angular wedge containing multiple trees and an optional
+    matched tree.
+
+    :param theta_deg: The angle of the wedge in degrees.
+    :param trees: A list of Tree instances contained within the wedge.
+    :param matched_tree: An optional Tree that has been matched within
+        the wedge; defaults to None.
+    """
+
+    theta_deg: float
+    trees: list[Tree] = field(default_factory=list)
+    matched_tree: Tree | None = None
+
 
 @dataclass
 class Pose2d:
     """
-    Class for the 2 dimensional pose
+    Represents a 2D pose with position and yaw.
+
+    :param x: The x-coordinate of the pose.
+    :param y: The y-coordinate of the pose.
+    :param yaw: The yaw angle (in degrees) of the pose.
     """
 
-    x: float        # The x position
-    y: float        # The y position
-    theta: float    # The heading
-
-
-@dataclass
-class Wedge:
-    """
-    The wedge object for handling the tree matching
-    """
-
-    ground_theta_deg: float                                             # The theta from the ground view
-    trees_xy: list[tuple[float, float]] = field(default_factory=list)   # The x, y position of the trees in the wedge
-    matched_tree: tuple[float, float] | None = None                     # The tree that is matched to the wedge
+    x: float
+    y: float
+    yaw: float

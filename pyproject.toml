@@ -7,7 +7,8 @@ dependencies = [
     "opencv-python",
     "pandas",
     "matplotlib",
-    "shapely"
+    "shapely",
+    "numpy",
 ]
 
 [project.optional-dependencies]
@@ -16,6 +17,7 @@ dev = [
     "pytest",
     "pre-commit",
     "docformatter",
+    "pandas",
 ]
 
 [tool.ruff]

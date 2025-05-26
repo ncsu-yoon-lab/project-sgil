@@ -13,6 +13,7 @@ import pandas as pd
 # Import custom classes
 from constants import *
 from converter import Converter
+from data_structs import *
 from tree_matcher import TreeMatcher
 
 class ManualSelector():
@@ -98,7 +99,7 @@ class ManualSelector():
         # Gets the correct pose from the rtk
         self.correct_pose = (row["rtk_lat"], row["rtk_lon"])
 
-        return (xy_point[0], xy_point[1], yaw_deg)
+        return Pose2d(xy_point[0], xy_point[1], yaw_deg)
 
 
     def get_next_image(self) -> tuple[str, list, tuple[float, float, float]]:
