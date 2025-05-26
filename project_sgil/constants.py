@@ -14,8 +14,7 @@ DATA_LOGGER_PATH = "..\\dataset\\GroundPositionLogger.csv"
 IMAGE_FOLDER_PATH = "..\\dataset\\images"
 
 # Boolean to plot points of trees
-# PLOT = True
-PLOT = False
+PLOT = True
 
 # Random
 RANDOM = False
