@@ -1,7 +1,9 @@
 """
-This program is intended to allow a user to manually select the trees from
-the ground view and used pre-collected and pre-labeled data. This can be
-swapped out with an automatic version once the matching is completed.
+Manual tree selection interface for ground view analysis and matching with
+satellite data using pre-collected and pre-labeled dataset.
+
+file: manual_selector.py
+author: Cole Malinchock and Jack Elia
 """
 
 # Import the necessary libraries
@@ -16,18 +18,19 @@ from converter import Converter
 from data_structs import *
 from tree_matcher import TreeMatcher
 
-class ManualSelector():
-    """
-    ManualSelector for manually selecting the trees from the pre-selected trees on campus.
-    To be replaced by an automated system.
-    """
 
+class ManualSelector:
+    """
+    Manual tree selector for selecting trees from pre-collected campus
+    imagery. Designed to be replaced by automated detection system.
+    """
 
     def __init__(self) -> None:
         """
-        Initialization method to handle the creation of the manual selector
+        Initialize the ManualSelector with converter, tree matcher, and data
+        logging capabilities.
         """
-
+        
         # Creates the converter and tree matcher
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
         self.tree_matcher = TreeMatcher()
@@ -45,16 +48,12 @@ class ManualSelector():
         ]
         self.current_index = 0
 
-
-    def get_current_pose(self, image_name: str) -> tuple[float, float, float]:
+    def get_current_pose(self, image_name: str) -> Pose2d:
         """
-        Gets the current pose from the csv file
+        Extract pose information from data log based on image filename.
 
-        Args:
-            image_name: the name of the image with the corresponding lat, lon
-        
-        Returns:
-            gps_pose: the current position from the gps
+        :param image_name: Image filename to match against log entries.
+        :return: GPS pose as (x, y, heading) or None if not found.
         """
 
         # Gets the row from the log with the image filename
@@ -78,16 +77,12 @@ class ManualSelector():
 
         return gps_pose
 
-
-    def get_gps_pose(self, row) -> tuple[float, float, float]:
+    def get_gps_pose(self, row) -> Pose2d:
         """
-        Gets the gps pose from the lat, lon at the row in the log file
+        Convert GPS coordinates from data log row to local coordinate system.
 
-        Args:
-            row: the row in the file that has the gps position
-        
-        Returns:
-            the position from the gps
+        :param row: DataFrame row containing RTK GPS data.
+        :return: Pose in local coordinates as (x, y, yaw).
         """
 
         # Gets the x, y point by converting the values of the rows lat, lon
@@ -101,10 +96,12 @@ class ManualSelector():
 
         return Pose2d(xy_point[0], xy_point[1], yaw_deg)
 
-
-    def get_next_image(self) -> tuple[str, list, tuple[float, float, float]]:
+    def get_next_image(self) -> tuple[str, list[float], Pose2d]:
         """
-        Gets the next image in the folder to display
+        Load next image for manual tree selection with interactive interface.
+
+        :return: Tuple of (image_name, selected_points, pose) or ("0", [], None)
+            if no more images.
         """
 
         # If all images are processed, return '0' and an empty list
@@ -136,6 +133,7 @@ class ManualSelector():
 
         # Define the mouse callback function
         def click_event(event, x, y, flags, param) -> None:
+            """Handle mouse click events for point selection."""
             # Check if left mouse button was clicked
             if event == cv2.EVENT_LBUTTONDOWN:
                 # Add point to list
@@ -167,17 +165,19 @@ class ManualSelector():
         cv2.destroyAllWindows()
 
         return image_name, selected_points, pose
-    
 
     def reset_image_iteration(self) -> None:
-        """Reset the image iteration to start from the beginning"""
+        """
+        Reset image iteration counter to start processing from beginning.
+        """
 
         # Set the current index to 0
         self.current_index = 0
 
-
     def main(self) -> None:
-        """ Main function to be ran when the manual selector is ran properly """
+        """
+        Main execution loop for manual tree selection and position estimation.
+        """
 
         # Loops until a break
         while True:
@@ -208,6 +208,7 @@ class ManualSelector():
             print(
                 f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1])}"
             )
+
 
 if __name__ == "__main__":
 
