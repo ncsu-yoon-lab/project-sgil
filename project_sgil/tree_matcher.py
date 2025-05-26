@@ -1,13 +1,23 @@
+"""
+Tree Matcher script to match trees based on the ground position and the angle of the trees seen from the ground
+
+file: tree_matcher.py
+author: Cole Malinchock and Jack Elia
+"""
+
+# Import necessary libraries
 import csv
 import math
 import statistics
 from itertools import product
-
 import matplotlib.pyplot as plt
 from constants import *
 from converter import Converter
 from data_structs import *
 from shapely.geometry import LineString, Point
+
+# Import custom data structs
+from data_structs import Wedge, Pose2d
 
 
 class TreeMatcher:
@@ -23,6 +33,7 @@ class TreeMatcher:
         :param: Initializes the converter and loads satellite tree
             locations.
         """
+
         self.all_sat_tree_loc = []
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
 
@@ -33,7 +44,8 @@ class TreeMatcher:
                 point = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
                 self.all_sat_tree_loc.append(point)
 
-    def match_trees(self, current_pose, ground_thetas):
+
+    def match_trees(self, current_pose: Pose2d, ground_thetas: float) -> tuple[float, float]:
         """
         Match trees based on current position and ground view angles.
 
@@ -43,17 +55,23 @@ class TreeMatcher:
             view (negative = left, positive = right).
         :return: Estimated location of the vehicle.
         """
+
+        # The area of interest based on the current pose
         aoi_sat_trees = self.get_area_of_interest(current_pose)
 
+        # Loop through all the thetas and make their corresponding wedges
         wedges = []
         for theta in ground_thetas:
             wedges.append(self.create_wedge(current_pose, aoi_sat_trees, theta))
 
+        # Estimate the location by matching the wedges to the identified trees
         estimated_location = self.wedge_matching(wedges, current_pose)
 
+        # Return the estimated location
         return estimated_location
 
-    def get_area_of_interest(self, current_pose):
+
+    def get_area_of_interest(self, current_pose: Pose2d) -> list[tuple[float, float]]:
         """
         Identify satellite trees within area of interest.
 
@@ -61,20 +79,29 @@ class TreeMatcher:
             heading).
         :return: List of tree locations within the area of interest.
         """
+
+        # Initializes the list of trees in the area of interest
         area_of_interest_tree_loc = []
 
+        # Loops through all the trees in the list to find the trees that are within the area of interest
         for tree in self.all_sat_tree_loc:
+
+            # Checks if the distance is within the radius
             if self.distance(tree, (current_pose[0], current_pose[1])) < AOI_RADIUS_M:
+
+                # Checks if the relative angle to the tree is within the expected limit
                 rel_angle_deg = self.get_relative_angle(tree, current_pose)
                 if abs(rel_angle_deg) < AOI_ANGLE_DEG:
                     area_of_interest_tree_loc.append(tree)
 
+        # Check if there is a plot to show
         if PLOT:
             self.debug_plot_aoi(self.all_sat_tree_loc, area_of_interest_tree_loc, current_pose)
 
         return area_of_interest_tree_loc
 
-    def debug_plot_aoi(self, all_sat_tree_loc, aoi_sat_trees, current_pose) -> None:
+
+    def debug_plot_aoi(self, all_sat_tree_loc: list[tuple[float, float]], aoi_sat_trees: list[tuple[float, float]], current_pose: Pose2d) -> None:
         """
         Visualize AOI trees for debugging.
 
@@ -82,6 +109,8 @@ class TreeMatcher:
         :param aoi_sat_trees: List of trees within the area of interest.
         :param current_pose: Current position (x, y, heading).
         """
+
+        # Creates the figure
         fig, ax = plt.subplots(figsize=(10, 8))
 
         # Plot all satellite trees in blue
@@ -175,7 +204,8 @@ class TreeMatcher:
         plt.tight_layout()
         plt.show()
 
-    def create_wedge(self, current_pose, satellite_trees, theta):
+
+    def create_wedge(self, current_pose: Pose2d, satellite_trees: list[tuple[float, float]], theta: float) -> Wedge:
         """
         Create a wedge based on current location and ground view angle.
 
@@ -186,16 +216,21 @@ class TreeMatcher:
         :return: Wedge object containing the theta and trees in the
             wedge.
         """
+
+        # Create a wedge based on the given theta
         wedge = Wedge(theta)
 
+        # Loop through all the trees in the satellite trees to see if they lie within the wedge
         for tree in satellite_trees:
             rel_angle_deg = self.get_relative_angle(tree, current_pose)
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
+
                 wedge.trees.append(Tree(tree[0], tree[1], -1))
 
         return wedge
 
-    def wedge_matching(self, wedges, current_pose):
+
+    def wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> tuple[float, float]:
         """
         Match wedges to trees to find the most accurate position.
 
@@ -204,6 +239,8 @@ class TreeMatcher:
             heading).
         :return: Estimated position of the vehicle as (x, y).
         """
+
+        # Two lists for holding the matched and unmatched combinations of the wedges
         matched_wedges = []
         unmatched_wedges = []
 
@@ -228,13 +265,17 @@ class TreeMatcher:
             combo for combo in all_wedge_combinations if len(set(combo)) == len(combo)
         ]
 
+        # If there is not a unique wedge combo, return the current position
         if not unique_wedge_combinations:
             return (current_pose[0], current_pose[1])
 
+        # Initializes the lowest standard deviation
         lowest_std_dev = float("inf")
         best_centroid = None
 
         for tree_combo in unique_wedge_combinations:
+
+            # Create vectors from the current position to each tree in the combo
             vectors = []
 
             for i, _tree in enumerate(tree_combo):
@@ -266,11 +307,14 @@ class TreeMatcher:
                     lowest_std_dev = std_dev
                     best_centroid = centroid
 
+        # If there is a best centroid return that
+        # Else return the current position
         if best_centroid:
             return best_centroid
         return (current_pose[0], current_pose[1])
 
-    def create_vectors_from_wedges(self, wedges, current_pose):
+
+    def create_vectors_from_wedges(self, wedges: list[Wedge], current_pose: Pose2d) -> list[tuple[float, float]]:
         """
         Create vectors from wedges for intersection analysis.
 
@@ -278,29 +322,38 @@ class TreeMatcher:
         :param current_pose: Current position estimate as (x, y, heading).
         :return: List of vectors as [[start_point, end_point], ...].
         """
+
+        # Initializes the list of vectors
         vectors = []
+
+        # Loops through all the wedges
         for wedge in wedges:
             if wedge.trees:
                 start_point = (current_pose[0], current_pose[1])
                 theta_rad = math.radians(wedge.ground_theta_deg)
                 heading_rad = math.radians(current_pose[2])
                 direction_rad = heading_rad - theta_rad
+
                 vector_length = 100
                 end_x = current_pose[0] + vector_length * math.cos(direction_rad)
                 end_y = current_pose[1] + vector_length * math.sin(direction_rad)
                 vectors.append([start_point, (end_x, end_y)])
+                
         return vectors
 
-    def find_intersections(self, vectors):
+    def find_intersections(self, vectors: list[tuple[float, float]]) -> list[tuple[float, float]]:
         """
         Find all intersection points between the vectors.
 
         :param vectors: List of vectors as [[start_point, end_point], ...].
         :return: List of intersection points as (x, y) tuples.
         """
+
+        # Gets the list of lines from the vectors and initializes the list of intersection
         lines = [LineString(vec) for vec in vectors]
         intersections = []
 
+        # Loops through each line for an intersection
         for i, line1 in enumerate(lines):
             for j, line2 in enumerate(lines):
                 if i < j and line1.intersects(line2):
@@ -310,20 +363,28 @@ class TreeMatcher:
 
         return intersections
 
-    def mean_centroid(self, points):
+
+    def mean_centroid(self, points: list[tuple[float, float]]) -> tuple[float, float]:
         """
         Calculate the mean centroid of a set of points.
 
         :param points: List of points as (x, y) tuples.
         :return: Centroid as (x, y) tuple or None if empty list.
         """
+
+        # Checks if there are any points
         if not points:
             return None
+        
+        # Gets all the x and y coordinates from each point
         x_coords = [pt[0] for pt in points]
         y_coords = [pt[1] for pt in points]
+
+        # Calculates the mean centroid of all the points
         return (sum(x_coords) / len(x_coords), sum(y_coords) / len(y_coords))
 
-    def std_deviation_of_distances(self, points, centroid):
+
+    def std_deviation_of_distances(self, points: list[tuple[float, float]], centroid: tuple[float, float]) -> float:
         """
         Calculate standard deviation of distances from points to centroid.
 
@@ -332,12 +393,19 @@ class TreeMatcher:
         :return: Standard deviation of distances or None if insufficient
             data.
         """
+
+        # Checks that there is a list of points and there is a centroid
         if not points or centroid is None:
             return None
+        
+        # Gets the distance of each point to the centroid
         distances = [self.distance(pt, centroid) for pt in points]
+
+        # Calculates the standard deviation of all the distances
         return statistics.stdev(distances) if len(distances) > 1 else 0.0
 
-    def analyze_vector_intersections(self, vectors):
+
+    def analyze_vector_intersections(self, vectors: list[tuple[float, float]]) -> tuple[tuple[float, float], list[tuple[float, float]], float]:
         """
         Analyze intersections of vectors to find centroid and standard
         deviation.
@@ -345,18 +413,23 @@ class TreeMatcher:
         :param vectors: List of vectors as [[start_point, end_point], ...].
         :return: Tuple of (centroid, intersections, standard_deviation).
         """
+
+        # Gets the intersections from all the vectors 
         intersections = self.find_intersections(vectors)
 
+        # Checks if there are any intersections
         if not intersections:
             print("No intersections found.")
             return None, None, None
 
+        # Gets the centroid and standard deviation
         centroid = self.mean_centroid(intersections)
         std_dev = self.std_deviation_of_distances(intersections, centroid)
 
         return centroid, intersections, std_dev
 
-    def distance(self, point1, point2):
+
+    def distance(self, point1: tuple[float, float], point2: tuple[float, float]) -> float:
         """
         Calculate Euclidean distance between two points.
 
@@ -364,9 +437,11 @@ class TreeMatcher:
         :param point2: Second point as (x, y) tuple.
         :return: Distance between the points.
         """
-        return math.hypot(point1[0] - point2[0], point1[1] - point2[1])
 
-    def get_relative_angle(self, point, current_pose):
+        return math.hypot(point1[0] - point2[0], point1[1] - point2[1])
+      
+
+    def get_relative_angle(self, point: tuple[float, float], current_pose: Pose2d) -> float:
         """
         Calculate relative angle from current heading to a point.
 
@@ -374,10 +449,12 @@ class TreeMatcher:
         :param current_pose: Current position as (x, y, heading) tuple.
         :return: Relative angle in degrees (-180, 180).
         """
+
         current_x, current_y, current_heading = current_pose
         target_x, target_y = point
         abs_angle_rad = math.atan2(target_y - current_y, target_x - current_x)
         abs_angle_deg = math.degrees(abs_angle_rad)
         rel_angle_deg = abs_angle_deg - current_heading
+
         rel_angle_deg = ((rel_angle_deg + 180) % 360) - 180
         return rel_angle_deg

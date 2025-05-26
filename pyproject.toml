@@ -5,10 +5,10 @@ description = "A tree-based localization method"
 requires-python = ">=3.10"
 dependencies = [
     "opencv-python",
-    "matplotlib",
-    "numpy",
     "pandas",
+    "matplotlib",
     "shapely",
+    "numpy",
 ]
 
 [project.optional-dependencies]

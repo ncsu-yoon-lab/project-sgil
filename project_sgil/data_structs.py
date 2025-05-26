@@ -1,13 +1,13 @@
 """
-project_sgil.data_structs.
+This script handles all global data structs that will be used throughout the scripts
 
-Provides some basic structs for SGIL
+file: data_structs.py
+author: Cole Malinchock and Jack Elia
 """
 
+# Import necessary libraries
 from dataclasses import dataclass, field
 
-
-@dataclass
 class Tree:
     """
     Represents a tree in 2D space.
@@ -21,7 +21,7 @@ class Tree:
     y: float
     id: int
 
-
+      
 @dataclass
 class Wedge:
     """
