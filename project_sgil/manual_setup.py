@@ -11,12 +11,14 @@ import os
 import random
 import cv2
 import pandas as pd
+import matplotlib.pyplot as plt
 
 # Import custom classes
 from constants import *
 from converter import Converter
 from data_structs import *
 from tree_matcher import TreeMatcher
+from debug_visualizer import DebugVisualizer
 
 
 class ManualSelector:
@@ -34,6 +36,7 @@ class ManualSelector:
         # Creates the converter and tree matcher
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
         self.tree_matcher = TreeMatcher()
+        self.debug_visualizer = DebugVisualizer()
 
         # Opens the csv on the data collected by the robot
         self.robot_data_log = pd.read_csv(DATA_LOGGER_PATH)
@@ -131,6 +134,13 @@ class ManualSelector:
         image_path = os.path.join(IMAGE_FOLDER_PATH, image_name)
         image = cv2.imread(image_path)
 
+        if image is None:
+            print(f"Error loading image: {image_path}")
+            return self.get_next_image()
+
+        # Store original image dimensions
+        original_height, original_width = image.shape[:2]
+
         # Define the mouse callback function
         def click_event(event, x, y, flags, param) -> None:
             """Handle mouse click events for point selection."""
@@ -141,28 +151,43 @@ class ManualSelector:
                 # Draw circle at clicked position
                 cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
                 # Update the display
-                cv2.imshow("Select Points", displayed_image)
+                cv2.imshow(window_name, displayed_image)
+
+        # Close any existing matplotlib figures and OpenCV windows
+        plt.close('all')
+        cv2.destroyAllWindows()
+        cv2.waitKey(1)
 
         # Create a copy to display and modify
         displayed_image = image.copy()
 
-        # Create a window and set the callback function
-        cv2.namedWindow("Select Points")
-        cv2.setMouseCallback("Select Points", click_event)
+        # Create a window name with image info for uniqueness
+        window_name = f"Select Points - {image_name}"
+        
+        # Create window and set it to autosize first, then resize
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        cv2.imshow(window_name, displayed_image)
+        
+        # Set the mouse callback function
+        cv2.setMouseCallback(window_name, click_event)
 
-        # Display initial image
-        cv2.imshow("Select Points", displayed_image)
+        print(f"Processing image: {image_name}")
+        print("Left-click to select trees, press Enter when done, ESC to skip")
 
         # Wait for keypress - Enter key will finish selection
         while True:
             key = cv2.waitKey(1) & 0xFF
             # If Enter key is pressed, break the loop
             if key == 13:  # 13 is the ASCII code for Enter
-                cv2.destroyAllWindows()
+                break
+            # If ESC key is pressed, skip this image
+            elif key == 27:  # 27 is the ASCII code for ESC
+                selected_points = []
                 break
 
-        # Close all OpenCV windows
-        cv2.destroyAllWindows()
+        # Close the specific window
+        cv2.destroyWindow(window_name)
+        cv2.waitKey(1)
 
         return image_name, selected_points, pose
 
@@ -179,6 +204,19 @@ class ManualSelector:
         Main execution loop for manual tree selection and position estimation.
         """
 
+    def main(self) -> None:
+        """
+        Main execution loop for manual tree selection and position estimation.
+        """
+
+        print("Starting manual tree selection...")
+        print("Instructions:")
+        print("- Left-click to select trees in the image")
+        print("- Press Enter when done selecting trees")
+        print("- Press ESC to skip current image")
+        print("- Press Ctrl+C to quit")
+        print("- Debug plots will be saved to 'debug_plots/' folder\n")
+
         # Loops until a break
         while True:
 
@@ -190,6 +228,13 @@ class ManualSelector:
                 print("No more images.")
                 break
                 
+            # Skip if no points were selected
+            if not points:
+                print(f"No points selected for {image_name}, skipping...")
+                continue
+                
+            print(f"Selected {len(points)} trees in {image_name}")
+                
             # Initializes a list of ground thetas
             ground_thetas = []
 
@@ -200,14 +245,52 @@ class ManualSelector:
             # Gets the estimated x, y position from tree matcher
             estimated_location_xy = self.tree_matcher.match_trees(current_pose, ground_thetas)
 
+            aoi_sat_trees = self.tree_matcher.aoi_sat_trees
+            all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
+            wedges = self.tree_matcher.wedges
+
+            # Create debug visualization (saved to file, no display conflicts)
+            if PLOT:
+                # Use image name (without extension) as save name
+                save_name = os.path.splitext(image_name)[0]
+                self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, current_pose, save_name)
+                self.debug_visualizer.plot_wedges(self.tree_matcher.wedges, current_pose, aoi_sat_trees, save_name)
+
             # Converts the x, y to lat, lon
             estimated_location_latlon = self.converter.xy_to_latlon(estimated_location_xy)
 
             # Prints the results
-            print(estimated_location_latlon)
+            print(f"Image: {image_name}")
+            print(f"Estimated Location: {estimated_location_latlon}")
             print(
-                f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1])}"
+                f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1]):.2f}m"
             )
+            
+
+            # Loops through all points from the image and appends them to the ground thetas
+            for point in points:
+                ground_thetas.append(self.converter.image_x_to_theta(point[0]))
+
+            # Gets the estimated x, y position from tree matcher
+            estimated_location_xy = self.tree_matcher.match_trees(current_pose, ground_thetas)
+
+            aoi_sat_trees = self.tree_matcher.aoi_sat_trees
+            all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
+
+            # Ensure all OpenCV windows are closed before matplotlib
+            cv2.destroyAllWindows()
+            cv2.waitKey(10)  # Longer wait for cleanup
+
+            # Converts the x, y to lat, lon
+            estimated_location_latlon = self.converter.xy_to_latlon(estimated_location_xy)
+
+            # Prints the results
+            print(f"Image: {image_name}")
+            print(f"Estimated Location: {estimated_location_latlon}")
+            print(
+                f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1]):.2f}m"
+            )
+            print("-" * 50)
 
 
 if __name__ == "__main__":
@@ -219,4 +302,8 @@ if __name__ == "__main__":
     try:
         selector.main()
     except KeyboardInterrupt as e:
+        print("\nProgram interrupted by user")
+        # Clean up any remaining windows
+        cv2.destroyAllWindows()
+        plt.close('all')
         quit()
