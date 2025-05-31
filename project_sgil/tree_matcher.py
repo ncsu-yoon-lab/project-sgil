@@ -116,6 +116,7 @@ class TreeMatcher:
         # Loop through all the trees in the satellite trees to see if they lie within the wedge
         for tree in satellite_trees:
             rel_angle_deg = self.get_relative_angle(tree, current_pose)
+            
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
 
                 wedge.trees.append(Tree(tree[0], tree[1], -1))
