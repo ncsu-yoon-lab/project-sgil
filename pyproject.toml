@@ -37,7 +37,7 @@ extend-ignore = [
     "D104",
 ]
 select = [
-    "E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM", "D", "ANN"
+    "E", "F", "I", "PL", "UP", "RUF", "B", "C4", "SIM", "ANN"
 ]
 extend-select = [
     "ANN201",
@@ -45,6 +45,7 @@ extend-select = [
     "ANN204",
     "ANN205",
     "D213",
+    "D209",
 ]
 
 fixable = ["ALL"]
