@@ -9,6 +9,8 @@ from converter import Converter
 from data_structs import *
 from shapely.geometry import LineString, Point
 
+from project_sgil.utils import distance, get_relative_angle
+
 
 class TreeMatcher:
     """
@@ -23,7 +25,7 @@ class TreeMatcher:
         :param: Initializes the converter and loads satellite tree
             locations.
         """
-        self.all_sat_tree_loc = []
+        self.tree_satellite_locations: list[Tree] = []
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
 
         # Load tree locations from CSV and convert to (x, y) coordinates
@@ -31,29 +33,29 @@ class TreeMatcher:
             scanner = csv.reader(csvfile, delimiter=",")
             for row in scanner:
                 point = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
-                self.all_sat_tree_loc.append(point)
+                self.tree_satellite_locations.append(point)
 
-    def match_trees(self, current_pose, ground_thetas):
+    def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
         """
         Match trees based on current position and ground view angles.
 
-        :param current_pose: Current position and heading as (x, y,
-            heading).
+        :param current_pose: Preliminary position estimation as a Pose2d
         :param ground_thetas: List of camera angles to trees in ground
             view (negative = left, positive = right).
         :return: Estimated location of the vehicle.
         """
         aoi_sat_trees = self.get_area_of_interest(current_pose)
 
+        # Create wedges based on ground view angles and AOI trees
         wedges = []
         for theta in ground_thetas:
             wedges.append(self.create_wedge(current_pose, aoi_sat_trees, theta))
 
-        estimated_location = self.wedge_matching(wedges, current_pose)
+        # estimated_location = self.wedge_matching(wedges, current_pose)
+        #
+        # return estimated_location
 
-        return estimated_location
-
-    def get_area_of_interest(self, current_pose):
+    def get_area_of_interest(self, current_pose: Pose2d) -> list[Point]:
         """
         Identify satellite trees within area of interest.
 
@@ -63,17 +65,18 @@ class TreeMatcher:
         """
         area_of_interest_tree_loc = []
 
-        for tree in self.all_sat_tree_loc:
-            if self.distance(tree, (current_pose[0], current_pose[1])) < AOI_RADIUS_M:
-                rel_angle_deg = self.get_relative_angle(tree, current_pose)
+        for tree in self.tree_satellite_locations:
+            if distance(tree, current_pose) < AOI_RADIUS_M:
+                rel_angle_deg = get_relative_angle(tree, current_pose)
                 if abs(rel_angle_deg) < AOI_ANGLE_DEG:
                     area_of_interest_tree_loc.append(tree)
 
         if PLOT:
-            self.debug_plot_aoi(self.all_sat_tree_loc, area_of_interest_tree_loc, current_pose)
+            self.debug_plot_aoi(self.tree_satellite_locations, area_of_interest_tree_loc, current_pose)
 
         return area_of_interest_tree_loc
 
+    # TODO: move this to a separate debug module
     def debug_plot_aoi(self, all_sat_tree_loc, aoi_sat_trees, current_pose) -> None:
         """
         Visualize AOI trees for debugging.
@@ -355,29 +358,3 @@ class TreeMatcher:
         std_dev = self.std_deviation_of_distances(intersections, centroid)
 
         return centroid, intersections, std_dev
-
-    def distance(self, point1, point2):
-        """
-        Calculate Euclidean distance between two points.
-
-        :param point1: First point as (x, y) tuple.
-        :param point2: Second point as (x, y) tuple.
-        :return: Distance between the points.
-        """
-        return math.hypot(point1[0] - point2[0], point1[1] - point2[1])
-
-    def get_relative_angle(self, point, current_pose):
-        """
-        Calculate relative angle from current heading to a point.
-
-        :param point: Target point as (x, y) tuple.
-        :param current_pose: Current position as (x, y, heading) tuple.
-        :return: Relative angle in degrees (-180, 180).
-        """
-        current_x, current_y, current_heading = current_pose
-        target_x, target_y = point
-        abs_angle_rad = math.atan2(target_y - current_y, target_x - current_x)
-        abs_angle_deg = math.degrees(abs_angle_rad)
-        rel_angle_deg = abs_angle_deg - current_heading
-        rel_angle_deg = ((rel_angle_deg + 180) % 360) - 180
-        return rel_angle_deg

@@ -8,7 +8,19 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class Tree:
+class Point:
+    """
+    Represents a point in 2D space.
+
+    :param x: The x-coordinate.
+    :param y: The y-coordinate.
+    """
+    x: float
+    y: float
+
+
+@dataclass
+class Tree(Point):
     """
     Represents a tree in 2D space.
 
@@ -17,8 +29,6 @@ class Tree:
     :param id: A unique identifier for the tree.
     """
 
-    x: float
-    y: float
     id: int
 
 
@@ -28,19 +38,19 @@ class Wedge:
     Represents an angular wedge containing multiple trees and an optional
     matched tree.
 
-    :param theta_deg: The angle of the wedge in degrees.
+    :param theta_degrees: The angle of the wedge in degrees.
     :param trees: A list of Tree instances contained within the wedge.
     :param matched_tree: An optional Tree that has been matched within
         the wedge; defaults to None.
     """
 
-    theta_deg: float
+    theta_degrees: float
     trees: list[Tree] = field(default_factory=list)
     matched_tree: Tree | None = None
 
 
 @dataclass
-class Pose2d:
+class Pose2d(Point):
     """
     Represents a 2D pose with position and yaw.
 
@@ -49,6 +59,4 @@ class Pose2d:
     :param yaw: The yaw angle (in degrees) of the pose.
     """
 
-    x: float
-    y: float
     yaw: float

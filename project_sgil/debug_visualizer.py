@@ -262,13 +262,13 @@ class DebugVisualizer:
                     c=color,
                     marker="s",
                     alpha=0.8,
-                    label=f"Wedge {i + 1} ({wedge.theta_deg:.1f}°)",
+                    label=f"Wedge {i + 1} ({wedge.theta_degrees:.1f}°)",
                 )
 
             # Draw wedge direction line
             if current_pose:
                 heading_rad = math.radians(current_pose.yaw)
-                theta_rad = math.radians(wedge.theta_deg)
+                theta_rad = math.radians(wedge.theta_degrees)
                 direction_rad = heading_rad - theta_rad
 
                 line_length = 20
