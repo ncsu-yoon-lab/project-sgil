@@ -15,6 +15,7 @@ class Point:
     :param x: The x-coordinate.
     :param y: The y-coordinate.
     """
+
     x: float
     y: float
 

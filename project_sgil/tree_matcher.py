@@ -72,7 +72,9 @@ class TreeMatcher:
                     area_of_interest_tree_loc.append(tree)
 
         if PLOT:
-            self.debug_plot_aoi(self.tree_satellite_locations, area_of_interest_tree_loc, current_pose)
+            self.debug_plot_aoi(
+                self.tree_satellite_locations, area_of_interest_tree_loc, current_pose
+            )
 
         return area_of_interest_tree_loc
 

@@ -13,13 +13,14 @@ def distance(point1: Point, point2: Point) -> float:
     """
     return math.hypot(point1.x - point2.x, point1.y - point2.y)
 
+
 def get_relative_angle(point: Point, current_pose: Pose2d) -> float:
     """
     Calculate the relative angle from the current heading to a point.
 
     :param point: Target point as a Point instance.
-    :param current_pose: Current pose as a Pose2d instance, which includes
-        x, y coordinates and current heading in degrees.
+    :param current_pose: Current pose as a Pose2d instance, which
+        includes x, y coordinates and current heading in degrees.
     :return: Relative angle in degrees (-180, 180).
     """
     abs_angle_rad = math.atan2(point.y - current_pose.y, point.x - current_pose.x)
