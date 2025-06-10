@@ -155,10 +155,7 @@ class SGILMatcherApp:
                 logging.warning(f"No valid pose for {name}; skipping.")
                 continue
 
-            # Convert pixel X to ground‐angle thetas
             ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
-
-            # Match and get XY estimate
             est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
 
             # Convert back to lat/lon

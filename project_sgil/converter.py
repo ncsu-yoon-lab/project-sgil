@@ -2,6 +2,8 @@ import math
 
 from constants import *
 
+from project_sgil.data_structs import Point
+
 
 class Converter:
     def __init__(self, lat_origin, lon_origin) -> None:
@@ -37,12 +39,12 @@ class Converter:
 
         return (x, y)
 
-    def xy_to_latlon(self, point):
+    def xy_to_latlon(self, point: Point):
         # Convert x and y back to latitude and longitude
         # delta_lat and delta_lon are changes in lat and lon from the origin
 
-        x = point[0]
-        y = point[1]
+        x = point.x
+        y = point.y
 
         delta_lat = y / EARTH_RADIUS_M
         delta_lon = x / (EARTH_RADIUS_M * math.cos(math.radians(self.origin[0])))

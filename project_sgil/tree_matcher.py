@@ -31,9 +31,11 @@ class TreeMatcher:
         # Load tree locations from CSV and convert to (x, y) coordinates
         with open(TREE_LOCATIONS_PATH, newline="") as csvfile:
             scanner = csv.reader(csvfile, delimiter=",")
-            for row in scanner:
-                point = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
-                self.tree_satellite_locations.append(point)
+            for idx, row in enumerate(scanner):
+                # unpack lat/lon → x,y
+                x, y = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
+                # now store a Tree (has .x and .y)
+                self.tree_satellite_locations.append(Tree(x=x, y=y, id=idx))
 
     def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
         """
@@ -90,21 +92,21 @@ class TreeMatcher:
         fig, ax = plt.subplots(figsize=(10, 8))
 
         # Plot all satellite trees in blue
-        all_x = [tree[0] for tree in all_sat_tree_loc]
-        all_y = [tree[1] for tree in all_sat_tree_loc]
+        all_x = [tree.x for tree in all_sat_tree_loc]
+        all_y = [tree.y for tree in all_sat_tree_loc]
         ax.scatter(all_x, all_y, s=20, c="blue", alpha=0.5, label="All Trees")
 
         # Plot AOI trees in green
         if aoi_sat_trees and len(aoi_sat_trees) > 0:
-            aoi_x = [tree[0] for tree in aoi_sat_trees]
-            aoi_y = [tree[1] for tree in aoi_sat_trees]
+            aoi_x = [tree.x for tree in aoi_sat_trees]
+            aoi_y = [tree.y for tree in aoi_sat_trees]
             ax.scatter(aoi_x, aoi_y, s=50, c="green", alpha=0.8, label="AOI Trees")
 
         # Plot current position in red
         if current_pose:
             ax.scatter(
-                current_pose[0],
-                current_pose[1],
+                current_pose.x,
+                current_pose.y,
                 s=100,
                 c="red",
                 marker="*",
@@ -112,13 +114,13 @@ class TreeMatcher:
             )
 
             # Draw line showing heading direction
-            heading_rad = math.radians(current_pose[2])
+            heading_rad = math.radians(current_pose.yaw)
             arrow_length = 5
             dx = arrow_length * math.cos(heading_rad)
             dy = arrow_length * math.sin(heading_rad)
             ax.arrow(
-                current_pose[0],
-                current_pose[1],
+                current_pose.x,
+                current_pose.y,
                 dx,
                 dy,
                 head_width=1,
@@ -130,7 +132,7 @@ class TreeMatcher:
         # Add AOI radius circle
         if current_pose:
             circle = plt.Circle(
-                (current_pose[0], current_pose[1]),
+                (current_pose.x, current_pose.y),
                 AOI_RADIUS_M,
                 fill=False,
                 color="red",
@@ -141,13 +143,13 @@ class TreeMatcher:
 
         # Add field of view indicator
         if current_pose:
-            heading_rad = math.radians(current_pose[2])
+            heading_rad = math.radians(current_pose.yaw)
             half_fov = math.radians(AOI_ANGLE_DEG)
             start_angle = heading_rad - half_fov
             end_angle = heading_rad + half_fov
 
             wedge = plt.matplotlib.patches.Wedge(
-                (current_pose[0], current_pose[1]),
+                (current_pose.x, current_pose.y),
                 AOI_RADIUS_M,
                 math.degrees(start_angle),
                 math.degrees(end_angle),
@@ -171,8 +173,8 @@ class TreeMatcher:
         stats_text = (
             f"Total trees: {len(all_sat_tree_loc)}\n"
             f"AOI trees: {len(aoi_sat_trees) if aoi_sat_trees else 0}\n"
-            f"Position: ({current_pose[0]:.1f}, {current_pose[1]:.1f})\n"
-            f"Heading: {current_pose[2]:.1f}°"
+            f"Position: ({current_pose.x:.1f}, {current_pose.y:.1f})\n"
+            f"Heading: {current_pose.yaw:.1f}°"
         )
         plt.figtext(0.02, 0.02, stats_text, fontsize=10, bbox={"facecolor": "white", "alpha": 0.8})
 
@@ -194,9 +196,9 @@ class TreeMatcher:
         wedge = Wedge(theta)
 
         for tree in satellite_trees:
-            rel_angle_deg = self.get_relative_angle(tree, current_pose)
+            rel_angle_deg = get_relative_angle(tree, current_pose)
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
-                wedge.trees.append(Tree(tree[0], tree[1], -1))
+                wedge.trees.append(Tree(tree.x, tree.y, -1))
 
         return wedge
 
