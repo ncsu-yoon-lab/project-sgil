@@ -207,6 +207,7 @@ class DebugVisualizer:
 
     def plot_wedges(self, wedges: list, current_pose: Pose2d, 
                    aoi_trees: list[tuple[float, float]],
+                   estimated_location_xy: tuple[float, float],
                    save_name: str = None) -> None:
         """
         Visualize wedges and their associated trees.
@@ -234,21 +235,48 @@ class DebugVisualizer:
 
         # Plot wedges
         colors = ['green', 'orange', 'purple', 'brown', 'pink', 'gray']
+
+        # Plot heading
+        if current_pose:
+            
+            heading_rad = math.radians(current_pose.yaw)
+            line_length = 5
+            end_x = current_pose.x + line_length * math.cos(heading_rad)
+            end_y = current_pose.y + line_length * math.sin(heading_rad)
+            
+            ax.plot([current_pose.x, end_x], [current_pose.y, end_y], 
+                    color='r', linestyle='-', linewidth=2, alpha=0.7)
+
         for i, wedge in enumerate(wedges):
             color = colors[i % len(colors)]
             
             # Plot trees in this wedge
-            if wedge.trees:
-                wedge_x = [tree.x for tree in wedge.trees]
-                wedge_y = [tree.y for tree in wedge.trees]
-                ax.scatter(wedge_x, wedge_y, s=60, c=color, 
+            if wedge.matched_tree:
+                tree_x = wedge.matched_tree.x
+                tree_y = wedge.matched_tree.y
+                ax.scatter(tree_x, tree_y, s=60, c=color, 
                           marker='s', alpha=0.8, 
-                          label=f"Wedge {i+1} ({wedge.theta_deg:.1f}°)")
+                          label=f"Wedge {i+1} ({-wedge.theta_deg:.1f}°)")
+
+                heading_rad = math.radians(current_pose.yaw)
+                theta_rad = math.radians(wedge.theta_deg * -1.0)
+                direction_rad = (heading_rad - theta_rad - math.radians(180)) % 360
+                # print("Displayed heading: ", math.degrees(heading_rad))
+                # print("Displayed theta: ", math.degrees(theta_rad))
+                # print("Displayed altered direction: ", math.degrees(direction_rad))
+                # print("Displayed start x: ", tree_x)
+                # print("Displayed start y: ", tree_y)
+                line_length = 25
+                end_x = tree_x + line_length * math.cos(direction_rad)
+                end_y = tree_y + line_length * math.sin(direction_rad)
+                
+                ax.plot([tree_x, end_x], [tree_y, end_y], 
+                       color=color, linestyle='-', linewidth=2, alpha=0.7)
 
             # Draw wedge direction line
             if current_pose:
                 heading_rad = math.radians(current_pose.yaw)
-                theta_rad = math.radians(wedge.theta_deg)
+                theta_rad = math.radians(wedge.theta_deg * -1.0)
                 direction_rad = heading_rad - theta_rad
                 
                 line_length = 20
@@ -257,6 +285,9 @@ class DebugVisualizer:
                 
                 ax.plot([current_pose.x, end_x], [current_pose.y, end_y], 
                        color=color, linestyle='--', linewidth=2, alpha=0.7)
+        
+            ax.scatter(estimated_location_xy[0], estimated_location_xy[1], s=100, c="green", 
+                        marker="*", label="Estimated Position")
 
         # Set equal aspect ratio
         ax.set_aspect("equal")

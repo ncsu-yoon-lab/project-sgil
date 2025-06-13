@@ -241,9 +241,11 @@ class ManualSelector:
             # Loops through all points from the image and appends them to the ground thetas
             for point in points:
                 ground_thetas.append(self.converter.image_x_to_theta(point[0]))
-
+                
             # Gets the estimated x, y position from tree matcher
             estimated_location_xy = self.tree_matcher.match_trees(current_pose, ground_thetas)
+
+            print("Estimated location xy: ", estimated_location_xy)
 
             aoi_sat_trees = self.tree_matcher.aoi_sat_trees
             all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
@@ -254,7 +256,7 @@ class ManualSelector:
                 # Use image name (without extension) as save name
                 save_name = os.path.splitext(image_name)[0]
                 self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, current_pose, save_name)
-                self.debug_visualizer.plot_wedges(self.tree_matcher.wedges, current_pose, aoi_sat_trees, save_name)
+                self.debug_visualizer.plot_wedges(self.tree_matcher.wedges, current_pose, aoi_sat_trees, estimated_location_xy, save_name)
 
             # Converts the x, y to lat, lon
             estimated_location_latlon = self.converter.xy_to_latlon(estimated_location_xy)
@@ -263,34 +265,8 @@ class ManualSelector:
             print(f"Image: {image_name}")
             print(f"Estimated Location: {estimated_location_latlon}")
             print(
-                f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1]):.2f}m"
+                f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1]):.5f}m"
             )
-            
-
-            # Loops through all points from the image and appends them to the ground thetas
-            for point in points:
-                ground_thetas.append(self.converter.image_x_to_theta(point[0]))
-
-            # Gets the estimated x, y position from tree matcher
-            estimated_location_xy = self.tree_matcher.match_trees(current_pose, ground_thetas)
-
-            aoi_sat_trees = self.tree_matcher.aoi_sat_trees
-            all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
-
-            # Ensure all OpenCV windows are closed before matplotlib
-            cv2.destroyAllWindows()
-            cv2.waitKey(10)  # Longer wait for cleanup
-
-            # Converts the x, y to lat, lon
-            estimated_location_latlon = self.converter.xy_to_latlon(estimated_location_xy)
-
-            # Prints the results
-            print(f"Image: {image_name}")
-            print(f"Estimated Location: {estimated_location_latlon}")
-            print(
-                f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1]):.2f}m"
-            )
-            print("-" * 50)
 
 
 if __name__ == "__main__":

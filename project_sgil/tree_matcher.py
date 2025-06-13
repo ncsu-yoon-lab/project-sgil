@@ -54,7 +54,7 @@ class TreeMatcher:
         :param current_pose: Current position and heading as (x, y,
             heading).
         :param ground_thetas: List of camera angles to trees in ground
-            view (negative = left, positive = right).
+            view (positive = left, negative = right).
         :return: Estimated location of the vehicle.
         """
 
@@ -63,8 +63,9 @@ class TreeMatcher:
 
         # Loop through all the thetas and make their corresponding wedges
         for theta in ground_thetas:
+            
             self.wedges.append(self.create_wedge(current_pose, self.aoi_sat_trees, theta))
-
+            
         # Estimate the location by matching the wedges to the identified trees
         estimated_location = self.wedge_matching(self.wedges, current_pose)
 
@@ -109,7 +110,7 @@ class TreeMatcher:
         :return: Wedge object containing the theta and trees in the
             wedge.
         """
-
+        
         # Create a wedge based on the given theta
         wedge = Wedge(theta)
 
@@ -118,8 +119,9 @@ class TreeMatcher:
             rel_angle_deg = self.get_relative_angle(tree, current_pose)
             
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
-
                 wedge.trees.append(Tree(tree[0], tree[1], -1))
+
+        print(f"Wedge created with {len(wedge.trees)} trees")
 
         return wedge
 
@@ -138,23 +140,30 @@ class TreeMatcher:
         matched_wedges = []
         unmatched_wedges = []
 
+        # Loops through all the wedges and separates them into matched and unmatched
         for wedge in wedges:
             if len(wedge.trees) == 1:
                 matched_wedges.append(wedge)
+                wedge.matched_tree = wedge.trees[0]
             elif len(wedge.trees) > 1:
                 unmatched_wedges.append(wedge)
-
+                
+        # If there are no unmatched wedges, but at least two matched wedges, create vectors and analyze intersections
         if len(unmatched_wedges) == 0 and len(matched_wedges) >= 2:
             vectors = self.create_vectors_from_wedges(matched_wedges, current_pose)
             centroid, _, std_dev = self.analyze_vector_intersections(vectors)
+
             return centroid
 
+        # Loops through all the unmatched wedges and creates a list of combinations of trees
         wedge_combinations = [wedge.trees for wedge in unmatched_wedges]
-
+        
+        # if there are no wedge combinations found, return the current position
         if not wedge_combinations:
             print("No wedge found")
             return (current_pose.x, current_pose.y)
 
+        # Create all the combinations of wedges and filter for unique combinations
         all_wedge_combinations = list(product(*wedge_combinations))
         unique_wedge_combinations = [
             combo for combo in all_wedge_combinations if len(set(tree.id for tree in combo)) == len(combo)
@@ -168,44 +177,72 @@ class TreeMatcher:
         # Initializes the lowest standard deviation
         lowest_std_dev = float("inf")
         best_centroid = None
-
+        best_combo = None
+        
+        # Loops through each unique wedge combination
         for tree_combo in unique_wedge_combinations:
 
             # Create vectors from the current position to each tree in the combo
             vectors = []
 
-            for i, _tree in enumerate(tree_combo):
+            # Create vectors for each tree in the combo and matched wedges
+            for i, tree in enumerate(tree_combo):
+                
                 if i < len(unmatched_wedges):
+
                     wedge = unmatched_wedges[i]
-                    start_point = (current_pose.x, current_pose.y)
+                    start_point = (tree.x, tree.y)
                     heading_rad = math.radians(current_pose.yaw)
-                    theta_rad = math.radians(wedge.theta_deg)
-                    direction_rad = heading_rad - theta_rad
+                    theta_rad = math.radians(wedge.theta_deg * -1.0)
+                    direction_rad = (heading_rad - theta_rad - math.radians(180)) % 360
                     vector_length = 100
-                    end_x = current_pose.x + vector_length * math.cos(direction_rad)
-                    end_y = current_pose.y + vector_length * math.sin(direction_rad)
+                    end_x = tree.x + vector_length * math.cos(direction_rad)
+                    end_y = tree.y + vector_length * math.sin(direction_rad)
+                    # print("Unmatched heading: ", math.degrees(heading_rad))
+                    # print("Unmatched theta: ", math.degrees(theta_rad))
+                    # print("Unmatched altered heading: ", math.degrees(direction_rad))
+                    # print("Unmatched start x: ", start_point[0])
+                    # print("Unmatched start y: ", start_point[1])
                     vectors.append([start_point, (end_x, end_y)])
 
             for wedge in matched_wedges:
-                if wedge.trees:
-                    start_point = (current_pose.x, current_pose.y)
-                    theta_rad = math.radians(wedge.theta_deg)
+                if wedge.matched_tree:
+                    
+                    start_point = (wedge.matched_tree.x, wedge.matched_tree.y)
+                    theta_rad = math.radians(wedge.theta_deg * -1.0)
                     heading_rad = math.radians(current_pose.yaw)
-                    direction_rad = heading_rad - theta_rad
+                    direction_rad = (heading_rad - theta_rad - math.radians(180)) % 360
                     vector_length = 100
-                    end_x = current_pose.x + vector_length * math.cos(direction_rad)
-                    end_y = current_pose.y + vector_length * math.sin(direction_rad)
+                    end_x = wedge.matched_tree.x + vector_length * math.cos(direction_rad)
+                    end_y = wedge.matched_tree.y + vector_length * math.sin(direction_rad)
+                    # print("Matched heading: ", math.degrees(heading_rad))
+                    # print("Matched theta: ", math.degrees(theta_rad))
+                    # print("Matched altered heading: ", math.degrees(direction_rad))
+                    # print("Matched start x: ", start_point[0])
+                    # print("Matched start y: ", start_point[1])
                     vectors.append([start_point, (end_x, end_y)])
-
+                    
             if len(vectors) >= 2:
+                
                 centroid, intersections, std_dev = self.analyze_vector_intersections(vectors)
                 if centroid and std_dev is not None and std_dev < lowest_std_dev:
+                    best_combo = tree_combo
                     lowest_std_dev = std_dev
                     best_centroid = centroid
 
         # If there is a best centroid return that
         # Else return the current position
-        if best_centroid:
+        if best_centroid and best_combo:
+
+            # Match the combinations with their wedges
+            combo_idx = 0
+            for i in range(len(wedges)):
+                if wedges[i].matched_tree is None:
+                    wedges[i].matched_tree = best_combo[combo_idx]
+                    combo_idx += 1
+            
+            self.wedges = wedges
+
             return best_centroid
         
         print("No best centroid")
@@ -246,20 +283,61 @@ class TreeMatcher:
         :param vectors: List of vectors as [[start_point, end_point], ...].
         :return: List of intersection points as (x, y) tuples.
         """
-
+        
         # Gets the list of lines from the vectors and initializes the list of intersection
-        lines = [LineString(vec) for vec in vectors]
+        # lines = [LineString(vec) for vec in vectors]
+        # intersections = []
+        
+        # # Loops through each line for an intersection
+        # for i, line1 in enumerate(lines):
+        #     for j, line2 in enumerate(lines):
+        #         print("Line 1: ", line1)
+        #         print("Line 2: ", line2)
+        #         if i < j and line1.intersects(line2):
+        #             inter = line1.intersection(line2)
+                    
+        #             if isinstance(inter, Point):
+        #                 intersections.append((inter.x, inter.y))
+
         intersections = []
-
-        # Loops through each line for an intersection
-        for i, line1 in enumerate(lines):
-            for j, line2 in enumerate(lines):
-                if i < j and line1.intersects(line2):
-                    inter = line1.intersection(line2)
-                    if isinstance(inter, Point):
-                        intersections.append((inter.x, inter.y))
-
+        
+        for i in range(len(vectors)):
+            j = i
+            while(j < len(vectors)):
+                
+                if i != j:
+                    # print(f"Combo: ({vectors[i]}, {vectors[j]}")
+                    intersections.append(self.find_intersection(vectors[i], vectors[j]))
+                j += 1
+                        
         return intersections
+    
+    def find_intersection(self, vector1, vector2):
+        delta1_x = vector1[1][0] - vector1[0][0]
+        delta1_y = vector1[1][1] - vector1[0][1]
+
+        delta2_x = vector2[1][0] - vector2[0][0]
+        delta2_y = vector2[1][1] - vector2[0][1]
+
+        if delta1_x == 0:
+            m1 = 9999.9
+        else:
+            m1 = delta1_y / delta1_x
+        
+        if delta2_x == 0:
+            m2 = 9999.9
+        else:
+            m2 = delta2_y / delta2_x
+        
+        b1 = - (vector1[0][0] * m1) + vector1[0][1]
+        b2 = - (vector2[0][0] * m2) + vector2[0][1]
+
+        x_int = (b1 - b2) / (m2 - m1)
+        y_int = m1 * x_int + b1
+
+        intersection = (x_int, y_int)
+
+        return intersection
 
 
     def mean_centroid(self, points: list[tuple[float, float]]) -> tuple[float, float]:
@@ -314,7 +392,7 @@ class TreeMatcher:
 
         # Gets the intersections from all the vectors 
         intersections = self.find_intersections(vectors)
-
+        
         # Checks if there are any intersections
         if not intersections:
             print("No intersections found.")
@@ -355,4 +433,5 @@ class TreeMatcher:
         rel_angle_deg = abs_angle_deg - current_heading
 
         rel_angle_deg = ((rel_angle_deg + 180) % 360) - 180
+        
         return rel_angle_deg

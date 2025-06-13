@@ -135,7 +135,7 @@ class Converter:
         dpp = H_FOV_DEG / 2
 
         # Calculate theta
-        theta = dpp * offset_x / center_x
+        theta = dpp * offset_x / center_x * -1.0
 
         return theta
 
@@ -151,6 +151,6 @@ class Converter:
         """
 
         # Subtract the offset from the heading
-        yaw = -heading + 90
+        yaw = (450 - heading) % 360
 
         return yaw
