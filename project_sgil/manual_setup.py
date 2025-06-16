@@ -1,222 +1,186 @@
-"""
-Manual tree selection interface for ground view analysis and matching with
-satellite data using pre-collected and pre-labeled dataset.
-
-file: manual_selector.py
-author: Cole Malinchock and Jack Elia
-"""
-
-# Import the necessary libraries
+import logging
 import os
 import random
+
 import cv2
 import pandas as pd
-
-# Import custom classes
-from constants import *
+from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM
 from converter import Converter
-from data_structs import *
+from data_structs import Point, Pose2d
 from tree_matcher import TreeMatcher
 
+logging.basicConfig(level=logging.INFO)
 
-class ManualSelector:
+
+class SGILMatcherApp:
     """
-    Manual tree selector for selecting trees from pre-collected campus
-    imagery. Designed to be replaced by automated detection system.
+    Encapsulates the SGIL tree‐matching workflow:
+      1. Reads robot GPS/RTK logs.
+      2. Presents each image for the user to click tree locations.
+      3. Converts clicks into ground angles.
+      4. Matches trees via TreeMatcher.
+      5. Computes and prints error metrics.
     """
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        image_folder: str = IMAGE_FOLDER_PATH,
+        data_log_path: str = DATA_LOGGER_PATH,
+        origin: tuple[float, float] = ORIGIN,
+        randomize: bool = RANDOM,
+    ) -> None:
         """
-        Initialize the ManualSelector with converter, tree matcher, and data
-        logging capabilities.
+        :param image_folder: Path containing the .jpg images.
+        :param data_log_path: CSV with columns including
+                              image_filename, rtk_lat, rtk_lon,
+                              rtk_heading, gps_lat, gps_lon.
+        :param origin: (lat, lon) of the converter origin.
+        :param randomize: Whether to pick the next image at random.
         """
-        
-        # Creates the converter and tree matcher
-        self.converter = Converter(ORIGIN[0], ORIGIN[1])
+        self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher()
+        self.image_folder = image_folder
+        self.randomize = randomize
 
-        # Opens the csv on the data collected by the robot
-        self.robot_data_log = pd.read_csv(DATA_LOGGER_PATH)
+        # Load robot log into a DataFrame once
+        self.robot_data_log = pd.read_csv(data_log_path)
 
-        # Initializes the gps pose and correct pose
-        self.correct_pose = None
-        self.gps_pose = None
-        
-        # Initialize image list and current index as instance variables
-        self.image_list = [
-            f for f in sorted(os.listdir(IMAGE_FOLDER_PATH)) if f.lower().endswith(".jpg")
-        ]
-        self.current_index = 0
+        # Will be set on each call to get_gps_pose
+        self.correct_pose: tuple[float, float] | None = None
+        self.gps_pose: tuple[float, float] | None = None
 
-    def get_current_pose(self, image_name: str) -> Pose2d:
+        # Prepare image list state
+        self._image_list: list[str] = sorted(
+            f for f in os.listdir(self.image_folder) if f.lower().endswith(".jpg")
+        )
+        self._current_index: int = 0
+
+    def get_current_pose(self, image_name: str) -> Pose2d | None:
         """
-        Extract pose information from data log based on image filename.
+        Lookup the RTK/GPS pose for a given image filename.
 
-        :param image_name: Image filename to match against log entries.
-        :return: GPS pose as (x, y, heading) or None if not found.
+        :param image_name: Name of the .jpg image.
+        :return: Pose2d if RTK heading is valid; otherwise None.
         """
-
-        # Gets the row from the log with the image filename
-        matching_rows = self.robot_data_log[
-            self.robot_data_log["image_filename"].str.contains(image_name, case=False, na=False)
-        ]
-
-        # Check if we found any matching rows
-        if matching_rows.empty:
+        df = self.robot_data_log
+        matches = df[df["image_filename"].str.contains(image_name, case=False, na=False)]
+        if matches.empty or pd.isna(matches.iloc[0]["rtk_heading"]):
             return None
 
-        # Get the first matching row
-        matching_row = matching_rows.iloc[0]
+        return self.get_gps_pose(matches.iloc[0])
 
-        # Checks if the heading is none and returns None
-        if pd.isna(matching_row["rtk_heading"]):
-            return None
-
-        # Gets the gps pose from the matching row
-        gps_pose = self.get_gps_pose(matching_row)
-
-        return gps_pose
-
-    def get_gps_pose(self, row) -> Pose2d:
+    def get_gps_pose(self, row: pd.Series) -> Pose2d:
         """
-        Convert GPS coordinates from data log row to local coordinate system.
+        Convert a log row into a Pose2d using RTK for yaw.
 
-        :param row: DataFrame row containing RTK GPS data.
-        :return: Pose in local coordinates as (x, y, yaw).
+        Also updates internal gps_pose/correct_pose for error logging.
+        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading,
+            gps_lat, gps_lon.
+        :return: Pose2d in local XY + yaw degrees.
         """
+        # Convert lat/lon to XY
+        x, y = self.converter.latlon_to_xy((row["rtk_lat"], row["rtk_lon"]))
+        yaw = self.converter.heading_to_yaw(row["rtk_heading"])
 
-        # Gets the x, y point by converting the values of the rows lat, lon
-        xy_point = self.converter.latlon_to_xy((row["rtk_lat"], row["rtk_lon"]))
-
-        # Taking heading from rtk for now, need to fix eventually
-        yaw_deg = self.converter.heading_to_yaw(row["rtk_heading"])
-
-        # Gets the correct pose from the rtk
+        # Store lat/lon for later error computation
         self.correct_pose = (row["rtk_lat"], row["rtk_lon"])
+        self.gps_pose = (row["gps_lat"], row["gps_lon"])
 
-        return Pose2d(xy_point[0], xy_point[1], yaw_deg)
+        return Pose2d(x=x, y=y, yaw=yaw)
 
-    def get_next_image(self) -> tuple[str, list[float], Pose2d]:
+    def get_next_image(
+        self,
+    ) -> tuple[str, list[Point], Pose2d | None]:
         """
-        Load next image for manual tree selection with interactive interface.
+        Retrieves the next image, shows it for manual tree picking, and
+        returns the clicks and pose.
 
-        :return: Tuple of (image_name, selected_points, pose) or ("0", [], None)
-            if no more images.
+        :return:
+          - image_name: filename or "0" when exhausted
+          - selected_points: list of image‐pixel Points
+          - pose: corresponding Pose2d or None
         """
-
-        # If all images are processed, return '0' and an empty list
-        if self.current_index >= len(self.image_list):
+        if self._current_index >= len(self._image_list):
             return "0", [], None
 
-        # Get the current image name and increment the index
-        image_name = self.image_list[self.current_index]
-
-        # If randomly generating images or not
-        if RANDOM:
-            self.current_index = random.randint(1, len(self.image_list) - 1)
+        # Grab and advance index (random or sequential)
+        image_name = self._image_list[self._current_index]
+        if self.randomize:
+            self._current_index = random.randint(0, len(self._image_list) - 1)
         else:
-            self.current_index += 1
+            self._current_index += 1
 
-        # Gets the pose from the current image name
+        # Get the pose for this image
         pose = self.get_current_pose(image_name)
+        selected_points: list[Point] = []
 
-        # If pose is None, recursively call to get the next image
-        if pose is None:
-            return self.get_next_image()
+        if not pose:
+            return image_name, selected_points, None
 
-        # List to store selected points
-        selected_points = []
+        # Load and display for click events
+        path = os.path.join(self.image_folder, image_name)
+        image = cv2.imread(path)
+        display = image.copy()
 
-        # Load the image
-        image_path = os.path.join(IMAGE_FOLDER_PATH, image_name)
-        image = cv2.imread(image_path)
+        def click_event(evt, x, y, flags, param) -> None:
+            if evt == cv2.EVENT_LBUTTONDOWN:
+                selected_points.append(Point(x, y))
+                cv2.circle(display, (x, y), 5, (0, 255, 0), -1)
+                cv2.imshow("Select Trees", display)
 
-        # Define the mouse callback function
-        def click_event(event, x, y, flags, param) -> None:
-            """Handle mouse click events for point selection."""
-            # Check if left mouse button was clicked
-            if event == cv2.EVENT_LBUTTONDOWN:
-                # Add point to list
-                selected_points.append((x, y))
-                # Draw circle at clicked position
-                cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
-                # Update the display
-                cv2.imshow("Select Points", displayed_image)
+        cv2.namedWindow("Select Trees")
+        cv2.setMouseCallback("Select Trees", click_event)
+        cv2.imshow("Select Trees", display)
 
-        # Create a copy to display and modify
-        displayed_image = image.copy()
-
-        # Create a window and set the callback function
-        cv2.namedWindow("Select Points")
-        cv2.setMouseCallback("Select Points", click_event)
-
-        # Display initial image
-        cv2.imshow("Select Points", displayed_image)
-
-        # Wait for keypress - Enter key will finish selection
+        # Wait until Enter is pressed
         while True:
-            key = cv2.waitKey(1) & 0xFF
-            # If Enter key is pressed, break the loop
-            if key == 13:  # 13 is the ASCII code for Enter
-                cv2.destroyAllWindows()
+            if (cv2.waitKey(1) & 0xFF) == 13:
                 break
-
-        # Close all OpenCV windows
         cv2.destroyAllWindows()
 
         return image_name, selected_points, pose
 
-    def reset_image_iteration(self) -> None:
+    def run(self) -> None:
         """
-        Reset image iteration counter to start processing from beginning.
+        Main application loop: for each image, collect clicks,
+        compute ground angles, match trees, and print errors.
         """
-
-        # Set the current index to 0
-        self.current_index = 0
-
-    def main(self) -> None:
-        """
-        Main execution loop for manual tree selection and position estimation.
-        """
-
-        # Loops until a break
         while True:
-
-            # Gets the next image
-            image_name, points, current_pose = self.get_next_image()
-
-            # Checks if there are no more images
-            if image_name == "0":
-                print("No more images.")
+            name, points, pose = self.get_next_image()
+            if name == "0":
+                logging.info("All images processed. Exiting.")
                 break
-                
-            # Initializes a list of ground thetas
-            ground_thetas = []
 
-            # Loops through all points from the image and appends them to the ground thetas
-            for point in points:
-                ground_thetas.append(self.converter.image_x_to_theta(point[0]))
+            if not pose:
+                logging.warning(f"No valid pose for {name}; skipping.")
+                continue
 
-            # Gets the estimated x, y position from tree matcher
-            estimated_location_xy = self.tree_matcher.match_trees(current_pose, ground_thetas)
+            ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
+            est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
 
-            # Converts the x, y to lat, lon
-            estimated_location_latlon = self.converter.xy_to_latlon(estimated_location_xy)
+            # Convert back to lat/lon
+            est_latlon = self.converter.xy_to_latlon(est_xy)
 
-            # Prints the results
-            print(estimated_location_latlon)
-            print(
-                f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1])}"
+            # Print out GPS vs SGIL errors
+            assert self.correct_pose and self.gps_pose, "Pose info missing!"
+            gps_err = self.converter.haversine(
+                self.gps_pose[0],
+                self.gps_pose[1],
+                self.correct_pose[0],
+                self.correct_pose[1],
             )
+            sgil_err = self.converter.haversine(
+                est_latlon[0],
+                est_latlon[1],
+                self.correct_pose[0],
+                self.correct_pose[1],
+            )
+
+            logging.info(f"Image: {name}")
+            logging.info(f"  Estimated LatLon: {est_latlon}")
+            logging.info(f"  GPS error (m):     {gps_err:.2f}")
+            logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
 
 
 if __name__ == "__main__":
-
-    # Creates the manual selector object
-    selector = ManualSelector()
-
-    # Tries the main until there is a keyboard interrupt
-    try:
-        selector.main()
-    except KeyboardInterrupt as e:
-        quit()
+    SGILMatcherApp().run()
