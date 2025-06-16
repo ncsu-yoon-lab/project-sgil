@@ -283,21 +283,6 @@ class TreeMatcher:
         :param vectors: List of vectors as [[start_point, end_point], ...].
         :return: List of intersection points as (x, y) tuples.
         """
-        
-        # Gets the list of lines from the vectors and initializes the list of intersection
-        # lines = [LineString(vec) for vec in vectors]
-        # intersections = []
-        
-        # # Loops through each line for an intersection
-        # for i, line1 in enumerate(lines):
-        #     for j, line2 in enumerate(lines):
-        #         print("Line 1: ", line1)
-        #         print("Line 2: ", line2)
-        #         if i < j and line1.intersects(line2):
-        #             inter = line1.intersection(line2)
-                    
-        #             if isinstance(inter, Point):
-        #                 intersections.append((inter.x, inter.y))
 
         intersections = []
         
