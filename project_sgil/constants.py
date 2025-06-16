@@ -11,7 +11,8 @@ TREE_LOCATIONS_PATH = "dataset/TreeLocations-Manual.csv"
 DATA_LOGGER_PATH = "dataset/GroundPositionLogger.csv"
 # DATA_LOGGER_PATH = "dataset\\position_data_logger-QLoc.csv"
 # Path to the folder with all the images
-IMAGE_FOLDER_PATH = "dataset/images"
+#IMAGE_FOLDER_PATH = "dataset/images"
+IMAGE_FOLDER_PATH = '../dataset/images'
 
 # Boolean to plot points of trees
 PLOT = True

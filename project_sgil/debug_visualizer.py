@@ -256,16 +256,12 @@ class DebugVisualizer:
                 tree_y = wedge.matched_tree.y
                 ax.scatter(tree_x, tree_y, s=60, c=color, 
                           marker='s', alpha=0.8, 
-                          label=f"Wedge {i+1} ({-wedge.theta_deg:.1f}°)")
+                          label=f"Wedge {i+1} ({-wedge.theta_degrees:.1f}°)")
 
                 heading_rad = math.radians(current_pose.yaw)
-                theta_rad = math.radians(wedge.theta_deg * -1.0)
+                theta_rad = math.radians(wedge.theta_degrees * -1.0)
                 direction_rad = (heading_rad - theta_rad - math.radians(180)) % 360
-                # print("Displayed heading: ", math.degrees(heading_rad))
-                # print("Displayed theta: ", math.degrees(theta_rad))
-                # print("Displayed altered direction: ", math.degrees(direction_rad))
-                # print("Displayed start x: ", tree_x)
-                # print("Displayed start y: ", tree_y)
+                
                 line_length = 25
                 end_x = tree_x + line_length * math.cos(direction_rad)
                 end_y = tree_y + line_length * math.sin(direction_rad)
@@ -276,7 +272,7 @@ class DebugVisualizer:
             # Draw wedge direction line
             if current_pose:
                 heading_rad = math.radians(current_pose.yaw)
-                theta_rad = math.radians(wedge.theta_deg * -1.0)
+                theta_rad = math.radians(wedge.theta_degrees * -1.0)
                 direction_rad = heading_rad - theta_rad
                 
                 line_length = 20
@@ -286,7 +282,7 @@ class DebugVisualizer:
                 ax.plot([current_pose.x, end_x], [current_pose.y, end_y], 
                        color=color, linestyle='--', linewidth=2, alpha=0.7)
         
-            ax.scatter(estimated_location_xy[0], estimated_location_xy[1], s=100, c="green", 
+            ax.scatter(estimated_location_xy.x, estimated_location_xy.y, s=100, c="green", 
                         marker="*", label="Estimated Position")
 
         # Set equal aspect ratio

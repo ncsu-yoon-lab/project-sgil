@@ -1,13 +1,21 @@
+"""
+Manual tree selection interface for ground view analysis and matching with
+satellite data using pre-collected and pre-labeled dataset.
+
+file: manual_selector.py
+author: Cole Malinchock and Jack Elia
+"""
+
+# Import standard libraries
 import logging
 import os
 import random
-
 import cv2
 import pandas as pd
 import matplotlib.pyplot as plt
 
 # Import custom classes
-from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM
+from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM, PLOT
 from converter import Converter
 from data_structs import Point, Pose2d
 from tree_matcher import TreeMatcher
@@ -44,6 +52,8 @@ class SGILMatcherApp:
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher()
         self.debug_visualizer = DebugVisualizer()
+        self.image_folder = image_folder
+        self.randomize = randomize
 
         # Load robot log into a DataFrame once
         self.robot_data_log = pd.read_csv(data_log_path)
@@ -58,6 +68,7 @@ class SGILMatcherApp:
         )
         self._current_index: int = 0
 
+
     def get_current_pose(self, image_name: str) -> Pose2d | None:
         """
         Lookup the RTK/GPS pose for a given image filename.
@@ -71,6 +82,7 @@ class SGILMatcherApp:
             return None
 
         return self.get_gps_pose(matches.iloc[0])
+
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
         """
@@ -90,6 +102,7 @@ class SGILMatcherApp:
         self.gps_pose = (row["gps_lat"], row["gps_lon"])
 
         return Pose2d(x=x, y=y, yaw=yaw)
+
 
     def get_next_image(
         self,
@@ -132,7 +145,7 @@ class SGILMatcherApp:
                 cv2.imshow("Select Trees", display)
 
         if image is None:
-            print(f"Error loading image: {image_path}")
+            print(f"Error loading image: {image_name}")
             return self.get_next_image()
 
         # Store original image dimensions
@@ -144,7 +157,7 @@ class SGILMatcherApp:
             # Check if left mouse button was clicked
             if event == cv2.EVENT_LBUTTONDOWN:
                 # Add point to list
-                selected_points.append((x, y))
+                selected_points.append(Point(x, y))
                 # Draw circle at clicked position
                 cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
                 # Update the display
@@ -188,9 +201,10 @@ class SGILMatcherApp:
 
         return image_name, selected_points, pose
 
-    def main(self) -> None:
+    def run(self) -> None:
         """
-        Main execution loop for manual tree selection and position estimation.
+        Main application loop: for each image, collect clicks,
+        compute ground angles, match trees, and print errors.
         """
 
         print("Starting manual tree selection...")
@@ -201,31 +215,21 @@ class SGILMatcherApp:
         print("- Press Ctrl+C to quit")
         print("- Debug plots will be saved to 'debug_plots/' folder\n")
 
-        # Loops until a break
         while True:
             name, points, pose = self.get_next_image()
+
             if name == "0":
                 logging.info("All images processed. Exiting.")
                 break
-                
-            # Skip if no points were selected
-            if not points:
-                print(f"No points selected for {image_name}, skipping...")
+
+            if not pose:
+                logging.warning(f"No valid pose for {name}; skipping.")
                 continue
-                
-            print(f"Selected {len(points)} trees in {image_name}")
-                
-            # Initializes a list of ground thetas
-            ground_thetas = []
 
-            # Loops through all points from the image and appends them to the ground thetas
-            for point in points:
-                ground_thetas.append(self.converter.image_x_to_theta(point[0]))
-                
-            # Gets the estimated x, y position from tree matcher
-            estimated_location_xy = self.tree_matcher.match_trees(current_pose, ground_thetas)
+            ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
+            est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
 
-            print("Estimated location xy: ", estimated_location_xy)
+            print("Estimated location xy: ", est_xy)
 
             aoi_sat_trees = self.tree_matcher.aoi_sat_trees
             all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
@@ -234,17 +238,28 @@ class SGILMatcherApp:
             # Create debug visualization (saved to file, no display conflicts)
             if PLOT:
                 # Use image name (without extension) as save name
-                save_name = os.path.splitext(image_name)[0]
-                self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, current_pose, save_name)
-                self.debug_visualizer.plot_wedges(self.tree_matcher.wedges, current_pose, aoi_sat_trees, estimated_location_xy, save_name)
+                save_name = os.path.splitext(name)[0]
+                self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, pose, save_name)
+                self.debug_visualizer.plot_wedges(wedges, pose, aoi_sat_trees, est_xy, save_name)
 
-            # Converts the x, y to lat, lon
-            estimated_location_latlon = self.converter.xy_to_latlon(estimated_location_xy)
 
-            # Prints the results
-            print(f"Image: {image_name}")
-            print(f"Estimated Location: {estimated_location_latlon}")
-            print(f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1]):.5f}m")
+            # Convert back to lat/lon
+            est_latlon = self.converter.xy_to_latlon(est_xy)
+
+            # Print out GPS vs SGIL errors
+            assert self.correct_pose and self.gps_pose, "Pose info missing!"
+            gps_err = self.converter.haversine(
+                self.gps_pose[0],
+                self.gps_pose[1],
+                self.correct_pose[0],
+                self.correct_pose[1],
+            )
+            sgil_err = self.converter.haversine(
+                est_latlon[0],
+                est_latlon[1],
+                self.correct_pose[0],
+                self.correct_pose[1],
+            )
 
             logging.info(f"Image: {name}")
             logging.info(f"  Estimated LatLon: {est_latlon}")
@@ -253,16 +268,4 @@ class SGILMatcherApp:
 
 
 if __name__ == "__main__":
-    
-    # Creates the manual selector object
-    selector = ManualSelector()
-  
-    # Tries the main until there is a keyboard interrupt
-    try:
-        selector.main()
-    except KeyboardInterrupt as e:
-        print("\nProgram interrupted by user")
-        # Clean up any remaining windows
-        cv2.destroyAllWindows()
-        plt.close('all')
-        quit()
+    SGILMatcherApp().run()
