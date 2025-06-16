@@ -4,10 +4,14 @@ import random
 
 import cv2
 import pandas as pd
+import matplotlib.pyplot as plt
+
+# Import custom classes
 from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM
 from converter import Converter
 from data_structs import Point, Pose2d
 from tree_matcher import TreeMatcher
+from debug_visualizer import DebugVisualizer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -39,8 +43,7 @@ class SGILMatcherApp:
         """
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher()
-        self.image_folder = image_folder
-        self.randomize = randomize
+        self.debug_visualizer = DebugVisualizer()
 
         # Load robot log into a DataFrame once
         self.robot_data_log = pd.read_csv(data_log_path)
@@ -128,53 +131,120 @@ class SGILMatcherApp:
                 cv2.circle(display, (x, y), 5, (0, 255, 0), -1)
                 cv2.imshow("Select Trees", display)
 
-        cv2.namedWindow("Select Trees")
-        cv2.setMouseCallback("Select Trees", click_event)
-        cv2.imshow("Select Trees", display)
+        if image is None:
+            print(f"Error loading image: {image_path}")
+            return self.get_next_image()
 
-        # Wait until Enter is pressed
-        while True:
-            if (cv2.waitKey(1) & 0xFF) == 13:
-                break
+        # Store original image dimensions
+        original_height, original_width = image.shape[:2]
+
+        # Define the mouse callback function
+        def click_event(event, x, y, flags, param) -> None:
+            """Handle mouse click events for point selection."""
+            # Check if left mouse button was clicked
+            if event == cv2.EVENT_LBUTTONDOWN:
+                # Add point to list
+                selected_points.append((x, y))
+                # Draw circle at clicked position
+                cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
+                # Update the display
+                cv2.imshow(window_name, displayed_image)
+
+        # Close any existing matplotlib figures and OpenCV windows
+        plt.close('all')
         cv2.destroyAllWindows()
+        cv2.waitKey(1)
+
+        # Create a copy to display and modify
+        displayed_image = image.copy()
+
+        # Create a window name with image info for uniqueness
+        window_name = f"Select Points - {image_name}"
+        
+        # Create window and set it to autosize first, then resize
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        cv2.imshow(window_name, displayed_image)
+        
+        # Set the mouse callback function
+        cv2.setMouseCallback(window_name, click_event)
+
+        print(f"Processing image: {image_name}")
+        print("Left-click to select trees, press Enter when done, ESC to skip")
+
+        # Wait for keypress - Enter key will finish selection
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            # If Enter key is pressed, break the loop
+            if key == 13:  # 13 is the ASCII code for Enter
+                break
+            # If ESC key is pressed, skip this image
+            elif key == 27:  # 27 is the ASCII code for ESC
+                selected_points = []
+                break
+
+        # Close the specific window
+        cv2.destroyWindow(window_name)
+        cv2.waitKey(1)
 
         return image_name, selected_points, pose
 
-    def run(self) -> None:
+    def main(self) -> None:
         """
-        Main application loop: for each image, collect clicks,
-        compute ground angles, match trees, and print errors.
+        Main execution loop for manual tree selection and position estimation.
         """
+
+        print("Starting manual tree selection...")
+        print("Instructions:")
+        print("- Left-click to select trees in the image")
+        print("- Press Enter when done selecting trees")
+        print("- Press ESC to skip current image")
+        print("- Press Ctrl+C to quit")
+        print("- Debug plots will be saved to 'debug_plots/' folder\n")
+
+        # Loops until a break
         while True:
             name, points, pose = self.get_next_image()
             if name == "0":
                 logging.info("All images processed. Exiting.")
                 break
-
-            if not pose:
-                logging.warning(f"No valid pose for {name}; skipping.")
+                
+            # Skip if no points were selected
+            if not points:
+                print(f"No points selected for {image_name}, skipping...")
                 continue
+                
+            print(f"Selected {len(points)} trees in {image_name}")
+                
+            # Initializes a list of ground thetas
+            ground_thetas = []
 
-            ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
-            est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
+            # Loops through all points from the image and appends them to the ground thetas
+            for point in points:
+                ground_thetas.append(self.converter.image_x_to_theta(point[0]))
+                
+            # Gets the estimated x, y position from tree matcher
+            estimated_location_xy = self.tree_matcher.match_trees(current_pose, ground_thetas)
 
-            # Convert back to lat/lon
-            est_latlon = self.converter.xy_to_latlon(est_xy)
+            print("Estimated location xy: ", estimated_location_xy)
 
-            # Print out GPS vs SGIL errors
-            assert self.correct_pose and self.gps_pose, "Pose info missing!"
-            gps_err = self.converter.haversine(
-                self.gps_pose[0],
-                self.gps_pose[1],
-                self.correct_pose[0],
-                self.correct_pose[1],
-            )
-            sgil_err = self.converter.haversine(
-                est_latlon[0],
-                est_latlon[1],
-                self.correct_pose[0],
-                self.correct_pose[1],
-            )
+            aoi_sat_trees = self.tree_matcher.aoi_sat_trees
+            all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
+            wedges = self.tree_matcher.wedges
+
+            # Create debug visualization (saved to file, no display conflicts)
+            if PLOT:
+                # Use image name (without extension) as save name
+                save_name = os.path.splitext(image_name)[0]
+                self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, current_pose, save_name)
+                self.debug_visualizer.plot_wedges(self.tree_matcher.wedges, current_pose, aoi_sat_trees, estimated_location_xy, save_name)
+
+            # Converts the x, y to lat, lon
+            estimated_location_latlon = self.converter.xy_to_latlon(estimated_location_xy)
+
+            # Prints the results
+            print(f"Image: {image_name}")
+            print(f"Estimated Location: {estimated_location_latlon}")
+            print(f"SGIL Error: {self.converter.haversine(estimated_location_latlon[0], estimated_location_latlon[1], self.correct_pose[0], self.correct_pose[1]):.5f}m")
 
             logging.info(f"Image: {name}")
             logging.info(f"  Estimated LatLon: {est_latlon}")
@@ -183,4 +253,16 @@ class SGILMatcherApp:
 
 
 if __name__ == "__main__":
-    SGILMatcherApp().run()
+    
+    # Creates the manual selector object
+    selector = ManualSelector()
+  
+    # Tries the main until there is a keyboard interrupt
+    try:
+        selector.main()
+    except KeyboardInterrupt as e:
+        print("\nProgram interrupted by user")
+        # Clean up any remaining windows
+        cv2.destroyAllWindows()
+        plt.close('all')
+        quit()
