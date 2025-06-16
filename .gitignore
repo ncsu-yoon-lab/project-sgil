@@ -149,4 +149,4 @@ CATKIN_IGNORE
 /.venv
 /build
 
-/dataset/images
+/project_sgil/dataset/images

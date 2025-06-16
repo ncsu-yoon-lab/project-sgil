@@ -300,7 +300,7 @@ class DebugVisualizer:
 
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
-        
+      
         # Save the plot instead of showing it
         if save_name:
             filename = f"{save_name}_wedges.png"
@@ -318,6 +318,7 @@ class DebugVisualizer:
                                  estimated_position: tuple[float, float], 
                                  true_position: tuple[float, float] = None,
                                  save_name: str = None) -> None:
+      
         """
         Compare estimated position with current and true positions.
 
