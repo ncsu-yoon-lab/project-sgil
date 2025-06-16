@@ -207,6 +207,7 @@ class SGILMatcherApp:
         compute ground angles, match trees, and print errors.
         """
 
+        # Prints out the instructions for use
         print("Starting manual tree selection...")
         print("Instructions:")
         print("- Left-click to select trees in the image")
@@ -215,9 +216,13 @@ class SGILMatcherApp:
         print("- Press Ctrl+C to quit")
         print("- Debug plots will be saved to 'debug_plots/' folder\n")
 
+        # Continues until there are no more images
         while True:
+
+            # Gets the name, points chosen, and the pose of the next image
             name, points, pose = self.get_next_image()
 
+            # Checks that there is another image and a pose
             if name == "0":
                 logging.info("All images processed. Exiting.")
                 break
@@ -225,12 +230,14 @@ class SGILMatcherApp:
             if not pose:
                 logging.warning(f"No valid pose for {name}; skipping.")
                 continue
-
+            
+            # Gets the ground thetas from the image and matches the corresponding trees with the satellite data
             ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
             est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
 
             print("Estimated location xy: ", est_xy)
 
+            # Get data for debug visualization
             aoi_sat_trees = self.tree_matcher.aoi_sat_trees
             all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
             wedges = self.tree_matcher.wedges

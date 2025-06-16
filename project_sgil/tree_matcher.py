@@ -47,7 +47,7 @@ class TreeMatcher:
                 self.all_sat_tree_loc.append(point)
 
 
-    def match_trees(self, current_pose: Pose2d, ground_thetas: float) -> tuple[float, float]:
+    def match_trees(self, current_pose: Pose2d, ground_thetas: float) -> Point:
         """
         Match trees based on current position and ground view angles.
 
@@ -69,10 +69,8 @@ class TreeMatcher:
         # Estimate the location by matching the wedges to the identified trees
         estimated_location = self.wedge_matching(self.wedges, current_pose)
 
-        # Convert the estimated location to a Point object
-        estimated_location_point = Point(estimated_location[0], estimated_location[1])
         # Return the estimated location
-        return estimated_location_point
+        return estimated_location
 
 
     def get_area_of_interest(self, current_pose: Pose2d) -> list[tuple[float, float]]:
@@ -128,7 +126,7 @@ class TreeMatcher:
         return wedge
 
 
-    def wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> tuple[float, float]:
+    def wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> Point:
         """
         Match wedges to trees to find the most accurate position.
 
@@ -155,7 +153,7 @@ class TreeMatcher:
             vectors = self.create_vectors_from_wedges(matched_wedges, current_pose)
             centroid, _, std_dev = self.analyze_vector_intersections(vectors)
 
-            return centroid
+            return Point(centroid[0], centroid[1])
 
         # Loops through all the unmatched wedges and creates a list of combinations of trees
         wedge_combinations = [wedge.trees for wedge in unmatched_wedges]
@@ -163,7 +161,7 @@ class TreeMatcher:
         # if there are no wedge combinations found, return the current position
         if not wedge_combinations:
             print("No wedge found")
-            return (current_pose.x, current_pose.y)
+            return Point(current_pose.x, current_pose.y)
 
         # Create all the combinations of wedges and filter for unique combinations
         all_wedge_combinations = list(product(*wedge_combinations))
@@ -174,7 +172,7 @@ class TreeMatcher:
         # If there is not a unique wedge combo, return the current position
         if not unique_wedge_combinations:
             print("No unique wedge found")
-            return (current_pose.x, current_pose.y)
+            return Point(current_pose.x, current_pose.y)
 
         # Initializes the lowest standard deviation
         lowest_std_dev = float("inf")
@@ -187,7 +185,7 @@ class TreeMatcher:
             # Create vectors from the current position to each tree in the combo
             vectors = []
 
-            # Create vectors for each tree in the combo and matched wedges
+            # Create vectors for each tree in the unmatched combinations of wedges
             for i, tree in enumerate(tree_combo):
                 
                 if i < len(unmatched_wedges):
@@ -202,6 +200,7 @@ class TreeMatcher:
                     end_y = tree.y + vector_length * math.sin(direction_rad)
                     vectors.append([start_point, (end_x, end_y)])
 
+            # Create vectors for each tree in the matched wedges
             for wedge in matched_wedges:
                 if wedge.matched_tree:
                     
@@ -213,10 +212,13 @@ class TreeMatcher:
                     end_x = wedge.matched_tree.x + vector_length * math.cos(direction_rad)
                     end_y = wedge.matched_tree.y + vector_length * math.sin(direction_rad)
                     vectors.append([start_point, (end_x, end_y)])
-                    
+            
+            # Checks that there are at least two vectors and finds the centroid
             if len(vectors) >= 2:
                 
                 centroid, intersections, std_dev = self.analyze_vector_intersections(vectors)
+
+                # Checks that the standard deviation is the lowest
                 if centroid and std_dev is not None and std_dev < lowest_std_dev:
                     best_combo = tree_combo
                     lowest_std_dev = std_dev
@@ -235,10 +237,10 @@ class TreeMatcher:
             
             self.wedges = wedges
 
-            return best_centroid
+            return Point(best_centroid[0], best_centroid[1])
         
         print("No best centroid")
-        return (current_pose.x, current_pose.y)
+        return Point(current_pose.x, current_pose.y)
 
 
     def create_vectors_from_wedges(self, wedges: list[Wedge], current_pose: Pose2d) -> list[tuple[float, float]]:
@@ -276,26 +278,36 @@ class TreeMatcher:
         :return: List of intersection points as (x, y) tuples.
         """
 
+        # Initializes the list of intersections
         intersections = []
         
+        # Loops through all the vectors and finds the intersections
         for i in range(len(vectors)):
             j = i
             while(j < len(vectors)):
-                
                 if i != j:
-                    # print(f"Combo: ({vectors[i]}, {vectors[j]}")
                     intersections.append(self.find_intersection(vectors[i], vectors[j]))
                 j += 1
                         
         return intersections
-    
-    def find_intersection(self, vector1, vector2):
+
+    def find_intersection(self, vector1: tuple[tuple[float, float], tuple[float, float]], vector2: tuple[tuple[float, float], tuple[float, float]]) -> tuple[float, float]:
+        """
+        Find the intersection point of two vectors.
+        :param vector1: First vector as [start_point, end_point].
+        :param vector2: Second vector as [start_point, end_point].
+        
+        :return: Intersection point as (x, y) tuple or None if no
+            intersection."""
+
+        # Gets the deltas of the vectors
         delta1_x = vector1[1][0] - vector1[0][0]
         delta1_y = vector1[1][1] - vector1[0][1]
 
         delta2_x = vector2[1][0] - vector2[0][0]
         delta2_y = vector2[1][1] - vector2[0][1]
 
+        # Checks if the vectors are perfectly vertical
         if delta1_x == 0:
             m1 = 9999.9
         else:
@@ -306,12 +318,15 @@ class TreeMatcher:
         else:
             m2 = delta2_y / delta2_x
         
+        # Gets the y intercepts of the vectors
         b1 = - (vector1[0][0] * m1) + vector1[0][1]
         b2 = - (vector2[0][0] * m2) + vector2[0][1]
 
+        # Finds the intersection point of the two lines
         x_int = (b1 - b2) / (m2 - m1)
         y_int = m1 * x_int + b1
 
+        # Creates the intersection point
         intersection = (x_int, y_int)
 
         return intersection
@@ -403,12 +418,15 @@ class TreeMatcher:
         :return: Relative angle in degrees (-180, 180).
         """
 
-        current_x, current_y, current_heading = current_pose.x, current_pose.y, current_pose.yaw
+        # Gets the target X and Y coordinates
         target_x, target_y = point
-        abs_angle_rad = math.atan2(target_y - current_y, target_x - current_x)
-        abs_angle_deg = math.degrees(abs_angle_rad)
-        rel_angle_deg = abs_angle_deg - current_heading
 
+        # Calculates the relative angle to the target point from current pose
+        abs_angle_rad = math.atan2(target_y - current_pose.y, target_x - current_pose.x)
+        abs_angle_deg = math.degrees(abs_angle_rad)
+        rel_angle_deg = abs_angle_deg - current_pose.yaw
+
+        # Normalize the relative angle to be within (-180, 180)
         rel_angle_deg = ((rel_angle_deg + 180) % 360) - 180
         
         return rel_angle_deg
