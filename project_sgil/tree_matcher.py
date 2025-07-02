@@ -114,12 +114,16 @@ class TreeMatcher:
         # Create a wedge based on the given theta
         wedge = Wedge(theta)
 
+        # Initialize the idx of trees in AOI
+        tree_idx = 0
+
         # Loop through all the trees in the satellite trees to see if they lie within the wedge
         for tree in satellite_trees:
             rel_angle_deg = self.get_relative_angle(tree, current_pose)
             
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
-                wedge.trees.append(Tree(tree[0], tree[1], -1))
+                wedge.trees.append(Tree(tree[0], tree[1], tree_idx))
+                tree_idx += 1
 
         print(f"Wedge created with {len(wedge.trees)} trees")
 
@@ -165,9 +169,12 @@ class TreeMatcher:
 
         # Create all the combinations of wedges and filter for unique combinations
         all_wedge_combinations = list(product(*wedge_combinations))
+        print(all_wedge_combinations)
         unique_wedge_combinations = [
             combo for combo in all_wedge_combinations if len(set(tree.id for tree in combo)) == len(combo)
         ]
+
+        print(unique_wedge_combinations)
 
         # If there is not a unique wedge combo, return the current position
         if not unique_wedge_combinations:
