@@ -1,5 +1,4 @@
-"""
-This script handles all global data structs that will be used throughout the
+"""This script handles all global data structs that will be used throughout the
 scripts.
 
 file: data_structs.py
@@ -12,8 +11,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class Point:
-    """
-    Represents a point in 2D space.
+    """Represents a point in 2D space.
 
     :param x: The x-coordinate.
     :param y: The y-coordinate.
@@ -25,8 +23,7 @@ class Point:
 
 @dataclass
 class Tree(Point):
-    """
-    Represents a tree in 2D space.
+    """Represents a tree in 2D space.
 
     :param x: The x-coordinate of the tree.
     :param y: The y-coordinate of the tree.
@@ -38,8 +35,7 @@ class Tree(Point):
 
 @dataclass
 class Wedge:
-    """
-    Represents an angular wedge containing multiple trees and an optional
+    """Represents an angular wedge containing multiple trees and an optional
     matched tree.
 
     :param theta_degrees: The angle of the wedge in degrees.
@@ -55,8 +51,7 @@ class Wedge:
 
 @dataclass
 class Pose2d(Point):
-    """
-    Represents a 2D pose with position and yaw.
+    """Represents a 2D pose with position and yaw.
 
     :param x: The x-coordinate of the pose.
     :param y: The y-coordinate of the pose.

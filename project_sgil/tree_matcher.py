@@ -1,5 +1,4 @@
-"""
-Tree Matcher script to match trees based on the ground position and the
+"""Tree Matcher script to match trees based on the ground position and the
 angle of the trees seen from the ground.
 
 file: tree_matcher.py
@@ -11,22 +10,25 @@ import csv
 import math
 from itertools import product
 
-from constants import *
 from converter import Converter
 from data_structs import Point, Pose2d, Tree, Wedge
 
+from project_sgil.constants import (
+    AOI_ANGLE_DEG,
+    AOI_RADIUS_M,
+    HEADING_ERROR_DEG,
+    ORIGIN,
+    TREE_LOCATIONS_PATH,
+)
 from project_sgil.utils import distance, get_relative_angle, std_deviation_of_distances
 
 
 class TreeMatcher:
-    """
-    Match trees based on satellite and ground view data to estimate vehicle
-    position.
-    """
+    """Match trees based on satellite and ground view data to estimate vehicle
+    position."""
 
     def __init__(self) -> None:
-        """
-        Initialize the TreeMatcher.
+        """Initialize the TreeMatcher.
 
         :param: Initializes the converter and loads satellite tree
             locations.
@@ -46,8 +48,7 @@ class TreeMatcher:
                 self.all_sat_tree_loc.append(point)
 
     def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
-        """
-        Match trees based on current position and ground view angles.
+        """Match trees based on current position and ground view angles.
 
         :param current_pose: Current position and heading as Pose2d.
         :param ground_thetas: List of camera angles to trees in ground
@@ -69,8 +70,7 @@ class TreeMatcher:
         return estimated_location
 
     def get_area_of_interest(self, current_pose: Pose2d) -> list[Point]:
-        """
-        Identify satellite trees within area of interest.
+        """Identify satellite trees within area of interest.
 
         :param current_pose: Current position estimation as Pose2d.
         :return: List of tree locations (Point) within the area of
@@ -92,8 +92,7 @@ class TreeMatcher:
     def create_wedge(
         self, current_pose: Pose2d, satellite_trees: list[Point], theta: float
     ) -> Wedge:
-        """
-        Create a wedge based on current location and ground view angle.
+        """Create a wedge based on current location and ground view angle.
 
         :param current_pose: Current position and orientation as Pose2d.
         :param satellite_trees: List of trees in the AOI as Point
@@ -117,8 +116,7 @@ class TreeMatcher:
         return wedge
 
     def wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> Point:
-        """
-        Match wedges to trees to find the most accurate position.
+        """Match wedges to trees to find the most accurate position.
 
         :param wedges: List of wedges containing available trees.
         :param current_pose: Current position estimate as Pose2d.
@@ -210,8 +208,7 @@ class TreeMatcher:
     def create_vectors_from_wedges(
         self, wedges: list[Wedge], current_pose: Pose2d
     ) -> list[list[Point]]:
-        """
-        Create vectors from wedges for intersection analysis.
+        """Create vectors from wedges for intersection analysis.
 
         :param wedges: List of wedges with trees.
         :param current_pose: Current position estimate as Pose2d.
@@ -236,8 +233,7 @@ class TreeMatcher:
         return vectors
 
     def find_intersections(self, vectors: list[list[Point]]) -> list[Point]:
-        """
-        Find all intersection points between the vectors.
+        """Find all intersection points between the vectors.
 
         :param vectors: List of vectors as [[start_point, end_point], ...].
         :return: List of intersection points as Point.
@@ -252,8 +248,7 @@ class TreeMatcher:
         return intersections
 
     def find_intersection(self, vector1: list[Point], vector2: list[Point]) -> Point | None:
-        """
-        Find the intersection point of two vectors.
+        """Find the intersection point of two vectors.
 
         :param vector1: First vector as [start_point, end_point].
         :param vector2: Second vector as [start_point, end_point].
@@ -280,8 +275,7 @@ class TreeMatcher:
         return Point(x_int, y_int)
 
     def mean_centroid(self, points: list[Point]) -> Point | None:
-        """
-        Calculate the mean centroid of a set of points.
+        """Calculate the mean centroid of a set of points.
 
         :param points: List of Point.
         :return: Centroid as Point or None if empty list.
@@ -296,8 +290,7 @@ class TreeMatcher:
     def analyze_vector_intersections(
         self, vectors: list[list[Point]]
     ) -> tuple[Point | None, list[Point] | None, float | None]:
-        """
-        Analyze intersections of vectors to find centroid and standard
+        """Analyze intersections of vectors to find centroid and standard
         deviation.
 
         :param vectors: List of vectors as [[start_point, end_point], ...].

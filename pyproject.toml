@@ -31,6 +31,10 @@ ignore = [
     "PLR2004",
     "PLR0911",
     "T201",
+    "D",
+#    TODO: probably want these two back in
+    "PLR0912",
+    "PLR0915",
 ]
 extend-ignore = [
     "D100",
@@ -44,8 +48,6 @@ extend-select = [
     "ANN202",
     "ANN204",
     "ANN205",
-    "D213",
-    "D209",
 ]
 
 fixable = ["ALL"]

@@ -5,8 +5,7 @@ from project_sgil.data_structs import Point, Pose2d
 
 
 def distance(point1: Point, point2: Point) -> float:
-    """
-    Calculate Euclidean distance between two points.
+    """Calculate Euclidean distance between two points.
 
     :param point1: First point as a Point instance.
     :param point2: Second point as a Point instance.
@@ -16,8 +15,7 @@ def distance(point1: Point, point2: Point) -> float:
 
 
 def get_relative_angle(point: Point, current_pose: Pose2d) -> float:
-    """
-    Calculate the relative angle from the current heading to a point.
+    """Calculate the relative angle from the current heading to a point.
 
     :param point: Target point as a Point instance.
     :param current_pose: Current pose as a Pose2d instance, which
@@ -32,8 +30,7 @@ def get_relative_angle(point: Point, current_pose: Pose2d) -> float:
 
 
 def std_deviation_of_distances(points: list[Point], centroid: Point) -> float:
-    """
-    Calculate standard deviation of distances from points to centroid.
+    """Calculate standard deviation of distances from points to centroid.
 
     :param points: List of points as (x, y) tuples.
     :param centroid: Centroid point as (x, y) tuple.

@@ -7,8 +7,7 @@ from project_sgil.data_structs import Point
 
 
 class Converter:
-    """
-    Converter for geographic and image coordinates.
+    """Converter for geographic and image coordinates.
 
     Provides methods for converting between latitude/longitude and
     Cartesian coordinates, as well as image x-coordinate to angle and
@@ -16,8 +15,7 @@ class Converter:
     """
 
     def __init__(self, lat_origin: float, lon_origin: float) -> None:
-        """
-        Initialize the Converter with a geographic origin.
+        """Initialize the Converter with a geographic origin.
 
         :param lat_origin: Latitude of the origin in degrees.
         :param lon_origin: Longitude of the origin in degrees.
@@ -26,8 +24,7 @@ class Converter:
 
     @staticmethod
     def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-        """
-        Compute the great-circle distance between two points on Earth.
+        """Compute the great-circle distance between two points on Earth.
 
         Uses the haversine formula.
 
@@ -49,8 +46,7 @@ class Converter:
         return EARTH_RADIUS_M * c
 
     def latlon_to_xy(self, point: tuple[float, float]) -> tuple[float, float]:
-        """
-        Convert latitude/longitude to local Cartesian x, y coordinates.
+        """Convert latitude/longitude to local Cartesian x, y coordinates.
 
         :param point: Tuple of (latitude, longitude) in degrees.
         :return: Tuple of (x, y) in meters relative to the origin.
@@ -69,8 +65,7 @@ class Converter:
         return (x, y)
 
     def xy_to_latlon(self, point: Point) -> tuple[float, float]:
-        """
-        Convert local Cartesian x, y coordinates back to latitude/longitude.
+        """Convert local Cartesian x, y coordinates back to latitude/longitude.
 
         :param point: Point with x, y in meters relative to the origin.
         :return: Tuple of (latitude, longitude) in degrees.
@@ -88,8 +83,7 @@ class Converter:
 
     @staticmethod
     def image_x_to_theta(x: float, image_width: int = 1280) -> float:
-        """
-        Map an image pixel x-coordinate to a viewing angle theta.
+        """Map an image pixel x-coordinate to a viewing angle theta.
 
         Converts horizontal pixel offset to an angle using half the
         horizontal field of view (H_FOV_DEG).
@@ -106,8 +100,7 @@ class Converter:
 
     @staticmethod
     def heading_to_yaw(heading: float) -> float:
-        """
-        Convert a compass heading to a yaw angle.
+        """Convert a compass heading to a yaw angle.
 
         Yaw is measured by finding heading pointing the x direction
         (parallel to vector from EB1 to EB3).

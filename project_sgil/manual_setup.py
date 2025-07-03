@@ -1,5 +1,4 @@
-"""
-Manual tree selection interface for ground view analysis and matching with
+"""Manual tree selection interface for ground view analysis and matching with
 satellite data using pre-collected and pre-labeled dataset.
 
 file: manual_selector.py
@@ -27,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 
 class SGILMatcherApp:
     """
-    Encapsulates the SGIL tree‐matching workflow:
+    Encapsulates the SGIL tree-matching workflow:
       1. Reads robot GPS/RTK logs.
       2. Presents each image for the user to click tree locations.
       3. Converts clicks into ground angles.
@@ -70,8 +69,7 @@ class SGILMatcherApp:
         self._current_index: int = 0
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """
-        Lookup the RTK/GPS pose for a given image filename.
+        """Lookup the RTK/GPS pose for a given image filename.
 
         :param image_name: Name of the .jpg image.
         :return: Pose2d if RTK heading is valid; otherwise None.
@@ -84,8 +82,7 @@ class SGILMatcherApp:
         return self.get_gps_pose(matches.iloc[0])
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
-        """
-        Convert a log row into a Pose2d using RTK for yaw.
+        """Convert a log row into a Pose2d using RTK for yaw.
 
         Also updates internal gps_pose/correct_pose for error logging.
         :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading,
@@ -105,13 +102,12 @@ class SGILMatcherApp:
     def get_next_image(
         self,
     ) -> tuple[str, list[Point], Pose2d | None]:
-        """
-        Retrieves the next image, shows it for manual tree picking, and
+        """Retrieves the next image, shows it for manual tree picking, and
         returns the clicks and pose.
 
         :return:
           - image_name: filename or "0" when exhausted
-          - selected_points: list of image‐pixel Points
+          - selected_points: list of image-pixel Points
           - pose: corresponding Pose2d or None
         """
         if self._current_index >= len(self._image_list):
@@ -134,23 +130,13 @@ class SGILMatcherApp:
         # Load and display for click events
         path = os.path.join(self.image_folder, image_name)
         image = cv2.imread(path)
-        display = image.copy()
-
-        def click_event(evt, x, y, flags, param) -> None:
-            if evt == cv2.EVENT_LBUTTONDOWN:
-                selected_points.append(Point(x, y))
-                cv2.circle(display, (x, y), 5, (0, 255, 0), -1)
-                cv2.imshow("Select Trees", display)
-
+        image.copy()
         if image is None:
             print(f"Error loading image: {image_name}")
             return self.get_next_image()
 
-        # Store original image dimensions
-        original_height, original_width = image.shape[:2]
-
         # Define the mouse callback function
-        def click_event(event, x, y, flags, param) -> None:
+        def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
             """Handle mouse click events for point selection."""
             # Check if left mouse button was clicked
             if event == cv2.EVENT_LBUTTONDOWN:
@@ -228,7 +214,8 @@ class SGILMatcherApp:
                 logging.warning(f"No valid pose for {name}; skipping.")
                 continue
 
-            # Gets the ground thetas from the image and matches the corresponding trees with the satellite data
+            # Gets the ground thetas from the image and matches the corresponding trees with the
+            # satellite data
             ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
             est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
 

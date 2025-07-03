@@ -1,5 +1,4 @@
-"""
-Tree visualization module for debugging area of interest and tree matching
+"""Tree visualization module for debugging area of interest and tree matching
 algorithms.
 
 file: tree_visualizer.py
@@ -21,10 +20,8 @@ from data_structs import Point, Pose2d, Wedge
 
 
 class DebugVisualizer:
-    """
-    Visualization utilities for tree matching and area of interest
-    debugging.
-    """
+    """Visualization utilities for tree matching and area of interest
+    debugging."""
 
     def __init__(self) -> None:
         """Initialize the DebugVisualizer."""
@@ -42,8 +39,7 @@ class DebugVisualizer:
         current_pose: Pose2d,
         save_name: str | None = None,
     ) -> None:
-        """
-        Visualize area of interest trees for debugging purposes.
+        """Visualize area of interest trees for debugging purposes.
 
         :param all_sat_tree_loc: List of all satellite tree locations as
             Point.
@@ -152,8 +148,7 @@ class DebugVisualizer:
         centroid: Point,
         current_pose: Pose2d,
     ) -> None:
-        """
-        Visualize vectors, their intersections, and calculated centroid.
+        """Visualize vectors, their intersections, and calculated centroid.
 
         :param vectors: List of vectors as [[start, end], ...].
         :param intersections: List of intersection Points.
@@ -204,8 +199,7 @@ class DebugVisualizer:
         estimated_location: Point,
         save_name: str | None = None,
     ) -> None:
-        """
-        Visualize wedges and their associated trees.
+        """Visualize wedges and their associated trees.
 
         :param wedges: List of Wedge objects.
         :param current_pose: Current position as Pose2d object.
@@ -308,8 +302,7 @@ class DebugVisualizer:
         true_position: Point | None = None,
         save_name: str | None = None,
     ) -> None:
-        """
-        Compare estimated position with current and true positions.
+        """Compare estimated position with current and true positions.
 
         :param current_pose: Current position estimate as Pose2d object.
         :param estimated_position: Estimated position as Point.
