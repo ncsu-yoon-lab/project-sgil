@@ -10,16 +10,17 @@ author: Cole Malinchock and Jack Elia
 import logging
 import os
 import random
+
 import cv2
-import pandas as pd
 import matplotlib.pyplot as plt
+import pandas as pd
 
 # Import custom classes
-from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM, PLOT
+from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, PLOT, RANDOM
 from converter import Converter
 from data_structs import Point, Pose2d
-from tree_matcher import TreeMatcher
 from debug_visualizer import DebugVisualizer
+from tree_matcher import TreeMatcher
 
 logging.basicConfig(level=logging.INFO)
 
@@ -68,7 +69,6 @@ class SGILMatcherApp:
         )
         self._current_index: int = 0
 
-
     def get_current_pose(self, image_name: str) -> Pose2d | None:
         """
         Lookup the RTK/GPS pose for a given image filename.
@@ -82,7 +82,6 @@ class SGILMatcherApp:
             return None
 
         return self.get_gps_pose(matches.iloc[0])
-
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
         """
@@ -102,7 +101,6 @@ class SGILMatcherApp:
         self.gps_pose = (row["gps_lat"], row["gps_lon"])
 
         return Pose2d(x=x, y=y, yaw=yaw)
-
 
     def get_next_image(
         self,
@@ -164,7 +162,7 @@ class SGILMatcherApp:
                 cv2.imshow(window_name, displayed_image)
 
         # Close any existing matplotlib figures and OpenCV windows
-        plt.close('all')
+        plt.close("all")
         cv2.destroyAllWindows()
         cv2.waitKey(1)
 
@@ -173,11 +171,11 @@ class SGILMatcherApp:
 
         # Create a window name with image info for uniqueness
         window_name = f"Select Points - {image_name}"
-        
+
         # Create window and set it to autosize first, then resize
         cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
         cv2.imshow(window_name, displayed_image)
-        
+
         # Set the mouse callback function
         cv2.setMouseCallback(window_name, click_event)
 
@@ -218,7 +216,6 @@ class SGILMatcherApp:
 
         # Continues until there are no more images
         while True:
-
             # Gets the name, points chosen, and the pose of the next image
             name, points, pose = self.get_next_image()
 
@@ -230,7 +227,7 @@ class SGILMatcherApp:
             if not pose:
                 logging.warning(f"No valid pose for {name}; skipping.")
                 continue
-            
+
             # Gets the ground thetas from the image and matches the corresponding trees with the satellite data
             ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
             est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
@@ -248,7 +245,6 @@ class SGILMatcherApp:
                 save_name = os.path.splitext(name)[0]
                 self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, pose, save_name)
                 self.debug_visualizer.plot_wedges(wedges, pose, aoi_sat_trees, est_xy, save_name)
-
 
             # Convert back to lat/lon
             est_latlon = self.converter.xy_to_latlon(est_xy)

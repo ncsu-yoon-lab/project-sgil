@@ -1,36 +1,64 @@
 import math
 
-from constants import *
-
+from project_sgil.constants import EARTH_RADIUS_M, H_FOV_DEG, ORIGIN
 from project_sgil.data_structs import Point
 
+# TODO: make this class use our data classes, and organize methods by private, static, and public
 
 class Converter:
-    def __init__(self, lat_origin, lon_origin) -> None:
-        # Sets the origin of the coordinate system
-        self.origin = (lat_origin, lon_origin)
+    """
+    Converter for geographic and image coordinates.
 
-    def haversine(self, lat1, lon1, lat2, lon2):
-        # Finds the difference between the lat longs and converts them to radians
-        d_lat = math.radians(lat1 - lat2)
-        d_lon = math.radians(lon1 - lon2)
+    Provides methods for converting between latitude/longitude and
+    Cartesian coordinates, as well as image x-coordinate to angle and
+    compass heading to yaw.
+    """
 
-        a = (
+    def __init__(self, lat_origin: float, lon_origin: float) -> None:
+        """
+        Initialize the Converter with a geographic origin.
+
+        :param lat_origin: Latitude of the origin in degrees.
+        :param lon_origin: Longitude of the origin in degrees.
+        """
+        self.origin: tuple[float, float] = (lat_origin, lon_origin)
+
+    @staticmethod
+    def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+        """
+        Compute the great-circle distance between two points on Earth.
+
+        Uses the haversine formula.
+
+        :param lat1: Latitude of first point in degrees.
+        :param lon1: Longitude of first point in degrees.
+        :param lat2: Latitude of second point in degrees.
+        :param lon2: Longitude of second point in degrees.
+        :return: Distance between points in meters.
+        """
+        d_lat: float = math.radians(lat1 - lat2)
+        d_lon: float = math.radians(lon1 - lon2)
+
+        a: float = (
             math.sin(d_lat / 2) ** 2
             + math.cos(math.radians(lat2)) * math.cos(math.radians(lat1)) * math.sin(d_lon / 2) ** 2
         )
-        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        c: float = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-        distance = EARTH_RADIUS_M * c
+        return EARTH_RADIUS_M * c
 
-        return distance
+    def latlon_to_xy(self, point: tuple[float, float]) -> tuple[float, float]:
+        """
+        Convert latitude/longitude to local Cartesian x, y coordinates.
 
-    def latlon_to_xy(self, point):
-        lat = float(point[0])
-        lon = float(point[1])
+        :param point: Tuple of (latitude, longitude) in degrees.
+        :return: Tuple of (x, y) in meters relative to the origin.
+        """
+        lat: float = float(point[0])
+        lon: float = float(point[1])
 
-        x = self.haversine(ORIGIN[0], lon, self.origin[0], self.origin[1])
-        y = self.haversine(lat, self.origin[1], self.origin[0], self.origin[1])
+        x: float = self.haversine(ORIGIN[0], lon, self.origin[0], self.origin[1])
+        y: float = self.haversine(lat, self.origin[1], self.origin[0], self.origin[1])
 
         if lon < self.origin[1]:
             x = -x
@@ -39,41 +67,51 @@ class Converter:
 
         return (x, y)
 
-    def xy_to_latlon(self, point: Point):
-        # Convert x and y back to latitude and longitude
-        # delta_lat and delta_lon are changes in lat and lon from the origin
+    def xy_to_latlon(self, point: Point) -> tuple[float, float]:
+        """
+        Convert local Cartesian x, y coordinates back to latitude/longitude.
 
-        x = point.x
-        y = point.y
+        :param point: Point with x, y in meters relative to the origin.
+        :return: Tuple of (latitude, longitude) in degrees.
+        """
+        x: float = point.x
+        y: float = point.y
 
-        delta_lat = y / EARTH_RADIUS_M
-        delta_lon = x / (EARTH_RADIUS_M * math.cos(math.radians(self.origin[0])))
+        delta_lat: float = y / EARTH_RADIUS_M
+        delta_lon: float = x / (EARTH_RADIUS_M * math.cos(math.radians(self.origin[0])))
 
-        lat = self.origin[0] + math.degrees(delta_lat)
-        lon = self.origin[1] + math.degrees(delta_lon)
+        lat: float = self.origin[0] + math.degrees(delta_lat)
+        lon: float = self.origin[1] + math.degrees(delta_lon)
 
         return (lat, lon)
 
-    def image_x_to_theta(self, x, image_width=1280):
-        # Calculate center of image
-        center_x = image_width / 2
+    @staticmethod
+    def image_x_to_theta(x: float, image_width: int = 1280) -> float:
+        """
+        Map an image pixel x-coordinate to a viewing angle theta.
 
-        # Calculate pixel offset from center
-        offset_x = x - center_x
+        Converts horizontal pixel offset to an angle using half the
+        horizontal field of view (H_FOV_DEG).
 
-        # Calculate half the FOV
-        dpp = H_FOV_DEG / 2
+        :param x: Pixel x-coordinate in image.
+        :param image_width: Width of the image in pixels.
+        :return: Angle theta in degrees (positive left, negative right).
+        """
+        center_x: float = image_width / 2
+        offset_x: float = x - center_x
+        half_fov: float = H_FOV_DEG / 2
 
-        # Calculate theta
-        theta = dpp * offset_x / center_x * -1.0
+        return -half_fov * offset_x / center_x
 
-        return theta
+    @staticmethod
+    def heading_to_yaw(heading: float) -> float:
+        """
+        Convert a compass heading to a yaw angle.
 
-    def heading_to_yaw(self, heading) -> float:
-        # Measured by finding heading pointing the x direction (parallel to vector from EB1 to EB3)
-        # Degrees
+        Yaw is measured by finding heading pointing the x direction
+        (parallel to vector from EB1 to EB3).
 
-        # Subtract the offset from the heading
-        yaw = (450 - heading) % 360
-
-        return yaw
+        :param heading: Compass heading in degrees (0=N, 90=E).
+        :return: Yaw angle in degrees where 0 is +x axis.
+        """
+        return (450 - heading) % 360
