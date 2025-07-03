@@ -10,7 +10,6 @@ import csv
 import math
 import statistics
 from itertools import product
-import matplotlib.pyplot as plt
 from constants import *
 from converter import Converter
 from data_structs import *
@@ -18,6 +17,7 @@ from shapely.geometry import LineString, Point
 
 # Import custom data structs
 from data_structs import Wedge, Pose2d
+from project_sgil.utils import distance, std_deviation_of_distances, get_relative_angle
 
 
 class TreeMatcher:
@@ -47,7 +47,7 @@ class TreeMatcher:
                 self.all_sat_tree_loc.append(point)
 
 
-    def match_trees(self, current_pose: Pose2d, ground_thetas: float) -> Point:
+    def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
         """
         Match trees based on current position and ground view angles.
 
@@ -63,7 +63,6 @@ class TreeMatcher:
 
         # Loop through all the thetas and make their corresponding wedges
         for theta in ground_thetas:
-            
             self.wedges.append(self.create_wedge(current_pose, self.aoi_sat_trees, theta))
             
         # Estimate the location by matching the wedges to the identified trees
@@ -73,7 +72,7 @@ class TreeMatcher:
         return estimated_location
 
 
-    def get_area_of_interest(self, current_pose: Pose2d) -> list[tuple[float, float]]:
+    def get_area_of_interest(self, current_pose: Pose2d) -> list[Point]:
         """
         Identify satellite trees within area of interest.
 
@@ -88,11 +87,13 @@ class TreeMatcher:
         # Loops through all the trees in the list to find the trees that are within the area of interest
         for tree in self.all_sat_tree_loc:
 
-            # Checks if the distance is within the radius
-            if self.distance(tree, (current_pose.x, current_pose.y)) < AOI_RADIUS_M:
+            # TODO: change all_sat_
+            temp_tree = Point(tree[0], tree[1])
 
+            # Checks if the distance is within the radius
+            if distance(temp_tree, current_pose) < AOI_RADIUS_M:
                 # Checks if the relative angle to the tree is within the expected limit
-                rel_angle_deg = self.get_relative_angle(tree, current_pose)
+                rel_angle_deg = get_relative_angle(temp_tree, current_pose)
                 if abs(rel_angle_deg) < AOI_ANGLE_DEG:
                     area_of_interest_tree_loc.append(tree)
 
@@ -119,7 +120,9 @@ class TreeMatcher:
 
         # Loop through all the trees in the satellite trees to see if they lie within the wedge
         for tree in satellite_trees:
-            rel_angle_deg = self.get_relative_angle(tree, current_pose)
+            # TODO: conver to point
+            temp_tree = Point(tree[0], tree[1])
+            rel_angle_deg = get_relative_angle(temp_tree, current_pose)
             
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
                 wedge.trees.append(Tree(tree[0], tree[1], tree_idx))
@@ -244,9 +247,10 @@ class TreeMatcher:
             
             self.wedges = wedges
 
-            return Point(best_centroid[0], best_centroid[1])
+            return best_centroid
         
         print("No best centroid")
+        # TODO: unnecessary?
         return Point(current_pose.x, current_pose.y)
 
 
@@ -359,27 +363,6 @@ class TreeMatcher:
         return (sum(x_coords) / len(x_coords), sum(y_coords) / len(y_coords))
 
 
-    def std_deviation_of_distances(self, points: list[tuple[float, float]], centroid: tuple[float, float]) -> float:
-        """
-        Calculate standard deviation of distances from points to centroid.
-
-        :param points: List of points as (x, y) tuples.
-        :param centroid: Centroid point as (x, y) tuple.
-        :return: Standard deviation of distances or None if insufficient
-            data.
-        """
-
-        # Checks that there is a list of points and there is a centroid
-        if not points or centroid is None:
-            return None
-        
-        # Gets the distance of each point to the centroid
-        distances = [self.distance(pt, centroid) for pt in points]
-
-        # Calculates the standard deviation of all the distances
-        return statistics.stdev(distances) if len(distances) > 1 else 0.0
-
-
     def analyze_vector_intersections(self, vectors: list[tuple[float, float]]) -> tuple[tuple[float, float], list[tuple[float, float]], float]:
         """
         Analyze intersections of vectors to find centroid and standard
@@ -399,41 +382,11 @@ class TreeMatcher:
 
         # Gets the centroid and standard deviation
         centroid = self.mean_centroid(intersections)
-        std_dev = self.std_deviation_of_distances(intersections, centroid)
+
+        # TODO: convert to points
+        centroid = Point(centroid[0], centroid[1])
+        intersections = [Point(pt[0], pt[1]) for pt in intersections]
+
+        std_dev = std_deviation_of_distances(intersections, centroid)
 
         return centroid, intersections, std_dev
-
-
-    def distance(self, point1: tuple[float, float], point2: tuple[float, float]) -> float:
-        """
-        Calculate Euclidean distance between two points.
-
-        :param point1: First point as (x, y) tuple.
-        :param point2: Second point as (x, y) tuple.
-        :return: Distance between the points.
-        """
-
-        return math.hypot(point1[0] - point2[0], point1[1] - point2[1])
-      
-
-    def get_relative_angle(self, point: tuple[float, float], current_pose: Pose2d) -> float:
-        """
-        Calculate relative angle from current heading to a point.
-
-        :param point: Target point as (x, y) tuple.
-        :param current_pose: Current position as (x, y, heading) tuple.
-        :return: Relative angle in degrees (-180, 180).
-        """
-
-        # Gets the target X and Y coordinates
-        target_x, target_y = point
-
-        # Calculates the relative angle to the target point from current pose
-        abs_angle_rad = math.atan2(target_y - current_pose.y, target_x - current_pose.x)
-        abs_angle_deg = math.degrees(abs_angle_rad)
-        rel_angle_deg = abs_angle_deg - current_pose.yaw
-
-        # Normalize the relative angle to be within (-180, 180)
-        rel_angle_deg = ((rel_angle_deg + 180) % 360) - 180
-        
-        return rel_angle_deg
