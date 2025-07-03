@@ -11,11 +11,12 @@ import math
 
 import matplotlib
 
+from project_sgil.constants import AOI_ANGLE_DEG, AOI_RADIUS_M
+
 matplotlib.use("Agg")  # Use non-interactive backend that won't interfere with OpenCV
 import os
 
 import matplotlib.pyplot as plt
-from constants import *
 from data_structs import Point, Pose2d, Wedge
 
 

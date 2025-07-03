@@ -5,6 +5,7 @@ from project_sgil.data_structs import Point
 
 # TODO: make this class use our data classes, and organize methods by private, static, and public
 
+
 class Converter:
     """
     Converter for geographic and image coordinates.
