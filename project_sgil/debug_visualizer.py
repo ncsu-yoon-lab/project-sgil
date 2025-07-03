@@ -13,7 +13,7 @@ matplotlib.use('Agg')  # Use non-interactive backend that won't interfere with O
 import matplotlib.pyplot as plt
 import os
 from constants import *
-from data_structs import Pose2d
+from data_structs import Point, Wedge, Pose2d
 
 
 class DebugVisualizer:
@@ -29,173 +29,154 @@ class DebugVisualizer:
         self.output_dir = "debug_plots"
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
-        
+
         self.plot_counter = 0
 
-    def plot_aoi(self, all_sat_tree_loc: list[tuple[float, float]], 
-                 aoi_sat_trees: list[tuple[float, float]], 
-                 current_pose: Pose2d, 
-                 save_name: str = None) -> None:
+    def plot_aoi(
+        self,
+        all_sat_tree_loc: list[Point],
+        aoi_sat_trees: list[Point],
+        current_pose: Pose2d,
+        save_name: str = None,
+    ) -> None:
         """
         Visualize area of interest trees for debugging purposes.
 
-        :param all_sat_tree_loc: List of all satellite tree locations.
-        :param aoi_sat_trees: List of trees within the area of interest.
+        :param all_sat_tree_loc: List of all satellite tree locations as Point.
+        :param aoi_sat_trees: List of trees within the area of interest as Point.
         :param current_pose: Current position as Pose2d object.
         :param save_name: Optional custom name for saved plot.
         """
 
-        # Creates the figure
         fig, ax = plt.subplots(figsize=(10, 8))
 
         # Plot all satellite trees in blue
-        all_x = [tree[0] for tree in all_sat_tree_loc]
-        all_y = [tree[1] for tree in all_sat_tree_loc]
-        ax.scatter(all_x, all_y, s=20, c="blue", alpha=0.5, label="All Trees")
+        all_x = [tree.x for tree in all_sat_tree_loc]
+        all_y = [tree.y for tree in all_sat_tree_loc]
+        ax.scatter(all_x, all_y, s=20, alpha=0.5, label="All Trees")
 
         # Plot AOI trees in green
-        if aoi_sat_trees and len(aoi_sat_trees) > 0:
-            aoi_x = [tree[0] for tree in aoi_sat_trees]
-            aoi_y = [tree[1] for tree in aoi_sat_trees]
-            ax.scatter(aoi_x, aoi_y, s=50, c="green", alpha=0.8, label="AOI Trees")
+        if aoi_sat_trees:
+            aoi_x = [tree.x for tree in aoi_sat_trees]
+            aoi_y = [tree.y for tree in aoi_sat_trees]
+            ax.scatter(aoi_x, aoi_y, s=50, alpha=0.8, label="AOI Trees")
 
         # Plot current position in red
-        if current_pose:
-            ax.scatter(
-                current_pose.x,
-                current_pose.y,
-                s=100,
-                c="red",
-                marker="*",
-                label="Current Position",
-            )
+        ax.scatter(
+            current_pose.x,
+            current_pose.y,
+            s=100,
+            marker="*",
+            label="Current Position",
+        )
 
-            # Draw line showing heading direction
-            heading_rad = math.radians(current_pose.yaw)
-            arrow_length = 5
-            dx = arrow_length * math.cos(heading_rad)
-            dy = arrow_length * math.sin(heading_rad)
-            ax.arrow(
-                current_pose.x,
-                current_pose.y,
-                dx,
-                dy,
-                head_width=1,
-                head_length=2,
-                fc="red",
-                ec="red",
-            )
+        # Draw heading arrow
+        heading_rad = math.radians(current_pose.yaw)
+        arrow_length = 5
+        dx = arrow_length * math.cos(heading_rad)
+        dy = arrow_length * math.sin(heading_rad)
+        ax.arrow(
+            current_pose.x,
+            current_pose.y,
+            dx,
+            dy,
+            head_width=1,
+            head_length=2,
+        )
 
         # Add AOI radius circle
-        if current_pose:
-            circle = plt.Circle(
-                (current_pose.x, current_pose.y),
-                AOI_RADIUS_M,
-                fill=False,
-                color="red",
-                linestyle="--",
-                alpha=0.7,
-            )
-            ax.add_patch(circle)
+        circle = plt.Circle(
+            (current_pose.x, current_pose.y),
+            AOI_RADIUS_M,
+            fill=False,
+            linestyle="--",
+            alpha=0.7,
+        )
+        ax.add_patch(circle)
 
         # Add field of view indicator
-        if current_pose:
-            heading_rad = math.radians(current_pose.yaw)
-            half_fov = math.radians(AOI_ANGLE_DEG)
-            start_angle = heading_rad - half_fov
-            end_angle = heading_rad + half_fov
+        half_fov = math.radians(AOI_ANGLE_DEG)
+        start_angle = math.degrees(heading_rad - half_fov)
+        end_angle = math.degrees(heading_rad + half_fov)
+        wedge_patch = plt.matplotlib.patches.Wedge(
+            (current_pose.x, current_pose.y),
+            AOI_RADIUS_M,
+            start_angle,
+            end_angle,
+            fill=False,
+            linestyle=":",
+            alpha=0.7,
+        )
+        ax.add_patch(wedge_patch)
 
-            wedge = plt.matplotlib.patches.Wedge(
-                (current_pose.x, current_pose.y),
-                AOI_RADIUS_M,
-                math.degrees(start_angle),
-                math.degrees(end_angle),
-                fill=False,
-                color="green",
-                linestyle=":",
-                alpha=0.7,
-            )
-            ax.add_patch(wedge)
-
-        # Set equal aspect ratio
         ax.set_aspect("equal")
-
-        # Add labels and legend
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
         ax.set_title("Area of Interest Debug Plot")
         ax.legend()
 
-        # Add stats
         stats_text = (
             f"Total trees: {len(all_sat_tree_loc)}\n"
-            f"AOI trees: {len(aoi_sat_trees) if aoi_sat_trees else 0}\n"
+            f"AOI trees: {len(aoi_sat_trees)}\n"
             f"Position: ({current_pose.x:.1f}, {current_pose.y:.1f})\n"
             f"Heading: {current_pose.yaw:.1f}°"
         )
-        plt.figtext(0.02, 0.02, stats_text, fontsize=10, bbox={"facecolor": "white", "alpha": 0.8})
+        plt.figtext(
+            0.02,
+            0.02,
+            stats_text,
+            fontsize=10,
+            bbox={"facecolor": "white", "alpha": 0.8},
+        )
 
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
-        
-        # Save the plot instead of showing it
-        if save_name:
-            filename = f"{save_name}_aoi.png"
-        else:
-            filename = f"aoi_plot_{self.plot_counter:03d}.png"
-            self.plot_counter += 1
-            
+
+        filename = (
+            f"{save_name}_aoi.png" if save_name else f"aoi_plot_{self.plot_counter:03d}.png"
+        )
+        self.plot_counter += 1
         filepath = os.path.join(self.output_dir, filename)
         plt.savefig(filepath, dpi=150, bbox_inches='tight')
-        plt.close(fig)  # Important: close the figure to free memory
-        
+        plt.close(fig)
+
         print(f"AOI plot saved to: {filepath}")
 
-    def plot_vectors_and_intersections(self, vectors: list[list[tuple[float, float]]], 
-                                     intersections: list[tuple[float, float]], 
-                                     centroid: tuple[float, float], 
-                                     current_pose: Pose2d) -> None:
+    def plot_vectors_and_intersections(
+        self,
+        vectors: list[list[Point]],
+        intersections: list[Point],
+        centroid: Point,
+        current_pose: Pose2d,
+    ) -> None:
         """
         Visualize vectors, their intersections, and calculated centroid.
 
-        :param vectors: List of vectors as [[start_point, end_point], ...].
-        :param intersections: List of intersection points.
-        :param centroid: Calculated centroid point.
+        :param vectors: List of vectors as [[start, end], ...].
+        :param intersections: List of intersection Points.
+        :param centroid: Calculated centroid Point.
         :param current_pose: Current position as Pose2d object.
         """
 
-        # Creates the figure
         fig, ax = plt.subplots(figsize=(10, 8))
 
         # Plot vectors
-        for i, vector in enumerate(vectors):
-            start_x, start_y = vector[0]
-            end_x, end_y = vector[1]
-            ax.plot([start_x, end_x], [start_y, end_y], 
-                   linestyle='-', linewidth=2, alpha=0.7, 
-                   label=f"Vector {i+1}")
+        for i, (start, end) in enumerate(vectors):
+            ax.plot([start.x, end.x], [start.y, end.y], linestyle='-', linewidth=2, alpha=0.7, label=f"Vector {i+1}")
 
         # Plot intersections
         if intersections:
-            inter_x = [point[0] for point in intersections]
-            inter_y = [point[1] for point in intersections]
-            ax.scatter(inter_x, inter_y, s=50, c="orange", 
-                      marker="x", label="Intersections")
+            ix = [p.x for p in intersections]
+            iy = [p.y for p in intersections]
+            ax.scatter(ix, iy, s=50, marker="x", label="Intersections")
 
         # Plot centroid
-        if centroid:
-            ax.scatter(centroid[0], centroid[1], s=100, c="purple", 
-                      marker="D", label="Centroid")
+        ax.scatter(centroid.x, centroid.y, s=100, marker="D", label="Centroid")
 
         # Plot current position
-        if current_pose:
-            ax.scatter(current_pose.x, current_pose.y, s=100, c="red", 
-                      marker="*", label="Current Position")
+        ax.scatter(current_pose.x, current_pose.y, s=100, marker="*", label="Current Position")
 
-        # Set equal aspect ratio
         ax.set_aspect("equal")
-
-        # Add labels and legend
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
         ax.set_title("Vector Intersection Analysis")
@@ -205,90 +186,67 @@ class DebugVisualizer:
         plt.tight_layout()
         plt.show()
 
-    def plot_wedges(self, wedges: list, current_pose: Pose2d, 
-                   aoi_trees: list[tuple[float, float]],
-                   estimated_location_xy: tuple[float, float],
-                   save_name: str = None) -> None:
+    def plot_wedges(
+        self,
+        wedges: list[Wedge],
+        current_pose: Pose2d,
+        aoi_trees: list[Point],
+        estimated_location: Point,
+        save_name: str = None,
+    ) -> None:
         """
         Visualize wedges and their associated trees.
 
         :param wedges: List of Wedge objects.
         :param current_pose: Current position as Pose2d object.
-        :param aoi_trees: List of trees within area of interest.
+        :param aoi_trees: List of trees within area of interest as Point.
+        :param estimated_location: Estimated vehicle position as Point.
         :param save_name: Optional custom name for saved plot.
         """
 
-        # Creates the figure
         fig, ax = plt.subplots(figsize=(10, 8))
-
-        # Plot AOI trees
         if aoi_trees:
-            aoi_x = [tree[0] for tree in aoi_trees]
-            aoi_y = [tree[1] for tree in aoi_trees]
-            ax.scatter(aoi_x, aoi_y, s=30, c="lightblue", 
-                      alpha=0.6, label="AOI Trees")
+            ax.scatter([t.x for t in aoi_trees], [t.y for t in aoi_trees], s=30, alpha=0.6, label="AOI Trees")
 
-        # Plot current position
-        if current_pose:
-            ax.scatter(current_pose.x, current_pose.y, s=100, c="red", 
-                      marker="*", label="Current Position")
+        ax.scatter(current_pose.x, current_pose.y, s=100, marker="*", label="Current Position")
 
-        # Plot wedges
         colors = ['green', 'orange', 'purple', 'brown', 'pink', 'gray']
 
-        # Plot heading
-        if current_pose:
-            
-            heading_rad = math.radians(current_pose.yaw)
-            line_length = 5
-            end_x = current_pose.x + line_length * math.cos(heading_rad)
-            end_y = current_pose.y + line_length * math.sin(heading_rad)
-            
-            ax.plot([current_pose.x, end_x], [current_pose.y, end_y], 
-                    color='r', linestyle='-', linewidth=2, alpha=0.7)
+        # Heading line
+        hr = math.radians(current_pose.yaw)
+        hl = 5
+        ax.plot(
+            [current_pose.x, current_pose.x + hl * math.cos(hr)],
+            [current_pose.y, current_pose.y + hl * math.sin(hr)],
+            linestyle='-', linewidth=2, alpha=0.7,
+        )
 
         for i, wedge in enumerate(wedges):
             color = colors[i % len(colors)]
-            
-            # Plot trees in this wedge
             if wedge.matched_tree:
-                tree_x = wedge.matched_tree.x
-                tree_y = wedge.matched_tree.y
-                ax.scatter(tree_x, tree_y, s=60, c=color, 
-                          marker='s', alpha=0.8, 
-                          label=f"Wedge {i+1} ({-wedge.theta_degrees:.1f}°)")
+                tx, ty = wedge.matched_tree.x, wedge.matched_tree.y
+                ax.scatter(tx, ty, s=60, marker='s', alpha=0.8, label=f"Wedge {i+1} ({-wedge.theta_degrees:.1f}°)")
+                tr = math.radians(-wedge.theta_degrees)
+                dr = (hr - tr - math.radians(180)) % (2 * math.pi)
+                ll = 25
+                ax.plot(
+                    [tx, tx + ll * math.cos(dr)],
+                    [ty, ty + ll * math.sin(dr)],
+                    linestyle='-', linewidth=2, alpha=0.7,
+                )
+            # Wedge direction
+            dr2 = (hr - math.radians(-wedge.theta_degrees))
+            ll2 = 20
+            ax.plot(
+                [current_pose.x, current_pose.x + ll2 * math.cos(dr2)],
+                [current_pose.y, current_pose.y + ll2 * math.sin(dr2)],
+                linestyle='--', linewidth=2, alpha=0.7,
+            )
 
-                heading_rad = math.radians(current_pose.yaw)
-                theta_rad = math.radians(wedge.theta_degrees * -1.0)
-                direction_rad = (heading_rad - theta_rad - math.radians(180)) % 360
-                
-                line_length = 25
-                end_x = tree_x + line_length * math.cos(direction_rad)
-                end_y = tree_y + line_length * math.sin(direction_rad)
-                
-                ax.plot([tree_x, end_x], [tree_y, end_y], 
-                       color=color, linestyle='-', linewidth=2, alpha=0.7)
+        # Estimated position
+        ax.scatter(estimated_location.x, estimated_location.y, s=100, marker="*", label="Estimated Position")
 
-            # Draw wedge direction line
-            if current_pose:
-                heading_rad = math.radians(current_pose.yaw)
-                theta_rad = math.radians(wedge.theta_degrees * -1.0)
-                direction_rad = heading_rad - theta_rad
-                
-                line_length = 20
-                end_x = current_pose.x + line_length * math.cos(direction_rad)
-                end_y = current_pose.y + line_length * math.sin(direction_rad)
-                
-                ax.plot([current_pose.x, end_x], [current_pose.y, end_y], 
-                       color=color, linestyle='--', linewidth=2, alpha=0.7)
-        
-            ax.scatter(estimated_location_xy.x, estimated_location_xy.y, s=100, c="green", 
-                        marker="*", label="Estimated Position")
-
-        # Set equal aspect ratio
         ax.set_aspect("equal")
-
-        # Add labels and legend
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
         ax.set_title("Wedge Analysis")
@@ -296,59 +254,45 @@ class DebugVisualizer:
 
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
-      
-        # Save the plot instead of showing it
-        if save_name:
-            filename = f"{save_name}_wedges.png"
-        else:
-            filename = f"wedges_plot_{self.plot_counter:03d}.png"
-            self.plot_counter += 1
-            
+
+        filename = f"{save_name}_wedges.png" if save_name else f"wedges_plot_{self.plot_counter:03d}.png"
+        self.plot_counter += 1
         filepath = os.path.join(self.output_dir, filename)
         plt.savefig(filepath, dpi=150, bbox_inches='tight')
-        plt.close(fig)  # Important: close the figure to free memory
-        
+        plt.close(fig)
+
         print(f"Wedges plot saved to: {filepath}")
 
-    def plot_estimation_comparison(self, current_pose: Pose2d, 
-                                 estimated_position: tuple[float, float], 
-                                 true_position: tuple[float, float] = None,
-                                 save_name: str = None) -> None:
-      
+    def plot_estimation_comparison(
+        self,
+        current_pose: Pose2d,
+        estimated_position: Point,
+        true_position: Point | None = None,
+        save_name: str = None,
+    ) -> None:
         """
         Compare estimated position with current and true positions.
 
         :param current_pose: Current position estimate as Pose2d object.
-        :param estimated_position: Estimated position from tree matching.
-        :param true_position: Optional true position for comparison.
+        :param estimated_position: Estimated position as Point.
+        :param true_position: Optional true position as Point.
         :param save_name: Optional custom name for saved plot.
         """
 
-        # Creates the figure
         fig, ax = plt.subplots(figsize=(8, 8))
 
-        # Plot current position
-        ax.scatter(current_pose.x, current_pose.y, s=100, c="red", 
-                  marker="*", label="Current Position")
+        ax.scatter(current_pose.x, current_pose.y, s=100, marker="*", label="Current Position")
+        ax.scatter(estimated_position.x, estimated_position.y, s=100, marker="o", label="Estimated Position")
 
-        # Plot estimated position
-        ax.scatter(estimated_position[0], estimated_position[1], s=100, 
-                  c="green", marker="o", label="Estimated Position")
-
-        # Plot true position if available
         if true_position:
-            ax.scatter(true_position[0], true_position[1], s=100, 
-                      c="blue", marker="^", label="True Position")
-            
-            # Draw error lines
-            ax.plot([estimated_position[0], true_position[0]], 
-                   [estimated_position[1], true_position[1]], 
-                   'k--', alpha=0.5, label="Estimation Error")
+            ax.scatter(true_position.x, true_position.y, s=100, marker="^", label="True Position")
+            ax.plot(
+                [estimated_position.x, true_position.x],
+                [estimated_position.y, true_position.y],
+                'k--', alpha=0.5, label="Estimation Error"
+            )
 
-        # Set equal aspect ratio
         ax.set_aspect("equal")
-
-        # Add labels and legend
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
         ax.set_title("Position Estimation Results")
@@ -356,16 +300,11 @@ class DebugVisualizer:
 
         plt.grid(True, alpha=0.3)
         plt.tight_layout()
-        
-        # Save the plot instead of showing it
-        if save_name:
-            filename = f"{save_name}_comparison.png"
-        else:
-            filename = f"comparison_plot_{self.plot_counter:03d}.png"
-            self.plot_counter += 1
-            
+
+        filename = f"{save_name}_comparison.png" if save_name else f"comparison_plot_{self.plot_counter:03d}.png"
+        self.plot_counter += 1
         filepath = os.path.join(self.output_dir, filename)
         plt.savefig(filepath, dpi=150, bbox_inches='tight')
-        plt.close(fig)  # Important: close the figure to free memory
-        
+        plt.close(fig)
+
         print(f"Comparison plot saved to: {filepath}")
