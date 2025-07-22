@@ -6,15 +6,18 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from constants import *
+from matplotlib.backend_bases import KeyEvent
+
+from project_sgil.constants import DATA_LOGGER_PATH
 
 matplotlib.use("TkAgg")  # Use TkAgg backend for interactive plotting
 
+# TODO: do some cleanup here, docstrings need to be fixed
+
 
 class GPSRTKVisualizer:
-    def __init__(self, data_path, save_path=None) -> None:
-        """
-        Initialize the visualizer with path to the data file.
+    def __init__(self, data_path: str, save_path: str | None = None) -> None:
+        """Initialize the visualizer with path to the data file.
 
         Args:
             data_path (str): Path to the CSV file containing GPS and RTK data
@@ -52,11 +55,11 @@ class GPSRTKVisualizer:
             self.data = self.data.sort_values("timestamp").reset_index(drop=True)
             print("Data sorted by timestamp")
 
-    def calculate_haversine_distance(self, lat1, lon1, lat2, lon2):
-        """
-        Calculate the great circle distance between two points on the earth
-        (specified in decimal degrees).
-        """
+    def calculate_haversine_distance(
+        self, lat1: float, lon1: float, lat2: float, lon2: float
+    ) -> float:
+        """Calculate the great circle distance between two points on the earth
+        (specified in decimal degrees)."""
         # Convert decimal degrees to radians
         lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
 
@@ -160,7 +163,7 @@ class GPSRTKVisualizer:
             f"Time: {current_data['timestamp']:.2f}" if "timestamp" in current_data else ""
         )
         self.ax.set_title(
-            f"GPS vs RTK Position (Point {self.current_index + 1}/{len(self.data)}) - Error: {error_m:.2f}m {timestamp_info}"
+            f"GPS vs RTK Position (Point {self.current_index + 1}/{len(self.data)}) - Error: {error_m:.2f}m {timestamp_info}"  # noqa: E501
         )
 
         # Update the canvas
@@ -174,7 +177,7 @@ class GPSRTKVisualizer:
 
         return True
 
-    def on_key_press(self, event) -> None:
+    def on_key_press(self, event: KeyEvent) -> None:
         """Handle key press events."""
         if event.key == "enter":
             self.next_point()
@@ -199,7 +202,7 @@ class GPSRTKVisualizer:
         else:
             print("Already at the beginning of the data")
 
-    def create_interactive_map(self, output_file="gps_rtk_map.html") -> None:
+    def create_interactive_map(self, output_file: str = "gps_rtk_map.html") -> None:
         """Create an interactive folium map with the data."""
         # Calculate the center of the data
         center_lat = self.data["rtk_lat"].mean()
@@ -248,7 +251,7 @@ class GPSRTKVisualizer:
             ).add_to(m)
 
             # Add GPS marker
-            gps_popup_text = f"GPS Point {i + 1}<br>Lat: {row['gps_lat']:.8f}<br>Lon: {row['gps_lon']:.8f}<br>Error from RTK: {error_m:.2f}m"
+            gps_popup_text = f"GPS Point {i + 1}<br>Lat: {row['gps_lat']:.8f}<br>Lon: {row['gps_lon']:.8f}<br>Error from RTK: {error_m:.2f}m"  # noqa: E501
             if "timestamp" in row:
                 gps_popup_text += f"<br>Time: {row['timestamp']:.2f}"
             folium.CircleMarker(
@@ -294,7 +297,7 @@ class GPSRTKVisualizer:
         plt.show()
 
         print(
-            "Visualization complete. Press Enter to advance, Backspace to go back, or Escape to close."
+            "Visualization complete. Press Enter to advance, Backspace to go back, or Escape to close."  # noqa: E501
         )
 
 

@@ -1,12 +1,24 @@
+"""Manual tree selection interface for ground view analysis and matching with
+satellite data using pre-collected and pre-labeled dataset.
+
+file: manual_selector.py
+author: Cole Malinchock and Jack Elia
+"""
+
+# Import standard libraries
 import logging
 import os
 import random
 
 import cv2
+import matplotlib.pyplot as plt
 import pandas as pd
-from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM
+
+# Import custom classes
+from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, PLOT, RANDOM
 from converter import Converter
 from data_structs import Point, Pose2d
+from debug_visualizer import DebugVisualizer
 from tree_matcher import TreeMatcher
 
 logging.basicConfig(level=logging.INFO)
@@ -14,7 +26,7 @@ logging.basicConfig(level=logging.INFO)
 
 class SGILMatcherApp:
     """
-    Encapsulates the SGIL tree‐matching workflow:
+    Encapsulates the SGIL tree-matching workflow:
       1. Reads robot GPS/RTK logs.
       2. Presents each image for the user to click tree locations.
       3. Converts clicks into ground angles.
@@ -39,6 +51,7 @@ class SGILMatcherApp:
         """
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher()
+        self.debug_visualizer = DebugVisualizer()
         self.image_folder = image_folder
         self.randomize = randomize
 
@@ -56,8 +69,7 @@ class SGILMatcherApp:
         self._current_index: int = 0
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """
-        Lookup the RTK/GPS pose for a given image filename.
+        """Lookup the RTK/GPS pose for a given image filename.
 
         :param image_name: Name of the .jpg image.
         :return: Pose2d if RTK heading is valid; otherwise None.
@@ -70,8 +82,7 @@ class SGILMatcherApp:
         return self.get_gps_pose(matches.iloc[0])
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
-        """
-        Convert a log row into a Pose2d using RTK for yaw.
+        """Convert a log row into a Pose2d using RTK for yaw.
 
         Also updates internal gps_pose/correct_pose for error logging.
         :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading,
@@ -91,13 +102,12 @@ class SGILMatcherApp:
     def get_next_image(
         self,
     ) -> tuple[str, list[Point], Pose2d | None]:
-        """
-        Retrieves the next image, shows it for manual tree picking, and
+        """Retrieves the next image, shows it for manual tree picking, and
         returns the clicks and pose.
 
         :return:
           - image_name: filename or "0" when exhausted
-          - selected_points: list of image‐pixel Points
+          - selected_points: list of image-pixel Points
           - pose: corresponding Pose2d or None
         """
         if self._current_index >= len(self._image_list):
@@ -120,23 +130,58 @@ class SGILMatcherApp:
         # Load and display for click events
         path = os.path.join(self.image_folder, image_name)
         image = cv2.imread(path)
-        display = image.copy()
+        image.copy()
+        if image is None:
+            print(f"Error loading image: {image_name}")
+            return self.get_next_image()
 
-        def click_event(evt, x, y, flags, param) -> None:
-            if evt == cv2.EVENT_LBUTTONDOWN:
+        # Define the mouse callback function
+        def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
+            """Handle mouse click events for point selection."""
+            # Check if left mouse button was clicked
+            if event == cv2.EVENT_LBUTTONDOWN:
+                # Add point to list
                 selected_points.append(Point(x, y))
-                cv2.circle(display, (x, y), 5, (0, 255, 0), -1)
-                cv2.imshow("Select Trees", display)
+                # Draw circle at clicked position
+                cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
+                # Update the display
+                cv2.imshow(window_name, displayed_image)
 
-        cv2.namedWindow("Select Trees")
-        cv2.setMouseCallback("Select Trees", click_event)
-        cv2.imshow("Select Trees", display)
-
-        # Wait until Enter is pressed
-        while True:
-            if (cv2.waitKey(1) & 0xFF) == 13:
-                break
+        # Close any existing matplotlib figures and OpenCV windows
+        plt.close("all")
         cv2.destroyAllWindows()
+        cv2.waitKey(1)
+
+        # Create a copy to display and modify
+        displayed_image = image.copy()
+
+        # Create a window name with image info for uniqueness
+        window_name = f"Select Points - {image_name}"
+
+        # Create window and set it to autosize first, then resize
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        cv2.imshow(window_name, displayed_image)
+
+        # Set the mouse callback function
+        cv2.setMouseCallback(window_name, click_event)
+
+        print(f"Processing image: {image_name}")
+        print("Left-click to select trees, press Enter when done, ESC to skip")
+
+        # Wait for keypress - Enter key will finish selection
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            # If Enter key is pressed, break the loop
+            if key == 13:  # 13 is the ASCII code for Enter
+                break
+            # If ESC key is pressed, skip this image
+            elif key == 27:  # 27 is the ASCII code for ESC
+                selected_points = []
+                break
+
+        # Close the specific window
+        cv2.destroyWindow(window_name)
+        cv2.waitKey(1)
 
         return image_name, selected_points, pose
 
@@ -145,8 +190,22 @@ class SGILMatcherApp:
         Main application loop: for each image, collect clicks,
         compute ground angles, match trees, and print errors.
         """
+
+        # Prints out the instructions for use
+        print("Starting manual tree selection...")
+        print("Instructions:")
+        print("- Left-click to select trees in the image")
+        print("- Press Enter when done selecting trees")
+        print("- Press ESC to skip current image")
+        print("- Press Ctrl+C to quit")
+        print("- Debug plots will be saved to 'debug_plots/' folder\n")
+
+        # Continues until there are no more images
         while True:
+            # Gets the name, points chosen, and the pose of the next image
             name, points, pose = self.get_next_image()
+
+            # Checks that there is another image and a pose
             if name == "0":
                 logging.info("All images processed. Exiting.")
                 break
@@ -155,8 +214,24 @@ class SGILMatcherApp:
                 logging.warning(f"No valid pose for {name}; skipping.")
                 continue
 
+            # Gets the ground thetas from the image and matches the corresponding trees with the
+            # satellite data
             ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
             est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
+
+            print("Estimated location xy: ", est_xy)
+
+            # Get data for debug visualization
+            aoi_sat_trees = self.tree_matcher.aoi_sat_trees
+            all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
+            wedges = self.tree_matcher.wedges
+
+            # Create debug visualization (saved to file, no display conflicts)
+            if PLOT:
+                # Use image name (without extension) as save name
+                save_name = os.path.splitext(name)[0]
+                self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, pose, save_name)
+                self.debug_visualizer.plot_wedges(wedges, pose, aoi_sat_trees, est_xy, save_name)
 
             # Convert back to lat/lon
             est_latlon = self.converter.xy_to_latlon(est_xy)
