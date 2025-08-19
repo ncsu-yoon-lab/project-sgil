@@ -108,7 +108,7 @@ class SGILMatcherApp:
         :return:
           - image_name: filename or "0" when exhausted
           - selected_points: list of image-pixel Points
-          - pose: corresponding Pose2d or None
+          - pose: The true corresponding Pose2d from the RTK or None
         """
         if self._current_index >= len(self._image_list):
             return "0", [], None
@@ -255,6 +255,9 @@ class SGILMatcherApp:
             logging.info(f"  Estimated LatLon: {est_latlon}")
             logging.info(f"  GPS error (m):     {gps_err:.2f}")
             logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
+
+            # TODO: remove this break to process all images
+            break
 
 
 if __name__ == "__main__":

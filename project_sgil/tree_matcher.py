@@ -8,7 +8,6 @@ author: Cole Malinchock and Jack Elia
 # Import necessary libraries
 import csv
 import math
-from itertools import product
 
 from converter import Converter
 from data_structs import Point, Pose2d, Tree, Wedge
@@ -46,6 +45,81 @@ class TreeMatcher:
                 x, y = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
                 point = Point(x, y)
                 self.all_sat_tree_loc.append(point)
+
+    @staticmethod
+    def sequences_as_maps_from_wedges(
+        wedges: list[Wedge],
+        n: int,
+        min_len: int = 1,
+    ) -> list[dict[Wedge, Tree]]:
+        """Skip-allowed, ordered enumeration.
+
+        Returns a list of dicts mapping wedge_index -> Tree.
+        - Length of each dict is in [min_len, n]
+        - Never reuses a Tree id across a sequence
+        - Considers both wedge.trees and wedge.matched_tree (if present)
+        - Dedupes identical outputs via (wedge_index, tree_id) pairs
+        """
+        results: list[dict[Wedge, Tree]] = []
+        seen_maps: set[frozenset[tuple[int, int]]] = set()
+
+        def wedge_candidates(wi: int) -> list[Tree]:
+            # combine trees + matched_tree, dedupe by id (keep first occurrence order)
+            cand: list[Tree] = []
+            seen_ids: set[int] = set()
+            for t in wedges[wi].trees:
+                if t.id not in seen_ids:
+                    seen_ids.add(t.id)
+                    cand.append(t)
+            mt = getattr(wedges[wi], "matched_tree", None)
+            if mt is not None and mt.id not in seen_ids:
+                seen_ids.add(mt.id)
+                cand.append(mt)
+            return cand
+
+        def backtrack(wi: int, chosen: list[tuple[int, Tree]], used: set[int]) -> None:
+            # hard bounds
+            if len(chosen) > n:
+                return
+            if wi > len(wedges):
+                return
+
+            # record partials within [min_len, n]
+            if min_len <= len(chosen) <= n:
+                key = frozenset((idx, t.id) for idx, t in chosen)
+                if key not in seen_maps:
+                    seen_maps.add(key)
+                    results.append(dict(chosen))
+                # stop extending if we've hit max length
+                if len(chosen) == n:
+                    # NOTE: still continue to explore sibling branches at earlier stack levels
+                    pass
+
+            # if no wedges left, stop
+            if wi == len(wedges):
+                return
+
+            # IMPORTANT: do NOT prune on "can’t reach n"—we’re generating ≤ n.
+            # But we can prune if even max achievable length can’t reach min_len
+            remaining = len(wedges) - wi
+            if len(chosen) + remaining < min_len:
+                return
+
+            # Option 1: pick one from this wedge (if eligible)
+            for t in wedge_candidates(wi):
+                if t.id in used:
+                    continue
+                used.add(t.id)
+                chosen.append((wi, t))
+                backtrack(wi + 1, chosen, used)
+                chosen.pop()
+                used.remove(t.id)
+
+            # Option 2: skip this wedge
+            backtrack(wi + 1, chosen, used)
+
+        backtrack(0, [], set())
+        return results
 
     def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
         """Match trees based on current position and ground view angles.
@@ -123,87 +197,8 @@ class TreeMatcher:
         :return: Estimated position of the vehicle as Point.
         """
 
-        matched_wedges: list[Wedge] = []
-        unmatched_wedges: list[Wedge] = []
-
-        for wedge in wedges:
-            if len(wedge.trees) == 1:
-                wedge.matched_tree = wedge.trees[0]
-                matched_wedges.append(wedge)
-            elif len(wedge.trees) > 1:
-                unmatched_wedges.append(wedge)
-
-        if not unmatched_wedges and len(matched_wedges) >= 2:
-            vectors = self.create_vectors_from_wedges(matched_wedges, current_pose)
-            centroid, _, std_dev = self.analyze_vector_intersections(vectors)
-            return centroid
-
-        wedge_combinations = [wedge.trees for wedge in unmatched_wedges]
-        if not wedge_combinations:
-            print("No wedge found")
-            return Point(current_pose.x, current_pose.y)
-
-        all_wedge_combinations = list(product(*wedge_combinations))
-        unique_wedge_combinations = [
-            combo
-            for combo in all_wedge_combinations
-            if len({tree.id for tree in combo}) == len(combo)
-        ]
-
-        print(unique_wedge_combinations)
-
-        lowest_std_dev = float("inf")
-        best_centroid: Point | None = None
-        best_combo = None
-
-        for tree_combo in unique_wedge_combinations:
-            vectors: list[list[Point]] = []
-            for i, tree in enumerate(tree_combo):
-                if i < len(unmatched_wedges):
-                    wedge = unmatched_wedges[i]
-                    heading_rad = math.radians(current_pose.yaw)
-                    theta_rad = math.radians(-wedge.theta_degrees)
-                    direction_rad = (heading_rad - theta_rad - math.radians(180)) % (2 * math.pi)
-                    vector_length = 100
-                    start = Point(tree.x, tree.y)
-                    end = Point(
-                        tree.x + vector_length * math.cos(direction_rad),
-                        tree.y + vector_length * math.sin(direction_rad),
-                    )
-                    vectors.append([start, end])
-
-            for wedge in matched_wedges:
-                if wedge.matched_tree:
-                    tree = wedge.matched_tree
-                    heading_rad = math.radians(current_pose.yaw)
-                    theta_rad = math.radians(-wedge.theta_degrees)
-                    direction_rad = (heading_rad - theta_rad - math.radians(180)) % (2 * math.pi)
-                    vector_length = 100
-                    start = Point(tree.x, tree.y)
-                    end = Point(
-                        tree.x + vector_length * math.cos(direction_rad),
-                        tree.y + vector_length * math.sin(direction_rad),
-                    )
-                    vectors.append([start, end])
-
-            if len(vectors) >= 2:
-                centroid, intersections, std_dev = self.analyze_vector_intersections(vectors)
-                if centroid and std_dev is not None and std_dev < lowest_std_dev:
-                    best_combo = tree_combo
-                    lowest_std_dev = std_dev
-                    best_centroid = centroid
-
-        if best_centroid and best_combo:
-            combo_idx = 0
-            for wedge in wedges:
-                if wedge.matched_tree is None:
-                    wedge.matched_tree = best_combo[combo_idx]
-                    combo_idx += 1
-            self.wedges = wedges
-            return best_centroid
-
-        print("No best centroid")
-        return Point(current_pose.x, current_pose.y)
+        TreeMatcher.sequences_as_maps_from_wedges(wedges, len(wedges))
+        pass
 
     def create_vectors_from_wedges(
         self, wedges: list[Wedge], current_pose: Pose2d
