@@ -222,16 +222,16 @@ class SGILMatcherApp:
             print("Estimated location xy: ", est_xy)
 
             # Get data for debug visualization
-            aoi_sat_trees = self.tree_matcher.aoi_sat_trees
-            all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
+            aoi_sat_trees = self.tree_matcher.aoi_trees
+            all_sat_tree_loc = self.tree_matcher.satellite_tree_locations
             wedges = self.tree_matcher.wedges
 
             # Create debug visualization (saved to file, no display conflicts)
-            if PLOT:
-                # Use image name (without extension) as save name
-                save_name = os.path.splitext(name)[0]
-                self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, pose, save_name)
-                self.debug_visualizer.plot_wedges(wedges, pose, aoi_sat_trees, est_xy, save_name)
+            # if PLOT:
+            #     # Use image name (without extension) as save name
+            #     save_name = os.path.splitext(name)[0]
+            #     self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, pose, save_name)
+            #     self.debug_visualizer.plot_wedges(wedges, pose, aoi_sat_trees, est_xy, save_name)
 
             # Convert back to lat/lon
             est_latlon = self.converter.xy_to_latlon(est_xy)

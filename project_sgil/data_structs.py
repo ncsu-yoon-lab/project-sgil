@@ -33,7 +33,7 @@ class Tree(Point):
     id: int
 
 
-@dataclass
+@dataclass(eq=False)
 class Wedge:
     """Represents an angular wedge containing multiple trees and an optional
     matched tree.

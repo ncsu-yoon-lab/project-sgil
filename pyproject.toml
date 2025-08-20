@@ -9,6 +9,7 @@ dependencies = [
     "matplotlib",
     "shapely",
     "numpy",
+    "sympy",
 ]
 
 [project.optional-dependencies]

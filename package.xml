@@ -13,6 +13,7 @@
   <!-- Add deps here, should match what's in setup.py -->
   <exec_depend>python3-opencv</exec_depend>
   <exec_depend>python3-matplotlib</exec_depend>
+  <exec_depend>python3-sympy</exec_depend>
 
   <test_depend>pytest</test_depend>
 

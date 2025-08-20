@@ -5,9 +5,9 @@ file: tree_matcher.py
 author: Cole Malinchock and Jack Elia
 """
 
-# Import necessary libraries
 import csv
 import math
+from typing import List, Dict, Set, Tuple, Optional
 
 from converter import Converter
 from data_structs import Point, Pose2d, Tree, Wedge
@@ -19,6 +19,7 @@ from project_sgil.constants import (
     ORIGIN,
     TREE_LOCATIONS_PATH,
 )
+from project_sgil.debug_visualizer import DebugVisualizer
 from project_sgil.utils import distance, get_relative_angle, std_deviation_of_distances
 
 
@@ -33,9 +34,9 @@ class TreeMatcher:
             locations.
         """
 
-        self.all_sat_tree_loc: list[Point] = []
-        self.aoi_sat_trees: list[Point] = []
-        self.wedges: list[Wedge] = []
+        self.satellite_tree_locations: List[Point] = []
+        self.aoi_trees: List[Point] = []
+        self.wedges: List[Wedge] = []
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
 
         # Load tree locations from CSV and convert to Point instances
@@ -44,41 +45,39 @@ class TreeMatcher:
             for row in scanner:
                 x, y = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
                 point = Point(x, y)
-                self.all_sat_tree_loc.append(point)
+                self.satellite_tree_locations.append(point)
 
     @staticmethod
     def sequences_as_maps_from_wedges(
-        wedges: list[Wedge],
-        n: int,
-        min_len: int = 1,
-    ) -> list[dict[Wedge, Tree]]:
-        """Skip-allowed, ordered enumeration.
-
-        Returns a list of dicts mapping wedge_index -> Tree.
+        wedges: List[Wedge],
+        n: int,  # max length
+        min_len: int = 1,  # minimum length to record
+    ) -> List[Dict[Wedge, Tree]]:
+        """
+        Skip-allowed, ordered enumeration.
+        Returns a list of dicts mapping Wedge -> Tree.
         - Length of each dict is in [min_len, n]
         - Never reuses a Tree id across a sequence
         - Considers both wedge.trees and wedge.matched_tree (if present)
         - Dedupes identical outputs via (wedge_index, tree_id) pairs
         """
-        results: list[dict[Wedge, Tree]] = []
-        seen_maps: set[frozenset[tuple[int, int]]] = set()
+        results: List[Dict[Wedge, Tree]] = []
+        seen_maps: Set[frozenset[Tuple[int, int]]] = set()  # (wedge_index, tree_id)
 
-        def wedge_candidates(wi: int) -> list[Tree]:
-            # combine trees + matched_tree, dedupe by id (keep first occurrence order)
-            cand: list[Tree] = []
-            seen_ids: set[int] = set()
+        def wedge_candidates(wi: int) -> List[Tree]:
+            # combine trees + matched_tree, dedupe by id
+            cand: List[Tree] = []
+            seen_ids: Set[int] = set()
             for t in wedges[wi].trees:
                 if t.id not in seen_ids:
                     seen_ids.add(t.id)
                     cand.append(t)
             mt = getattr(wedges[wi], "matched_tree", None)
             if mt is not None and mt.id not in seen_ids:
-                seen_ids.add(mt.id)
                 cand.append(mt)
             return cand
 
-        def backtrack(wi: int, chosen: list[tuple[int, Tree]], used: set[int]) -> None:
-            # hard bounds
+        def backtrack(wi: int, chosen: List[Tuple[int, Tree]], used: Set[int]) -> None:
             if len(chosen) > n:
                 return
             if wi > len(wedges):
@@ -89,23 +88,18 @@ class TreeMatcher:
                 key = frozenset((idx, t.id) for idx, t in chosen)
                 if key not in seen_maps:
                     seen_maps.add(key)
-                    results.append(dict(chosen))
-                # stop extending if we've hit max length
+                    results.append({wedges[idx]: t for idx, t in chosen})
                 if len(chosen) == n:
-                    # NOTE: still continue to explore sibling branches at earlier stack levels
-                    pass
+                    return
 
-            # if no wedges left, stop
             if wi == len(wedges):
                 return
 
-            # IMPORTANT: do NOT prune on "can’t reach n"—we’re generating ≤ n.
-            # But we can prune if even max achievable length can’t reach min_len
             remaining = len(wedges) - wi
             if len(chosen) + remaining < min_len:
                 return
 
-            # Option 1: pick one from this wedge (if eligible)
+            # Option 1: pick one
             for t in wedge_candidates(wi):
                 if t.id in used:
                     continue
@@ -115,7 +109,7 @@ class TreeMatcher:
                 chosen.pop()
                 used.remove(t.id)
 
-            # Option 2: skip this wedge
+            # Option 2: skip
             backtrack(wi + 1, chosen, used)
 
         backtrack(0, [], set())
@@ -131,11 +125,11 @@ class TreeMatcher:
         """
 
         # The area of interest based on the current pose
-        self.aoi_sat_trees = self.get_area_of_interest(current_pose)
+        self.aoi_trees = self.get_area_of_interest(current_pose)
 
         # Loop through all the thetas and make their corresponding wedges
         for theta in ground_thetas:
-            self.wedges.append(self.create_wedge(current_pose, self.aoi_sat_trees, theta))
+            self.wedges.append(self.create_wedge(current_pose, self.aoi_trees, theta))
 
         # Estimate the location by matching the wedges to the identified trees
         estimated_location = self.wedge_matching(self.wedges, current_pose)
@@ -153,7 +147,7 @@ class TreeMatcher:
 
         area_of_interest_tree_loc: list[Point] = []
 
-        for tree in self.all_sat_tree_loc:
+        for tree in self.satellite_tree_locations:
             # Checks if the distance is within the radius
             if distance(tree, current_pose) < AOI_RADIUS_M:
                 # Checks if the relative angle to the tree is within the expected limit
@@ -190,15 +184,111 @@ class TreeMatcher:
         return wedge
 
     def wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> Point:
-        """Match wedges to trees to find the most accurate position.
+        """Estimate position by evaluating all skip-allowed wedge→tree maps
+        (length ≥ 2) and picking the intersection point closest to current_pose."""
 
-        :param wedges: List of wedges containing available trees.
-        :param current_pose: Current position estimate as Pose2d.
-        :return: Estimated position of the vehicle as Point.
-        """
+        # Generate maps: {Wedge -> Tree}, allowing skips, lengths in [2, len(wedges)]
+        wedge_combinations = TreeMatcher.sequences_as_maps_from_wedges(
+            wedges, n=len(wedges), min_len=2
+        )
 
-        TreeMatcher.sequences_as_maps_from_wedges(wedges, len(wedges))
-        pass
+        best_pt: Optional[Point] = None
+        best_dist: float = float("inf")
+        best_rms: float = float("inf")  # tie-breaker if distances are equal
+
+        # Solve least-squares intersection for a set of lines defined by (point, angle)
+        def ls_intersection(
+            lines: list[tuple[Point, float]],
+        ) -> Optional[tuple[float, float, float]]:
+            """
+            Each line: (p_i, phi_i) where phi_i is direction angle in radians.
+            Minimize sum_i (n_i·x - n_i·p_i)^2 with n_i = (-sin phi_i, cos phi_i).
+            Returns (x, y, rms_residual) or None if ill-conditioned.
+            """
+            s11 = s12 = s22 = 0.0
+            t1 = t2 = 0.0
+            b_vals: list[float] = []
+            normals: list[tuple[float, float]] = []
+
+            for p_i, phi in lines:
+                sn = math.sin(phi)
+                cs = math.cos(phi)
+                nx, ny = -sn, cs
+                b_i = nx * p_i.x + ny * p_i.y
+
+                s11 += nx * nx
+                s12 += nx * ny
+                s22 += ny * ny
+                t1 += nx * b_i
+                t2 += ny * b_i
+
+                b_vals.append(b_i)
+                normals.append((nx, ny))
+
+            det = s11 * s22 - s12 * s12
+            if abs(det) < 1e-12:
+                return None  # lines are (near) parallel / degenerate
+
+            inv11 = s22 / det
+            inv12 = -s12 / det
+            inv22 = s11 / det
+
+            x = inv11 * t1 + inv12 * t2
+            y = inv12 * t1 + inv22 * t2
+
+            # RMS perpendicular residual to the set of lines
+            sq_sum = 0.0
+            for (nx, ny), b_i in zip(normals, b_vals):
+                r = nx * x + ny * y - b_i
+                sq_sum += r * r
+            m = len(normals)
+            rms = math.sqrt(sq_sum / m) if m > 0 else float("inf")
+            return (x, y, rms)
+
+        base_yaw_deg = current_pose.yaw
+
+        debug_visualizer = DebugVisualizer()
+
+        i = 0
+
+        for wedge_map in wedge_combinations:
+            # Build the set of lines for this combination
+            lines: list[tuple[Point, float]] = []
+            for wedge, tree in wedge_map.items():
+                phi = math.radians(base_yaw_deg + wedge.theta_degrees)
+                lines.append((tree, phi))
+
+            sol = ls_intersection(lines)
+            if sol is None:
+                continue
+
+            x_hat, y_hat, rms = sol
+
+            # Distance from the candidate intersection to the current pose
+            dx = x_hat - current_pose.x
+            dy = y_hat - current_pose.y
+            dist = math.hypot(dx, dy)
+
+            i += 1
+
+            # Set all the wedge matched trees to the best point
+            for wedge, tree in wedge_map.items():
+                wedge.matched_tree = tree
+
+            if len(wedge_map) == len(wedges):
+                debug_visualizer.plot_wedges(wedges, current_pose, self.aoi_trees, Point(x_hat, y_hat), f"combo_{i}_dist_{dist:.2f}")
+
+            # Choose the intersection closest to current_pose.
+            # If distances tie (very rare), prefer the lower RMS fit as a tie-breaker.
+            if (dist < best_dist) or (math.isclose(dist, best_dist) and rms < best_rms):
+                best_dist = dist
+                best_rms = rms
+                best_pt = Point(x_hat, y_hat)
+
+        # Fallback: if everything was degenerate, return the current pose
+        if best_pt is None:
+            return Point(current_pose.x, current_pose.y)
+        return best_pt
 
     def create_vectors_from_wedges(
         self, wedges: list[Wedge], current_pose: Pose2d
