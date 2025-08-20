@@ -16,7 +16,7 @@ matplotlib.use("Agg")  # Use non-interactive backend that won't interfere with O
 import os
 
 import matplotlib.pyplot as plt
-from data_structs import Point, Pose2d, Wedge
+from data_structs import Point, Pose2d, Tree, Wedge
 
 
 class DebugVisualizer:
@@ -195,7 +195,7 @@ class DebugVisualizer:
         self,
         wedges: list[Wedge],
         current_pose: Pose2d,
-        aoi_trees: list[Point],
+        aoi_trees: list[Tree],
         estimated_location: Point,
         save_name: str | None = None,
     ) -> None:

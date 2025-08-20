@@ -7,7 +7,6 @@ author: Cole Malinchock and Jack Elia
 
 import csv
 import math
-from typing import List, Dict, Set, Tuple, Optional
 
 from converter import Converter
 from data_structs import Point, Pose2d, Tree, Wedge
@@ -34,9 +33,9 @@ class TreeMatcher:
             locations.
         """
 
-        self.satellite_tree_locations: List[Point] = []
-        self.aoi_trees: List[Point] = []
-        self.wedges: List[Wedge] = []
+        self.satellite_tree_locations: list[Point] = []
+        self.aoi_trees: list[Tree] = []
+        self.wedges: list[Wedge] = []
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
 
         # Load tree locations from CSV and convert to Point instances
@@ -49,71 +48,141 @@ class TreeMatcher:
 
     @staticmethod
     def sequences_as_maps_from_wedges(
-        wedges: List[Wedge],
+        wedges: list[Wedge],
         n: int,  # max length
         min_len: int = 1,  # minimum length to record
-    ) -> List[Dict[Wedge, Tree]]:
+    ) -> list[dict[Wedge, Tree]]:
+        """Enumerate skip-allowed, ordered wedge→tree selections as dicts.
+
+        :param wedges: Ordered list of wedges to traverse.
+        :param n: Maximum number of selections to include in a result.
+        :param min_len: Minimum number of selections required for a
+            result.
+        :return: List of dictionaries mapping Wedge -> Tree (no repeated
+            Tree ids).
         """
-        Skip-allowed, ordered enumeration.
-        Returns a list of dicts mapping Wedge -> Tree.
-        - Length of each dict is in [min_len, n]
-        - Never reuses a Tree id across a sequence
-        - Considers both wedge.trees and wedge.matched_tree (if present)
-        - Dedupes identical outputs via (wedge_index, tree_id) pairs
-        """
-        results: List[Dict[Wedge, Tree]] = []
-        seen_maps: Set[frozenset[Tuple[int, int]]] = set()  # (wedge_index, tree_id)
+        results: list[dict[Wedge, Tree]] = []
+        # Deduplicate identical results even if reached via different recursion paths.
+        # Key is a frozenset of (wedge_index, tree_id) so order in the dict doesn't affect uniqueness.
+        seen_maps: set[frozenset[tuple[int, int]]] = set()
 
-        def wedge_candidates(wi: int) -> List[Tree]:
-            # combine trees + matched_tree, dedupe by id
-            cand: List[Tree] = []
-            seen_ids: Set[int] = set()
-            for t in wedges[wi].trees:
-                if t.id not in seen_ids:
-                    seen_ids.add(t.id)
-                    cand.append(t)
-            mt = getattr(wedges[wi], "matched_tree", None)
-            if mt is not None and mt.id not in seen_ids:
-                cand.append(mt)
-            return cand
-
-        def backtrack(wi: int, chosen: List[Tuple[int, Tree]], used: Set[int]) -> None:
-            if len(chosen) > n:
-                return
-            if wi > len(wedges):
-                return
-
-            # record partials within [min_len, n]
-            if min_len <= len(chosen) <= n:
-                key = frozenset((idx, t.id) for idx, t in chosen)
-                if key not in seen_maps:
-                    seen_maps.add(key)
-                    results.append({wedges[idx]: t for idx, t in chosen})
-                if len(chosen) == n:
-                    return
-
-            if wi == len(wedges):
-                return
-
-            remaining = len(wedges) - wi
-            if len(chosen) + remaining < min_len:
-                return
-
-            # Option 1: pick one
-            for t in wedge_candidates(wi):
-                if t.id in used:
-                    continue
-                used.add(t.id)
-                chosen.append((wi, t))
-                backtrack(wi + 1, chosen, used)
-                chosen.pop()
-                used.remove(t.id)
-
-            # Option 2: skip
-            backtrack(wi + 1, chosen, used)
-
-        backtrack(0, [], set())
+        # Kick off the external backtracking routine.
+        TreeMatcher._backtrack_wedge_maps(
+            wedges=wedges,
+            max_length=n,
+            min_length=min_len,
+            wedge_index=0,
+            chosen_pairs=[],
+            used_ids=set(),
+            results=results,
+            seen_maps=seen_maps,
+        )
         return results
+
+    @staticmethod
+    def _backtrack_wedge_maps(
+        wedges: list[Wedge],
+        max_length: int,
+        min_length: int,
+        wedge_index: int,
+        chosen_pairs: list[tuple[int, Tree]],
+        used_ids: set[int],
+        results: list[dict[Wedge, Tree]],
+        seen_maps: set[frozenset[tuple[int, int]]],
+    ) -> None:
+        """Recursive generator for sequences_as_maps_from_wedges (defined
+        externally).
+
+        :param wedges: Ordered list of wedges to traverse.
+        :param max_length: Hard cap on number of (wedge, tree)
+            selections in one result.
+        :param min_length: Minimum number of selections for a result to
+            be recorded.
+        :param wedge_index: Current index into the wedges list.
+        :param chosen_pairs: Accumulated (wedge_index, Tree) selections
+            so far.
+        :param used_ids: Set of Tree ids already selected (prevents
+            reuse across wedges).
+        :param results: Output accumulator for dictionaries mapping
+            Wedge -> Tree.
+        :param seen_maps: Set used to deduplicate identical selections.
+        """
+        # Do not exceed the maximum selection length.
+        if len(chosen_pairs) > max_length:
+            return
+
+        # Record any partial solution whose size is within [min_length, max_length].
+        if min_length <= len(chosen_pairs) <= max_length:
+            uniqueness_key = frozenset((idx, t.id) for idx, t in chosen_pairs)
+            if uniqueness_key not in seen_maps:
+                seen_maps.add(uniqueness_key)
+                # Build the {Wedge -> Tree} dictionary from the stored indices.
+                result_map: dict[Wedge, Tree] = {wedges[idx]: t for idx, t in chosen_pairs}
+                results.append(result_map)
+            # If we already reached the maximum allowed length, do not extend this path.
+            if len(chosen_pairs) == max_length:
+                # Note: we still return to explore sibling branches from earlier frames.
+                pass
+
+        # If we have traversed all wedges, there is nothing more to do.
+        if wedge_index == len(wedges):
+            return
+
+        # Prune when even selecting from every remaining wedge cannot reach min_length.
+        remaining_wedges = len(wedges) - wedge_index
+        if len(chosen_pairs) + remaining_wedges < min_length:
+            return
+
+        current_wedge = wedges[wedge_index]
+
+        # --- Option 1: pick exactly one eligible tree from this wedge ---
+        # Build candidate list inline (combine trees + matched_tree, dedupe by tree id).
+        candidate_trees: list[Tree] = []
+        seen_ids_in_wedge: set[int] = set()
+
+        # Trees listed directly in the wedge.
+        for tree in current_wedge.trees:
+            if tree.id not in seen_ids_in_wedge:
+                seen_ids_in_wedge.add(tree.id)
+                candidate_trees.append(tree)
+
+        # Optional matched_tree, if present and not already included.
+        if current_wedge.matched_tree is not None:
+            mt = current_wedge.matched_tree
+            if mt.id not in seen_ids_in_wedge:
+                candidate_trees.append(mt)
+
+        # Try selecting each candidate that does not reuse a previously chosen Tree id.
+        for tree in candidate_trees:
+            if tree.id in used_ids:
+                continue
+            used_ids.add(tree.id)
+            chosen_pairs.append((wedge_index, tree))
+            TreeMatcher._backtrack_wedge_maps(
+                wedges=wedges,
+                max_length=max_length,
+                min_length=min_length,
+                wedge_index=wedge_index + 1,
+                chosen_pairs=chosen_pairs,
+                used_ids=used_ids,
+                results=results,
+                seen_maps=seen_maps,
+            )
+            # Undo selection to explore alternative branches (classic backtracking).
+            chosen_pairs.pop()
+            used_ids.remove(tree.id)
+
+        # --- Option 2: skip this wedge entirely (skip-allowed policy) ---
+        TreeMatcher._backtrack_wedge_maps(
+            wedges=wedges,
+            max_length=max_length,
+            min_length=min_length,
+            wedge_index=wedge_index + 1,
+            chosen_pairs=chosen_pairs,
+            used_ids=used_ids,
+            results=results,
+            seen_maps=seen_maps,
+        )
 
     def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
         """Match trees based on current position and ground view angles.
@@ -129,7 +198,7 @@ class TreeMatcher:
 
         # Loop through all the thetas and make their corresponding wedges
         for theta in ground_thetas:
-            self.wedges.append(self.create_wedge(current_pose, self.aoi_trees, theta))
+            self.wedges.append(self.create_wedge(current_pose, theta))
 
         # Estimate the location by matching the wedges to the identified trees
         estimated_location = self.wedge_matching(self.wedges, current_pose)
@@ -137,7 +206,7 @@ class TreeMatcher:
         # Return the estimated location
         return estimated_location
 
-    def get_area_of_interest(self, current_pose: Pose2d) -> list[Point]:
+    def get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
         """Identify satellite trees within area of interest.
 
         :param current_pose: Current position estimation as Pose2d.
@@ -145,39 +214,33 @@ class TreeMatcher:
             interest.
         """
 
-        area_of_interest_tree_loc: list[Point] = []
+        area_of_interest_tree_locations: list[Tree] = []
 
-        for tree in self.satellite_tree_locations:
+        for tree_id, tree in enumerate(self.satellite_tree_locations):
             # Checks if the distance is within the radius
             if distance(tree, current_pose) < AOI_RADIUS_M:
                 # Checks if the relative angle to the tree is within the expected limit
                 rel_angle_deg = get_relative_angle(tree, current_pose)
                 if abs(rel_angle_deg) < AOI_ANGLE_DEG:
-                    area_of_interest_tree_loc.append(tree)
+                    area_of_interest_tree_locations.append(Tree(tree.x, tree.y, tree_id))
 
-        return area_of_interest_tree_loc
+        return area_of_interest_tree_locations
 
-    def create_wedge(
-        self, current_pose: Pose2d, satellite_trees: list[Point], theta: float
-    ) -> Wedge:
+    def create_wedge(self, current_pose: Pose2d, theta: float) -> Wedge:
         """Create a wedge based on current location and ground view angle.
 
         :param current_pose: Current position and orientation as Pose2d.
-        :param satellite_trees: List of trees in the AOI as Point
-            instances.
         :param theta: Ground view angle to a single tree.
         :return: Wedge object containing the theta and trees in the
             wedge.
         """
 
         wedge = Wedge(theta)
-        tree_idx = 0
 
-        for tree in satellite_trees:
+        for tree in self.aoi_trees:
             rel_angle_deg = get_relative_angle(tree, current_pose)
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
-                wedge.trees.append(Tree(tree.x, tree.y, tree_idx))
-                tree_idx += 1
+                wedge.trees.append(tree)
 
         print(f"Wedge created with {len(wedge.trees)} trees")
 
@@ -185,21 +248,22 @@ class TreeMatcher:
 
     def wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> Point:
         """Estimate position by evaluating all skip-allowed wedge→tree maps
-        (length ≥ 2) and picking the intersection point closest to current_pose."""
+        (length ≥ 2) and picking the intersection point closest to
+        current_pose."""
 
         # Generate maps: {Wedge -> Tree}, allowing skips, lengths in [2, len(wedges)]
         wedge_combinations = TreeMatcher.sequences_as_maps_from_wedges(
             wedges, n=len(wedges), min_len=2
         )
 
-        best_pt: Optional[Point] = None
+        best_pt: Point | None = None
         best_dist: float = float("inf")
         best_rms: float = float("inf")  # tie-breaker if distances are equal
 
         # Solve least-squares intersection for a set of lines defined by (point, angle)
         def ls_intersection(
             lines: list[tuple[Point, float]],
-        ) -> Optional[tuple[float, float, float]]:
+        ) -> tuple[float, float, float] | None:
             """
             Each line: (p_i, phi_i) where phi_i is direction angle in radians.
             Minimize sum_i (n_i·x - n_i·p_i)^2 with n_i = (-sin phi_i, cos phi_i).
@@ -238,7 +302,7 @@ class TreeMatcher:
 
             # RMS perpendicular residual to the set of lines
             sq_sum = 0.0
-            for (nx, ny), b_i in zip(normals, b_vals):
+            for (nx, ny), b_i in zip(normals, b_vals, strict=False):
                 r = nx * x + ny * y - b_i
                 sq_sum += r * r
             m = len(normals)
@@ -276,7 +340,13 @@ class TreeMatcher:
                 wedge.matched_tree = tree
 
             if len(wedge_map) == len(wedges):
-                debug_visualizer.plot_wedges(wedges, current_pose, self.aoi_trees, Point(x_hat, y_hat), f"combo_{i}_dist_{dist:.2f}")
+                debug_visualizer.plot_wedges(
+                    wedges,
+                    current_pose,
+                    self.aoi_trees,
+                    Point(x_hat, y_hat),
+                    f"combo_{i}_dist_{dist:.2f}",
+                )
 
             # Choose the intersection closest to current_pose.
             # If distances tie (very rare), prefer the lower RMS fit as a tie-breaker.
