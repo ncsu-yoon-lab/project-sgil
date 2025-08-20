@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Import custom classes
-from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, PLOT, RANDOM
+from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM
 from converter import Converter
 from data_structs import Point, Pose2d
 from debug_visualizer import DebugVisualizer
@@ -222,9 +222,6 @@ class SGILMatcherApp:
             print("Estimated location xy: ", est_xy)
 
             # Get data for debug visualization
-            aoi_sat_trees = self.tree_matcher.aoi_trees
-            all_sat_tree_loc = self.tree_matcher.satellite_tree_locations
-            wedges = self.tree_matcher.wedges
 
             # Create debug visualization (saved to file, no display conflicts)
             # if PLOT:

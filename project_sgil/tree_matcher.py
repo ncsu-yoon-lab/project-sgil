@@ -19,7 +19,7 @@ from project_sgil.constants import (
     TREE_LOCATIONS_PATH,
 )
 from project_sgil.debug_visualizer import DebugVisualizer
-from project_sgil.utils import distance, get_relative_angle, std_deviation_of_distances
+from project_sgil.utils import distance, get_relative_angle
 
 
 class TreeMatcher:
@@ -47,12 +47,15 @@ class TreeMatcher:
                 self.satellite_tree_locations.append(point)
 
     @staticmethod
-    def sequences_as_maps_from_wedges(
+    def _generate_wedge_combinations(
         wedges: list[Wedge],
         n: int,  # max length
         min_len: int = 1,  # minimum length to record
     ) -> list[dict[Wedge, Tree]]:
-        """Enumerate skip-allowed, ordered wedge→tree selections as dicts.
+        """Gets a dictionary mapping Wedge -> Tree for all possible
+        combinations of selecting up to n trees from the wedges, allowing
+        skipping wedges, and ensuring no Tree is used more than once per
+        combination.
 
         :param wedges: Ordered list of wedges to traverse.
         :param n: Maximum number of selections to include in a result.
@@ -63,7 +66,7 @@ class TreeMatcher:
         """
         results: list[dict[Wedge, Tree]] = []
         # Deduplicate identical results even if reached via different recursion paths.
-        # Key is a frozenset of (wedge_index, tree_id) so order in the dict doesn't affect uniqueness.
+        # Key is a frozenset of (wedge_index, tree_id) so the order doesn't affect uniqueness.
         seen_maps: set[frozenset[tuple[int, int]]] = set()
 
         # Kick off the external backtracking routine.
@@ -194,19 +197,19 @@ class TreeMatcher:
         """
 
         # The area of interest based on the current pose
-        self.aoi_trees = self.get_area_of_interest(current_pose)
+        self.aoi_trees = self._get_area_of_interest(current_pose)
 
         # Loop through all the thetas and make their corresponding wedges
         for theta in ground_thetas:
-            self.wedges.append(self.create_wedge(current_pose, theta))
+            self.wedges.append(self._create_wedge(current_pose, theta))
 
         # Estimate the location by matching the wedges to the identified trees
-        estimated_location = self.wedge_matching(self.wedges, current_pose)
+        estimated_location = self._wedge_matching(self.wedges, current_pose)
 
         # Return the estimated location
         return estimated_location
 
-    def get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
+    def _get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
         """Identify satellite trees within area of interest.
 
         :param current_pose: Current position estimation as Pose2d.
@@ -226,7 +229,7 @@ class TreeMatcher:
 
         return area_of_interest_tree_locations
 
-    def create_wedge(self, current_pose: Pose2d, theta: float) -> Wedge:
+    def _create_wedge(self, current_pose: Pose2d, theta: float) -> Wedge:
         """Create a wedge based on current location and ground view angle.
 
         :param current_pose: Current position and orientation as Pose2d.
@@ -246,13 +249,14 @@ class TreeMatcher:
 
         return wedge
 
-    def wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> Point:
+    # TODO: redo this method so that it just returns all estimates (maybe with a confidence score)
+    def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> Point:
         """Estimate position by evaluating all skip-allowed wedge→tree maps
         (length ≥ 2) and picking the intersection point closest to
         current_pose."""
 
         # Generate maps: {Wedge -> Tree}, allowing skips, lengths in [2, len(wedges)]
-        wedge_combinations = TreeMatcher.sequences_as_maps_from_wedges(
+        wedge_combinations = TreeMatcher._generate_wedge_combinations(
             wedges, n=len(wedges), min_len=2
         )
 
@@ -311,6 +315,7 @@ class TreeMatcher:
 
         base_yaw_deg = current_pose.yaw
 
+        # TODO: remove the debug visalizer stuff here
         debug_visualizer = DebugVisualizer()
 
         i = 0
@@ -359,104 +364,3 @@ class TreeMatcher:
         if best_pt is None:
             return Point(current_pose.x, current_pose.y)
         return best_pt
-
-    def create_vectors_from_wedges(
-        self, wedges: list[Wedge], current_pose: Pose2d
-    ) -> list[list[Point]]:
-        """Create vectors from wedges for intersection analysis.
-
-        :param wedges: List of wedges with trees.
-        :param current_pose: Current position estimate as Pose2d.
-        :return: List of vectors as [[start_point, end_point], ...].
-        """
-
-        vectors: list[list[Point]] = []
-        for wedge in wedges:
-            if wedge.trees:
-                theta_rad = math.radians(wedge.theta_degrees)
-                heading_rad = math.radians(current_pose.yaw)
-                direction_rad = heading_rad - theta_rad
-
-                vector_length = 100
-                start = Point(current_pose.x, current_pose.y)
-                end = Point(
-                    current_pose.x + vector_length * math.cos(direction_rad),
-                    current_pose.y + vector_length * math.sin(direction_rad),
-                )
-                vectors.append([start, end])
-
-        return vectors
-
-    def find_intersections(self, vectors: list[list[Point]]) -> list[Point]:
-        """Find all intersection points between the vectors.
-
-        :param vectors: List of vectors as [[start_point, end_point], ...].
-        :return: List of intersection points as Point.
-        """
-
-        intersections: list[Point] = []
-        for i in range(len(vectors)):
-            for j in range(i + 1, len(vectors)):
-                intersection = self.find_intersection(vectors[i], vectors[j])
-                if intersection:
-                    intersections.append(intersection)
-        return intersections
-
-    def find_intersection(self, vector1: list[Point], vector2: list[Point]) -> Point | None:
-        """Find the intersection point of two vectors.
-
-        :param vector1: First vector as [start_point, end_point].
-        :param vector2: Second vector as [start_point, end_point].
-        :return: Intersection point as Point or None if no intersection.
-        """
-
-        p1, p2 = vector1
-        p3, p4 = vector2
-        delta1_x = p2.x - p1.x
-        delta1_y = p2.y - p1.y
-        delta2_x = p4.x - p3.x
-        delta2_y = p4.y - p3.y
-
-        m1 = delta1_y / delta1_x if delta1_x != 0 else float("inf")
-        m2 = delta2_y / delta2_x if delta2_x != 0 else float("inf")
-        b1 = p1.y - m1 * p1.x
-        b2 = p3.y - m2 * p3.x
-
-        if m1 == m2:
-            return None
-
-        x_int = (b2 - b1) / (m1 - m2)
-        y_int = m1 * x_int + b1
-        return Point(x_int, y_int)
-
-    def mean_centroid(self, points: list[Point]) -> Point | None:
-        """Calculate the mean centroid of a set of points.
-
-        :param points: List of Point.
-        :return: Centroid as Point or None if empty list.
-        """
-
-        if not points:
-            return None
-        x_coords = [pt.x for pt in points]
-        y_coords = [pt.y for pt in points]
-        return Point(sum(x_coords) / len(x_coords), sum(y_coords) / len(y_coords))
-
-    def analyze_vector_intersections(
-        self, vectors: list[list[Point]]
-    ) -> tuple[Point | None, list[Point] | None, float | None]:
-        """Analyze intersections of vectors to find centroid and standard
-        deviation.
-
-        :param vectors: List of vectors as [[start_point, end_point], ...].
-        :return: Tuple of (centroid, intersections, standard_deviation).
-        """
-
-        intersections = self.find_intersections(vectors)
-        if not intersections:
-            print("No intersections found.")
-            return None, None, None
-
-        centroid = self.mean_centroid(intersections)
-        std_dev = std_deviation_of_distances(intersections, centroid) if centroid else None
-        return centroid, intersections, std_dev
