@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Import custom classes
-from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, RANDOM
+from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, PLOT, RANDOM
 from converter import Converter
 from data_structs import Point, Pose2d
 from debug_visualizer import DebugVisualizer
@@ -51,7 +51,6 @@ class SGILMatcherApp:
         """
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher()
-        self.debug_visualizer = DebugVisualizer()
         self.image_folder = image_folder
         self.randomize = randomize
 
@@ -200,6 +199,8 @@ class SGILMatcherApp:
         print("- Press Ctrl+C to quit")
         print("- Debug plots will be saved to 'debug_plots/' folder\n")
 
+        DebugVisualizer.clear_plots()
+
         # Continues until there are no more images
         while True:
             # Gets the name, points chosen, and the pose of the next image
@@ -221,14 +222,17 @@ class SGILMatcherApp:
 
             print("Estimated location xy: ", est_xy)
 
-            # Get data for debug visualization
-
             # Create debug visualization (saved to file, no display conflicts)
-            # if PLOT:
-            #     # Use image name (without extension) as save name
-            #     save_name = os.path.splitext(name)[0]
-            #     self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, pose, save_name)
-            #     self.debug_visualizer.plot_wedges(wedges, pose, aoi_sat_trees, est_xy, save_name)
+            if PLOT:
+                # Use image name (without extension) as save name
+                save_name = os.path.splitext(name)[0]
+                DebugVisualizer.plot_aoi(
+                    self.tree_matcher.satellite_tree_locations,
+                    self.tree_matcher.aoi_trees,
+                    pose,
+                    save_name,
+                )
+                # DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose, self.tree_matcher.aoi_trees, est_xy, save_name)
 
             # Convert back to lat/lon
             est_latlon = self.converter.xy_to_latlon(est_xy)

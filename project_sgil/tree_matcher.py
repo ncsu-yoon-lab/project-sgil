@@ -9,7 +9,7 @@ import csv
 import math
 
 from converter import Converter
-from data_structs import Point, Pose2d, Tree, Wedge, PoseEstimate
+from data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 
 from project_sgil.constants import (
     AOI_ANGLE_DEG,
@@ -194,7 +194,8 @@ class TreeMatcher:
         """Solve least-squares intersection of lines.
 
         :param lines: Each line defined by (point, angle_in_radians).
-        :return: (x, y, rms_residual) of intersection, or None if lines are degenerate.
+        :return: (x, y, rms_residual) of intersection, or None if lines
+            are degenerate.
         """
         s11 = s12 = s22 = 0.0
         t1 = t2 = 0.0
@@ -303,7 +304,8 @@ class TreeMatcher:
         return wedge
 
     def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> list[PoseEstimate]:
-        """Estimate poses by evaluating all skip-allowed wedge→tree maps (length ≥ 2).
+        """Estimate poses by evaluating all skip-allowed wedge→tree maps
+        (length ≥ 2).
 
         :param wedges: List of candidate Wedge objects.
         :param current_pose: Current estimated pose of the vehicle.
@@ -317,8 +319,6 @@ class TreeMatcher:
         pose_estimates: list[PoseEstimate] = []
         base_yaw_deg = current_pose.yaw
 
-        # TODO: remove the debug visualizer when done
-        debug_visualizer = DebugVisualizer()
         combo_index = 0
 
         for wedge_map in wedge_combinations:
@@ -347,12 +347,12 @@ class TreeMatcher:
 
             # Debug visualization (only if all wedges were used)
             if len(wedge_map) == len(wedges):
-                debug_visualizer.plot_wedges(
+                DebugVisualizer.plot_wedges(
                     wedges,
                     current_pose,
                     self.aoi_trees,
                     Point(x_hat, y_hat),
-                    f"combo_{combo_index}_dist_{dist:.2f}",
+                    f"combo:{combo_index}_dist:{dist:.2f}_wedges:{len(wedge_map)}",
                 )
 
             # Create PoseEstimate
