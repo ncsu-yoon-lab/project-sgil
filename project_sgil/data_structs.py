@@ -63,12 +63,16 @@ class Pose2d(Point):
 
 @dataclass
 class PoseEstimate:
-    """Represents a pose estimate with position, yaw, and confidence.
+    """Represents a pose estimate with a Pose2d and score.
 
     :param pose: The Pose2d representing the estimated position and orientation.
-    :param confidence: Confidence score of the pose estimate (0.0 to 1.0).
+    :param score: The score calculated heuristically for the pose estimate. Higher is better.
+    It represents how likely that this pose estimate was made with a correct matching of trees.
+    :param confidence: A float between 0.0 and 1.0 representing the confidence in the pose estimate.
+    This is independent of the score and indicative of the reliability of the estimate.
     """
     pose: Pose2d
+    score: float
     confidence: float
 
     def __post_init__(self) -> None:

@@ -17,6 +17,12 @@ from project_sgil.constants import (
     HEADING_ERROR_DEG,
     ORIGIN,
     TREE_LOCATIONS_PATH,
+    SCORE_WEIGHT_RMS,
+    SCORE_WEIGHT_COMBO_SIZE,
+    SCORE_WEIGHT_DISTANCE,
+    SCORE_WEIGHT_ANGLE_SPREAD,
+    SCORE_DISTANCE_SCALE,
+    SCORE_RMS_SCALE,
 )
 from project_sgil.debug_visualizer import DebugVisualizer
 from project_sgil.utils import distance, get_relative_angle
@@ -260,8 +266,8 @@ class TreeMatcher:
         if not estimated_locations:
             raise ValueError("No pose estimates found")
 
-        # Return the pose with the highest confidence
-        return max(estimated_locations, key=lambda pe: pe.confidence).pose
+        # Return the pose with the highest score
+        return max(estimated_locations, key=lambda pe: pe.score).pose
 
     def _get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
         """Identify satellite trees within area of interest.
@@ -345,6 +351,14 @@ class TreeMatcher:
             for wedge, tree in wedge_map.items():
                 wedge.matched_tree = tree
 
+            # Create PoseEstimate
+            score = self._calculate_pose_estimate_score(rms, wedge_map, current_pose, x_hat, y_hat, len(wedges))
+            confidence = self.calculate_pose_estimate_confidence(
+                PoseEstimate(Pose2d(x_hat, y_hat, current_pose.yaw), score, 1),
+                list(wedge_map.values()),
+                self.aoi_trees,
+            )
+
             # Debug visualization (only if all wedges were used)
             if len(wedge_map) == len(wedges):
                 DebugVisualizer.plot_wedges(
@@ -352,12 +366,106 @@ class TreeMatcher:
                     current_pose,
                     self.aoi_trees,
                     Point(x_hat, y_hat),
-                    f"combo:{combo_index}_dist:{dist:.2f}_wedges:{len(wedge_map)}",
+                    f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
                 )
 
-            # Create PoseEstimate
-            pose = Pose2d(x_hat, y_hat, current_pose.yaw)
-            confidence = 1.0  # TODO: replace with actual confidence calculation
-            pose_estimates.append(PoseEstimate(pose, confidence))
+            pose_estimates.append(PoseEstimate(Pose2d(x_hat, y_hat, current_pose.yaw), score, confidence))
 
         return pose_estimates
+
+    def _calculate_pose_estimate_score(
+        self,
+        residual_rms: float,
+        wedge_map: dict[Wedge, Tree],
+        current_pose: Pose2d,
+        x_hat: float,
+        y_hat: float,
+        total_wedges: int,
+    ) -> float:
+        """Heuristically compute a pose estimate score (unbounded, higher is better).
+
+        :param residual_rms: Root-mean-square perpendicular residual of the
+            least-squares intersection (lower is better).
+        :param wedge_map: Mapping of Wedge -> Tree used for this estimate.
+        :param current_pose: Current pose used as the reference for distance/angles.
+        :param x_hat: Estimated x coordinate.
+        :param y_hat: Estimated y coordinate.
+        :param total_wedges: Total number of wedges considered for this frame.
+        :return: A heuristic score (float). This is NOT a probability; it is
+            intentionally unbounded and depends on the chosen weights/scales.
+        """
+        # --- Factor 1: residual RMS (lower is better), with a soft inverse transform.
+        #     Scale controls how quickly the score decays with residual.
+        rms_score = 1.0 / (1.0 + (residual_rms / max(1e-9, SCORE_RMS_SCALE)))
+
+        # --- Factor 2: combination size (more wedges used is better).
+        #     Normalized by the total wedges available this frame.
+        used_wedge_count = len(wedge_map)
+        if total_wedges <= 0:
+            combo_size_score = 0.0
+        else:
+            combo_size_score = used_wedge_count / float(total_wedges)
+
+        # --- Factor 3: distance from current pose to the estimated point (closer is better).
+        dx = x_hat - current_pose.x
+        dy = y_hat - current_pose.y
+        dist = math.hypot(dx, dy)
+        distance_score = 1.0 / (1.0 + (dist / max(1e-9, SCORE_DISTANCE_SCALE)))
+
+        # --- Factor 4: angular spread of the used wedges (wider spread is better).
+        #     We measure circular dispersion using the mean resultant length R in [0,1].
+        #     R = 1 means all angles identical (bad), R ~ 0 means spread out (good).
+        #     Spread score = 1 - R.
+        #     Use wedge.theta_degrees relative angles (heading cancels out for spread).
+        if used_wedge_count >= 2:
+            angles_rad = [math.radians(wedge.theta_degrees) for wedge in wedge_map.keys()]
+            mean_cos = sum(math.cos(a) for a in angles_rad) / used_wedge_count
+            mean_sin = sum(math.sin(a) for a in angles_rad) / used_wedge_count
+            resultant_length = math.hypot(mean_cos, mean_sin)  # R in [0, 1]
+            angle_spread_score = 1.0 - resultant_length
+        else:
+            # With a single line you cannot triangulate well; give minimal spread credit.
+            angle_spread_score = 0.0
+
+        # --- Weighted sum of the component scores.
+        #     This is an *unbounded heuristic score*, not a probability; do not clamp.
+        score = (
+            SCORE_WEIGHT_RMS * rms_score
+            + SCORE_WEIGHT_COMBO_SIZE * combo_size_score
+            + SCORE_WEIGHT_DISTANCE * distance_score
+            + SCORE_WEIGHT_ANGLE_SPREAD * angle_spread_score
+        )
+
+        return float(score)
+
+    def calculate_pose_estimate_confidence(
+        self,
+        pose_estimate: PoseEstimate,
+        matched_trees: list[Tree],
+        all_trees: list[Tree],
+    ) -> float:
+        """Calculate confidence for a pose estimate.
+
+        Confidence is a heuristic measure of reliability, expressed as a value
+        between 0.0 and 1.0. It is independent of the score and focuses on
+        the robustness of the match.
+
+        :param pose_estimate: The PoseEstimate to evaluate.
+        :param matched_trees: Trees that were successfully matched in the estimate.
+        :param all_trees: All candidate trees in the area of interest.
+        :return: Confidence value in [0.0, 1.0].
+        """
+        if not all_trees:
+            return 0.0
+
+        # Example heuristic: fraction of trees matched
+        match_ratio = len(matched_trees) / len(all_trees)
+
+        # Example heuristic: normalize score contribution (optional)
+        score_component = min(1.0, pose_estimate.score / 100.0)
+
+        # Blend heuristics (weights can be tuned)
+        confidence = 0.7 * match_ratio + 0.3 * score_component
+
+        # Clamp to [0.0, 1.0]
+        return max(0.0, min(1.0, confidence))

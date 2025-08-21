@@ -32,3 +32,13 @@ AOI_RADIUS_M = 50  # [m]
 
 # Angle of area of interest (AOI)
 AOI_ANGLE_DEG = (H_FOV_DEG + HEADING_ERROR_DEG) / 2
+
+# Heuristic score weights (sum does not need to be 1.0)
+SCORE_WEIGHT_RMS = 0.45
+SCORE_WEIGHT_COMBO_SIZE = 0.25
+SCORE_WEIGHT_DISTANCE = 0.15
+SCORE_WEIGHT_ANGLE_SPREAD = 0.15
+
+# Sensitivity scales (set based on your units/environment)
+SCORE_RMS_SCALE = 1.0          # meters; smaller => stricter on residuals
+SCORE_DISTANCE_SCALE = 5.0     # meters; smaller => penalize distance more
