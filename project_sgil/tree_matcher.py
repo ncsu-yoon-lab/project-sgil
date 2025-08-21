@@ -9,7 +9,7 @@ import csv
 import math
 
 from converter import Converter
-from data_structs import Point, Pose2d, Tree, Wedge
+from data_structs import Point, Pose2d, Tree, Wedge, PoseEstimate
 
 from project_sgil.constants import (
     AOI_ANGLE_DEG,
@@ -187,6 +187,56 @@ class TreeMatcher:
             seen_maps=seen_maps,
         )
 
+    @staticmethod
+    def _solve_least_squares_intersection(
+        lines: list[tuple[Point, float]],
+    ) -> tuple[float, float, float] | None:
+        """Solve least-squares intersection of lines.
+
+        :param lines: Each line defined by (point, angle_in_radians).
+        :return: (x, y, rms_residual) of intersection, or None if lines are degenerate.
+        """
+        s11 = s12 = s22 = 0.0
+        t1 = t2 = 0.0
+        b_vals: list[float] = []
+        normals: list[tuple[float, float]] = []
+
+        for point, phi in lines:
+            sn = math.sin(phi)
+            cs = math.cos(phi)
+            nx, ny = -sn, cs
+            b_i = nx * point.x + ny * point.y
+
+            s11 += nx * nx
+            s12 += nx * ny
+            s22 += ny * ny
+            t1 += nx * b_i
+            t2 += ny * b_i
+
+            b_vals.append(b_i)
+            normals.append((nx, ny))
+
+        det = s11 * s22 - s12 * s12
+        if abs(det) < 1e-12:
+            return None  # lines are nearly parallel / degenerate
+
+        inv11 = s22 / det
+        inv12 = -s12 / det
+        inv22 = s11 / det
+
+        x = inv11 * t1 + inv12 * t2
+        y = inv12 * t1 + inv22 * t2
+
+        # Compute RMS residual error
+        sq_sum = 0.0
+        for (nx, ny), b_i in zip(normals, b_vals, strict=False):
+            r = nx * x + ny * y - b_i
+            sq_sum += r * r
+        m = len(normals)
+        rms = math.sqrt(sq_sum / m) if m > 0 else float("inf")
+
+        return x, y, rms
+
     def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
         """Match trees based on current position and ground view angles.
 
@@ -204,10 +254,13 @@ class TreeMatcher:
             self.wedges.append(self._create_wedge(current_pose, theta))
 
         # Estimate the location by matching the wedges to the identified trees
-        estimated_location = self._wedge_matching(self.wedges, current_pose)
+        estimated_locations = self._wedge_matching(self.wedges, current_pose)
 
-        # Return the estimated location
-        return estimated_location
+        if not estimated_locations:
+            raise ValueError("No pose estimates found")
+
+        # Return the pose with the highest confidence
+        return max(estimated_locations, key=lambda pe: pe.confidence).pose
 
     def _get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
         """Identify satellite trees within area of interest.
@@ -249,118 +302,62 @@ class TreeMatcher:
 
         return wedge
 
-    # TODO: redo this method so that it just returns all estimates (maybe with a confidence score)
-    def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> Point:
-        """Estimate position by evaluating all skip-allowed wedge→tree maps
-        (length ≥ 2) and picking the intersection point closest to
-        current_pose."""
+    def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> list[PoseEstimate]:
+        """Estimate poses by evaluating all skip-allowed wedge→tree maps (length ≥ 2).
 
-        # Generate maps: {Wedge -> Tree}, allowing skips, lengths in [2, len(wedges)]
+        :param wedges: List of candidate Wedge objects.
+        :param current_pose: Current estimated pose of the vehicle.
+        :return: List of PoseEstimate objects (pose + confidence).
+        """
+        # Generate maps: {Wedge -> Tree}, allowing skips, with length >= 2
         wedge_combinations = TreeMatcher._generate_wedge_combinations(
             wedges, n=len(wedges), min_len=2
         )
 
-        best_pt: Point | None = None
-        best_dist: float = float("inf")
-        best_rms: float = float("inf")  # tie-breaker if distances are equal
-
-        # Solve least-squares intersection for a set of lines defined by (point, angle)
-        def ls_intersection(
-            lines: list[tuple[Point, float]],
-        ) -> tuple[float, float, float] | None:
-            """
-            Each line: (p_i, phi_i) where phi_i is direction angle in radians.
-            Minimize sum_i (n_i·x - n_i·p_i)^2 with n_i = (-sin phi_i, cos phi_i).
-            Returns (x, y, rms_residual) or None if ill-conditioned.
-            """
-            s11 = s12 = s22 = 0.0
-            t1 = t2 = 0.0
-            b_vals: list[float] = []
-            normals: list[tuple[float, float]] = []
-
-            for p_i, phi in lines:
-                sn = math.sin(phi)
-                cs = math.cos(phi)
-                nx, ny = -sn, cs
-                b_i = nx * p_i.x + ny * p_i.y
-
-                s11 += nx * nx
-                s12 += nx * ny
-                s22 += ny * ny
-                t1 += nx * b_i
-                t2 += ny * b_i
-
-                b_vals.append(b_i)
-                normals.append((nx, ny))
-
-            det = s11 * s22 - s12 * s12
-            if abs(det) < 1e-12:
-                return None  # lines are (near) parallel / degenerate
-
-            inv11 = s22 / det
-            inv12 = -s12 / det
-            inv22 = s11 / det
-
-            x = inv11 * t1 + inv12 * t2
-            y = inv12 * t1 + inv22 * t2
-
-            # RMS perpendicular residual to the set of lines
-            sq_sum = 0.0
-            for (nx, ny), b_i in zip(normals, b_vals, strict=False):
-                r = nx * x + ny * y - b_i
-                sq_sum += r * r
-            m = len(normals)
-            rms = math.sqrt(sq_sum / m) if m > 0 else float("inf")
-            return (x, y, rms)
-
+        pose_estimates: list[PoseEstimate] = []
         base_yaw_deg = current_pose.yaw
 
-        # TODO: remove the debug visalizer stuff here
+        # TODO: remove the debug visualizer when done
         debug_visualizer = DebugVisualizer()
-
-        i = 0
+        combo_index = 0
 
         for wedge_map in wedge_combinations:
-            # Build the set of lines for this combination
+            # Build line set for this combination
             lines: list[tuple[Point, float]] = []
             for wedge, tree in wedge_map.items():
                 phi = math.radians(base_yaw_deg + wedge.theta_degrees)
                 lines.append((tree, phi))
 
-            sol = ls_intersection(lines)
-            if sol is None:
+            solution = TreeMatcher._solve_least_squares_intersection(lines)
+            if solution is None:
                 continue
 
-            x_hat, y_hat, rms = sol
+            x_hat, y_hat, rms = solution
 
-            # Distance from the candidate intersection to the current pose
+            # Compute distance to current pose (optional scoring)
             dx = x_hat - current_pose.x
             dy = y_hat - current_pose.y
             dist = math.hypot(dx, dy)
 
-            i += 1
+            combo_index += 1
 
-            # Set all the wedge matched trees to the best point
+            # Mark matched trees in wedges
             for wedge, tree in wedge_map.items():
                 wedge.matched_tree = tree
 
+            # Debug visualization (only if all wedges were used)
             if len(wedge_map) == len(wedges):
                 debug_visualizer.plot_wedges(
                     wedges,
                     current_pose,
                     self.aoi_trees,
                     Point(x_hat, y_hat),
-                    f"combo_{i}_dist_{dist:.2f}",
+                    f"combo_{combo_index}_dist_{dist:.2f}",
                 )
 
-            # Choose the intersection closest to current_pose.
-            # If distances tie (very rare), prefer the lower RMS fit as a tie-breaker.
-            if (dist < best_dist) or (math.isclose(dist, best_dist) and rms < best_rms):
-                best_dist = dist
-                best_rms = rms
-                best_pt = Point(x_hat, y_hat)
+            # Create PoseEstimate
+            pose = Pose2d(x_hat, y_hat, current_pose.yaw)
+            confidence = 1.0  # TODO: replace with actual confidence calculation
+            pose_estimates.append(PoseEstimate(pose, confidence))
 
-        # Fallback: if everything was degenerate, return the current pose
-        if best_pt is None:
-            return Point(current_pose.x, current_pose.y)
-        return best_pt
+        return pose_estimates

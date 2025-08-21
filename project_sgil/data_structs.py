@@ -59,3 +59,20 @@ class Pose2d(Point):
     """
 
     yaw: float
+
+
+@dataclass
+class PoseEstimate:
+    """Represents a pose estimate with position, yaw, and confidence.
+
+    :param pose: The Pose2d representing the estimated position and orientation.
+    :param confidence: Confidence score of the pose estimate (0.0 to 1.0).
+    """
+    pose: Pose2d
+    confidence: float
+
+    def __post_init__(self) -> None:
+        if not (0.0 <= self.confidence <= 1.0):
+            raise ValueError(
+                f"Confidence must be between 0.0 and 1.0, got {self.confidence}"
+            )
