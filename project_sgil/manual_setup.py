@@ -12,7 +12,6 @@ import os
 import random
 
 import cv2
-import matplotlib.pyplot as plt
 import pandas as pd
 
 # Import custom classes
@@ -164,56 +163,58 @@ class SGILMatcherApp:
         print(f"Yaw: {path_yaw} deg")
 
         # Define the mouse callback function
-        def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
-            """
-            Handle mouse click events for point selection.
-            """
-            # Check if left mouse button was clicked
-            if event == cv2.EVENT_LBUTTONDOWN:
-                # Add point to list
-                selected_points.append(Point(x, y))
-                # Draw circle at clicked position
-                cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
-                # Update the display
-                cv2.imshow(window_name, displayed_image)
+        # def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
+        #     """
+        #     Handle mouse click events for point selection.
+        #     """
+        #     # Check if left mouse button was clicked
+        #     if event == cv2.EVENT_LBUTTONDOWN:
+        #         # Add point to list
+        #         selected_points.append(Point(x, y))
+        #         # Draw circle at clicked position
+        #         cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
+        #         # Update the display
+        #         cv2.imshow(window_name, displayed_image)
 
-        # Close any existing matplotlib figures and OpenCV windows
-        plt.close("all")
-        cv2.destroyAllWindows()
-        cv2.waitKey(1)
+        # # Close any existing matplotlib figures and OpenCV windows
+        # plt.close("all")
+        # cv2.destroyAllWindows()
+        # cv2.waitKey(1)
 
-        # Create a copy to display and modify
-        displayed_image = image.copy()
+        # # Create a copy to display and modify
+        # displayed_image = image.copy()
 
-        # Create a window name with image info for uniqueness
-        window_name = f"Select Points - {image_name}"
+        # # Create a window name with image info for uniqueness
+        # window_name = f"Select Points - {image_name}"
 
-        # Create window and set it to autosize first, then resize
-        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
-        cv2.imshow(window_name, displayed_image)
+        # # Create window and set it to autosize first, then resize
+        # cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        # cv2.imshow(window_name, displayed_image)
 
-        # Set the mouse callback function
-        cv2.setMouseCallback(window_name, click_event)
+        # # Set the mouse callback function
+        # cv2.setMouseCallback(window_name, click_event)
 
-        print(f"Processing image: {image_name}")
-        print("Left-click to select trees, press Enter when done, ESC to skip")
+        # print(f"Processing image: {image_name}")
+        # print("Left-click to select trees, press Enter when done, ESC to skip")
 
-        # Wait for keypress - Enter key will finish selection
-        while True:
-            key = cv2.waitKey(1) & 0xFF
-            # If Enter key is pressed, break the loop
-            if key == 13:  # 13 is the ASCII code for Enter
-                break
-            # If ESC key is pressed, skip this image
-            elif key == 27:  # 27 is the ASCII code for ESC
-                selected_points = []
-                break
+        # # Wait for keypress - Enter key will finish selection
+        # while True:
+        #     key = cv2.waitKey(1) & 0xFF
+        #     # If Enter key is pressed, break the loop
+        #     if key == 13:  # 13 is the ASCII code for Enter
+        #         break
+        #     # If ESC key is pressed, skip this image
+        #     elif key == 27:  # 27 is the ASCII code for ESC
+        #         selected_points = []
+        #         break
 
-        # Close the specific window
-        cv2.destroyWindow(window_name)
-        cv2.waitKey(1)
+        # # Close the specific window
+        # cv2.destroyWindow(window_name)
+        # cv2.waitKey(1)
 
-        return image_name, selected_points, pose
+        # return image_name, selected_points, pose
+
+        return None, None, None
 
     def run(self) -> None:
         """

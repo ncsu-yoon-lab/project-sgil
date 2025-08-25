@@ -76,7 +76,7 @@ class PathVectorGenerator:
             cv2.putText(
                 img_display, f"P{len(self.points)}", (x, y), 0, 1.0, (0, 255, 0), thickness=2
             )
-            cv2.imshow("Select Points", img_display)
+            cv2.imshow("Select Path Edges", img_display)
 
     def get_intersection(
         self,
@@ -121,6 +121,7 @@ class PathVectorGenerator:
         m_left: float,
         m_right: float,
         path_width: float,
+        path_yaw: float,
     ) -> tuple[float, float]:
         """
         Gets the displacement and yaw of the system based on the results of the edges detected.
@@ -129,17 +130,21 @@ class PathVectorGenerator:
         :param m_left: The slope of the left line
         :param m_right: The slope of the right line
         :param path_width: The width of the path
+        :param path_yaw: The yaw of the path globally
         :return: The estimated displacement and yaw of the system relative to the path
         """
 
         # Gets the center point coordinates
-        cx, cy = self.center
+        cx, cy = self.center_point
 
         # Finds the difference in the x of the center point and intersection
         dx = intersection_point[0] - cx
 
         # Gets the relative yaw based on the difference in x and the focal in the x
         relative_yaw = math.degrees(math.atan(dx / self.fx))
+        global_yaw = relative_yaw + path_yaw
+        print(f"Relative yaw: {relative_yaw} deg")
+        print(f"Global yaw: {global_yaw} deg")
 
         # Gets the left and right x0 based on the focal x and y and the slopes of the lines
         x0_left = -(self.fy * self.camera_height) / (self.fx * m_left)
@@ -148,7 +153,7 @@ class PathVectorGenerator:
         # Finds the displacement in the x based on the x0s
         x_delta = ((x0_right - path_width / 2) + (x0_left + path_width / 2)) / 2.0
 
-        return x_delta, relative_yaw
+        return x_delta, global_yaw
 
     def get_closest_point_along_line(
         self, p1: tuple[float, float], p2: tuple[float, float], p3: tuple[float, float]
@@ -212,11 +217,14 @@ class PathVectorGenerator:
             # Loops through all the nodes of each way
             previous_node = None
             for node in way.geometry()["coordinates"]:
+                latlon_node = (node[1], node[0])
                 # Checks that there is a previous node
                 if previous_node is not None:
                     # Gets the distance from estimated position to the path nodes
+
                     prev_node_xy = self.converter.latlon_to_xy(previous_node)
-                    cur_node_xy = self.converter.latlon_to_xy(node)
+                    cur_node_xy = self.converter.latlon_to_xy(latlon_node)
+
                     dist = self.get_closest_point_along_line(
                         prev_node_xy, cur_node_xy, estimated_position_xy
                     )
@@ -228,9 +236,9 @@ class PathVectorGenerator:
                         closest_prev_node_xy = prev_node_xy
                         closest_cur_node_xy = cur_node_xy
 
-                    previous_node = node
+                    previous_node = latlon_node
                 else:
-                    previous_node = node
+                    previous_node = latlon_node
 
         # Gets the delta to each node from estimated pose
         estimated_pose_vector = (
@@ -265,9 +273,19 @@ class PathVectorGenerator:
         # Checks if heading is closer to the current node or previous node to identify
         # the start and end
         if delta_heading_prev_node < delta_heading_cur_node:
-            return closest_cur_node_xy, closest_prev_node_xy, closest_path_width
+            start_node = closest_cur_node_xy
+            end_node = closest_prev_node_xy
+
         else:
-            return closest_prev_node_xy, closest_cur_node_xy, closest_path_width
+            start_node = closest_prev_node_xy
+            end_node = closest_cur_node_xy
+
+        # Get the delta in the start and end nodes to get the heading of the path
+        dx = end_node[0] - start_node[0]
+        dy = end_node[1] - start_node[1]
+        closest_path_heading = math.degrees(math.atan2(dy, dx))
+
+        return start_node, end_node, closest_path_width, closest_path_heading
 
     def get_path_vector(
         self,
@@ -297,10 +315,11 @@ class PathVectorGenerator:
         if displacement < 0:
             inv_path_unit_vector = (path_unit_vector[1], -path_unit_vector[0])
         else:
-            inv_path_unit_vector = (-path_unit_vector[1], path_unit_vector)
+            inv_path_unit_vector = (-path_unit_vector[1], path_unit_vector[0])
 
         # Transforms the start and end nodes based on the inverted unit vector
         # and the displacement magnitude
+
         transformed_start_node_xy = (
             start_node_xy[0] + inv_path_unit_vector[0] * abs(displacement),
             start_node_xy[1] + inv_path_unit_vector[1] * abs(displacement),
@@ -357,7 +376,7 @@ class PathVectorGenerator:
             key = cv2.waitKey(1) & 0xFF
             if key == 13:  # Enter key
                 # Gets the start and end point of the path based on the estimated location
-                start_node_xy, end_node_xy, path_width = self.get_path_data(
+                start_node_xy, end_node_xy, path_width, path_yaw = self.get_path_data(
                     estimated_location_latlon, estimated_location_xy, estimated_yaw_deg
                 )
 
@@ -374,12 +393,12 @@ class PathVectorGenerator:
 
                     # Gets the lateral displacement on the path and the yaw on the path
                     displacement, yaw = self.get_displacement_and_yaw(
-                        intersection_point, m_left, m_right, path_width
+                        intersection_point, m_left, m_right, path_width, path_yaw
                     )
 
                     # Gets the transformed vector that the system lies on
                     transformed_path_vector = self.get_path_vector(
-                        displacement, start_node_xy, end_node_xy
+                        start_node_xy, end_node_xy, displacement
                     )
 
                     print(f"Displacement: {displacement} m")
