@@ -1,5 +1,6 @@
-"""Manual tree selection interface for ground view analysis and matching with
-satellite data using pre-collected and pre-labeled dataset.
+"""
+Manual tree selection interface for ground view analysis and matching with satellite data using pre-
+collected and pre-labeled dataset.
 
 file: manual_selector.py
 author: Cole Malinchock and Jack Elia
@@ -15,10 +16,19 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # Import custom classes
-from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, PLOT, RANDOM
+from constants import (
+    CAMERA_HEIGHT_M,
+    DATA_LOGGER_PATH,
+    IMAGE_FOLDER_PATH,
+    IMAGE_SHAPE,
+    ORIGIN,
+    PLOT,
+    RANDOM,
+)
 from converter import Converter
 from data_structs import Point, Pose2d
 from debug_visualizer import DebugVisualizer
+from path_vector_generator import PathVectorGenerator
 from tree_matcher import TreeMatcher
 
 logging.basicConfig(level=logging.INFO)
@@ -53,9 +63,16 @@ class SGILMatcherApp:
         self.tree_matcher = TreeMatcher()
         self.image_folder = image_folder
         self.randomize = randomize
+        self.image_shape = IMAGE_SHAPE
+        self.camera_height_m = CAMERA_HEIGHT_M
 
         # Load robot log into a DataFrame once
         self.robot_data_log = pd.read_csv(data_log_path)
+        self.path_vector_generator = PathVectorGenerator(
+            image_shape=self.image_shape,
+            camera_height=self.camera_height_m,
+            dataset=self.robot_data_log,
+        )
 
         # Will be set on each call to get_gps_pose
         self.correct_pose: tuple[float, float] | None = None
@@ -68,7 +85,8 @@ class SGILMatcherApp:
         self._current_index: int = 0
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """Lookup the RTK/GPS pose for a given image filename.
+        """
+        Lookup the RTK/GPS pose for a given image filename.
 
         :param image_name: Name of the .jpg image.
         :return: Pose2d if RTK heading is valid; otherwise None.
@@ -81,11 +99,11 @@ class SGILMatcherApp:
         return self.get_gps_pose(matches.iloc[0])
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
-        """Convert a log row into a Pose2d using RTK for yaw.
+        """
+        Convert a log row into a Pose2d using RTK for yaw.
 
         Also updates internal gps_pose/correct_pose for error logging.
-        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading,
-            gps_lat, gps_lon.
+        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading, gps_lat, gps_lon.
         :return: Pose2d in local XY + yaw degrees.
         """
         # Convert lat/lon to XY
@@ -101,8 +119,8 @@ class SGILMatcherApp:
     def get_next_image(
         self,
     ) -> tuple[str, list[Point], Pose2d | None]:
-        """Retrieves the next image, shows it for manual tree picking, and
-        returns the clicks and pose.
+        """
+        Retrieves the next image, shows it for manual tree picking, and returns the clicks and pose.
 
         :return:
           - image_name: filename or "0" when exhausted
@@ -134,9 +152,22 @@ class SGILMatcherApp:
             print(f"Error loading image: {image_name}")
             return self.get_next_image()
 
+        # Performs the vectorization of the path detection
+        path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
+            image, self._current_index
+        )
+        print(
+            f"""Vector:
+            <({path_vector[0][0]}, {path_vector[0][1]}),
+            ({path_vector[1][0]}, {path_vector[1][1]})>"""
+        )
+        print(f"Yaw: {path_yaw} deg")
+
         # Define the mouse callback function
         def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
-            """Handle mouse click events for point selection."""
+            """
+            Handle mouse click events for point selection.
+            """
             # Check if left mouse button was clicked
             if event == cv2.EVENT_LBUTTONDOWN:
                 # Add point to list
@@ -232,7 +263,8 @@ class SGILMatcherApp:
                     pose,
                     save_name,
                 )
-                # DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose, self.tree_matcher.aoi_trees, est_xy, save_name)
+                # DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose,
+                # self.tree_matcher.aoi_trees, est_xy, save_name)
 
             # Convert back to lat/lon
             est_latlon = self.converter.xy_to_latlon(est_xy)

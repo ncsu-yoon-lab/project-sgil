@@ -39,6 +39,7 @@ class PathVectorGenerator:
         :param dataset: The working dataset of the project
         """
         self.height, self.width, _ = image_shape
+        self.points = None
         self.fx = (self.width / 2) / math.tan(math.radians(H_FOV_DEG / 2))
         self.fy = (self.height / 2) / math.tan(math.radians(V_FOV_DEG / 2))
         self.center_point = (int(self.width / 2), int(self.height / 2))
@@ -66,13 +67,15 @@ class PathVectorGenerator:
         """
 
         # Gets the parameters from the click event
-        points, img_display = param
+        img_display = param
 
         # Adds a circle at the location of the click
-        if event == cv2.EVENT_LBUTTONDOWN and len(points) < 4:
-            points.append((x, y))
+        if event == cv2.EVENT_LBUTTONDOWN and len(self.points) < 4:
+            self.points.append((x, y))
             cv2.circle(img_display, (x, y), 5, (0, 255, 0), -1)  # draw green dot
-            cv2.putText(img_display, f"P{len(points)}", (x, y), 0, 1.0, (0, 255, 0), thickness=2)
+            cv2.putText(
+                img_display, f"P{len(self.points)}", (x, y), 0, 1.0, (0, 255, 0), thickness=2
+            )
             cv2.imshow("Select Points", img_display)
 
     def get_intersection(
@@ -204,7 +207,6 @@ class PathVectorGenerator:
         result = self.overpass.query(query)
 
         # Loops through all the ways gathered from the query
-        closest_nodes = None
         closest_dist = float("inf")
         for way in result.elements():
             # Loops through all the nodes of each way
@@ -236,13 +238,13 @@ class PathVectorGenerator:
             math.sin(math.radians(estimated_heading_deg)),
         )
         prev_node_vector = (
-            closest_nodes[0][0] - estimated_position_xy[0],
-            closest_nodes[0][1] - estimated_position_xy[1],
+            prev_node_xy[0] - estimated_position_xy[0],
+            prev_node_xy[1] - estimated_position_xy[1],
         )
         prev_node_vector_dist = math.sqrt(prev_node_vector[0] ** 2 + prev_node_vector[1] ** 2)
         cur_node_vector = (
-            closest_nodes[1][0] - estimated_position_xy[0],
-            closest_nodes[1][1] - estimated_position_xy[1],
+            cur_node_xy[0] - estimated_position_xy[0],
+            cur_node_xy[1] - estimated_position_xy[1],
         )
         cur_node_vector_dist = math.sqrt(cur_node_vector[0] ** 2 + cur_node_vector[1] ** 2)
         delta_heading_prev_node = math.acos(
@@ -308,7 +310,7 @@ class PathVectorGenerator:
             end_node_xy[1] + inv_path_unit_vector[1] * abs(displacement),
         )
 
-        return transformed_start_node_xy, transformed_end_node_xy
+        return (transformed_start_node_xy, transformed_end_node_xy)
 
     def get_path_vector_and_yaw(
         self, image: np.ndarray, index: int
@@ -327,25 +329,27 @@ class PathVectorGenerator:
             self.dataset.rtk_lat.iloc[index],
             self.dataset.rtk_lon.iloc[index],
         )
+        estimated_location_xy = self.converter.latlon_to_xy(estimated_location_latlon)
         estimated_yaw_deg = self.converter.heading_to_yaw(self.dataset.rtk_heading.iloc[index])
 
         # Make a copy of the image to mark on and initialize the points to be put on the image
         image_display = image.copy()
-        points = []
+        self.points = []
 
         # Show the starting image to select the points
         print("Select Four Points corresponding to the edges of the path")
-        print("""Follow the pattern of\n" \
+        print("""Follow the pattern of
                   - P1 = Bottom Left
                   - P2 = Top Left
                   - P3 = Bottom Right
                   - P4 = Top Right""")
         print("Enter 'Enter' to skip image")
+
         cv2.imshow(
-            "Select Path Edges\nBottom Left, Top Left, Bottom Right, Top Right\nPress 'q' to Pass",
+            "Select Path Edges",
             image_display,
         )
-        cv2.setMouseCallback("Select Points", self.click_event, param=(points, image_display))
+        cv2.setMouseCallback("Select Path Edges", self.click_event, param=(image_display))
 
         # Loop until the edges of the path are marked and a key is entered
         while True:
@@ -354,13 +358,13 @@ class PathVectorGenerator:
             if key == 13:  # Enter key
                 # Gets the start and end point of the path based on the estimated location
                 start_node_xy, end_node_xy, path_width = self.get_path_data(
-                    estimated_location_latlon, estimated_yaw_deg
+                    estimated_location_latlon, estimated_location_xy, estimated_yaw_deg
                 )
 
                 # Check that 4 points were selected
-                if len(points) == 4:
+                if len(self.points) == 4:
                     # Get the four points
-                    p1, p2, p3, p4 = points
+                    p1, p2, p3, p4 = self.points
 
                     # Get the intersection between the 4 points which make 2 lines
                     intersection_point, m_left, m_right = self.get_intersection((p1, p2), (p3, p4))
@@ -382,8 +386,8 @@ class PathVectorGenerator:
                 else:
                     yaw = estimated_yaw_deg
                     transformed_path_vector = (
-                        end_node_xy[0] - start_node_xy[0],
-                        end_node_xy[1] - start_node_xy[1],
+                        start_node_xy,
+                        end_node_xy,
                     )
                     displacement = "No Path Detected"
                     print("No path detected")
@@ -397,8 +401,8 @@ class PathVectorGenerator:
                 )
                 print(
                     f"""Transformed Path Vector: 
-                    <{transformed_path_vector[0]}, 
-                    {transformed_path_vector[1]}>"""
+                    <({transformed_path_vector[0][0]}, {transformed_path_vector[0][1]}), 
+                    ({transformed_path_vector[1][0]}, {transformed_path_vector[1][1]})>"""
                 )
 
                 # Destroys all the windows created by cv
