@@ -26,6 +26,7 @@ HEADING_ERROR_DEG = 5
 
 # Vertical FOV
 H_FOV_DEG = 110  # [degrees]
+V_FOV_DEG = 70  # [degrees]
 
 # Radius of area of interest (AOI)
 AOI_RADIUS_M = 50  # [m]
@@ -40,5 +41,5 @@ SCORE_WEIGHT_DISTANCE = 0.15
 SCORE_WEIGHT_ANGLE_SPREAD = 0.15
 
 # Sensitivity scales (set based on your units/environment)
-SCORE_RMS_SCALE = 1.0          # meters; smaller => stricter on residuals
-SCORE_DISTANCE_SCALE = 5.0     # meters; smaller => penalize distance more
+SCORE_RMS_SCALE = 1.0  # meters; smaller => stricter on residuals
+SCORE_DISTANCE_SCALE = 5.0  # meters; smaller => penalize distance more
