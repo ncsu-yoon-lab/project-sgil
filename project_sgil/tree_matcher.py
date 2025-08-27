@@ -21,6 +21,8 @@ from project_sgil.constants import (
     SCORE_WEIGHT_RMS,
     TREE_LOCATIONS_PATH,
     TREE_RADIUS_M,
+    SCORE_WEIGHT_THETA_MATCH,
+    THETA_MATCHING_TOLERANCE,
 )
 from project_sgil.debug_visualizer import DebugVisualizer
 from project_sgil.utils import _segment_intersects_circle, distance, get_relative_angle
@@ -351,10 +353,12 @@ class TreeMatcher:
             for wedge, tree in wedge_map.items():
                 wedge.matched_tree = tree
 
+            print(f"Matching combination: {combo_index}")
+
             # Create PoseEstimate
             score = self._calculate_pose_estimate_score(
                 wedge_map=wedge_map,
-                current_pose=current_pose,
+                estimated_pose=estimated_pose,
                 residual_rms=rms,
             )
 
@@ -381,40 +385,33 @@ class TreeMatcher:
     def _calculate_pose_estimate_score(
         self,
         wedge_map: dict[Wedge, Tree],
-        current_pose: Pose2d,
+        estimated_pose: Pose2d,
         residual_rms: float,
     ) -> float:
-        """Compute a heuristic pose-estimate score using occlusion and RMS.
+        """Heuristic score using occlusion, RMS (if 3+ trees), and theta matching.
 
-        - Occlusion: For each selected wedge, if the line from current_pose to the
-          selected tree intersects the circle around any other tree in that wedge
-          (TREE_RADIUS_M), the wedge is considered occluded (0); otherwise visible (1).
-          Visibility across selected wedges is averaged and weighted.
-
-        - RMS: Lower least-squares residual implies a better fit. Converts residual
-          to a diminishing-return score via 1 / (1 + residual / SCORE_RMS_SCALE).
-          If only two trees are selected, RMS is ignored (weight = 0) because the
-          intersection is exact and RMS≈0 by construction.
-
-        :param wedge_map: Mapping of Wedge -> selected Tree for this estimate.
-        :param current_pose: Current vehicle pose (segment start for occlusion check).
-        :param residual_rms: Least-squares perpendicular residual (meters).
-        :return: Unbounded heuristic score (higher is better).
+        :param wedge_map: Selected {Wedge -> Tree}.
+        :param estimated_pose: Pose used as the viewpoint for checks.
+        :param residual_rms: LS perpendicular residual (meters).
+        :return: Score (higher is better).
         """
         if not wedge_map:
             return 0.0
 
-        # ---- Occlusion visibility component ----
         visible_count = 0
+        theta_match_count = 0
         total_selected = len(wedge_map)
 
+        # For each selected wedge, check (a) occlusion and (b) theta match
         for wedge, selected_tree in wedge_map.items():
+            # --- (a) Occlusion: is the line to the selected tree blocked by another tree? ---
             occluded = False
-            for other_tree in wedge.trees:
+            # Scan all other trees in the aoi
+            for other_tree in self.aoi_trees:
                 if other_tree.id == selected_tree.id:
                     continue
                 if _segment_intersects_circle(
-                    start=current_pose,
+                    start=estimated_pose,
                     end=selected_tree,
                     center=other_tree,
                     radius=TREE_RADIUS_M,
@@ -424,18 +421,38 @@ class TreeMatcher:
             if not occluded:
                 visible_count += 1
 
+            # --- (b) Theta matching: is the observed angle close to wedge.theta_degrees? ---
+            # Observed angle of this tree relative to the estimated pose heading
+            observed_deg = get_relative_angle(selected_tree, estimated_pose)
+
+            # Smallest signed difference in degrees (wrap at 180)
+            diff = (observed_deg - wedge.theta_degrees + 180.0) % 360.0 - 180.0
+            if abs(diff) <= THETA_MATCHING_TOLERANCE:
+                theta_match_count += 1
+
+        # Occlusion component: fraction of visible selections
         visibility_ratio = visible_count / float(total_selected)
         occlusion_component = SCORE_WEIGHT_OCCLUSION * visibility_ratio
 
-        # ---- RMS component (ignored for 2-tree combinations) ----
+        # Theta matching component: fraction of angle-consistent selections
+        theta_match_ratio = theta_match_count / float(total_selected)
+        theta_match_component = SCORE_WEIGHT_THETA_MATCH * theta_match_ratio
+
+        # RMS component: only count when 3+ trees are used (2 gives trivial RMS≈0)
         if total_selected <= 2:
             rms_component = 0.0
         else:
-            # Soft inverse so small residuals get near-1, large residuals decay smoothly.
             rms_score = 1.0 / (1.0 + (residual_rms / max(1e-9, SCORE_RMS_SCALE)))
             rms_component = SCORE_WEIGHT_RMS * rms_score
 
-        return float(occlusion_component + rms_component)
+        # print("--- Pose Estimate Score Breakdown ---")
+        # print(f"Occlusion component: {occlusion_component:.3f}")
+        # print(f"Theta match component: {theta_match_component:.3f}")
+        # if total_selected > 2:
+        #     print(f"RMS residual: {residual_rms:.3f} m")
+        #     print(f"RMS component: {rms_component:.3f}")
+
+        return float(occlusion_component + theta_match_component + rms_component)
 
     def calculate_pose_estimate_confidence(
         self,
