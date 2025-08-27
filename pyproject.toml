@@ -10,6 +10,7 @@ dependencies = [
     "shapely",
     "numpy",
     "sympy",
+    "OSMPythonTools",
 ]
 
 [project.optional-dependencies]

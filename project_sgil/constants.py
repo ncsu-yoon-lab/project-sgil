@@ -38,12 +38,16 @@ AOI_RADIUS_M = 50  # [m]
 # Angle of area of interest (AOI)
 AOI_ANGLE_DEG = (H_FOV_DEG + HEADING_ERROR_DEG) / 2
 
-# Heuristic score weights (sum does not need to be 1.0)
-SCORE_WEIGHT_RMS = 0.45
-SCORE_WEIGHT_COMBO_SIZE = 0.25
-SCORE_WEIGHT_DISTANCE = 0.15
-SCORE_WEIGHT_ANGLE_SPREAD = 0.15
+# Weight for the occlusion component in the overall score.
+SCORE_WEIGHT_OCCLUSION = 1.0  # start with 1.0 while this is the only factor
 
-# Sensitivity scales (set based on your units/environment)
-SCORE_RMS_SCALE = 1.0  # meters; smaller => stricter on residuals
-SCORE_DISTANCE_SCALE = 5.0  # meters; smaller => penalize distance more
+# Assumed tree radius used for occlusion checking (meters).
+TREE_RADIUS_M = 2.0  # tune to your environment / map scale
+
+
+# Weight for RMS residual (lower residual → higher score).
+SCORE_WEIGHT_RMS = 0.3
+
+# Scale (meters) that controls how quickly the RMS term decays.
+# Smaller values make the RMS penalty stronger.
+SCORE_RMS_SCALE = 1.0

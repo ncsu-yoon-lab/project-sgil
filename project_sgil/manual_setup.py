@@ -1,6 +1,5 @@
-"""
-Manual tree selection interface for ground view analysis and matching with satellite data using pre-
-collected and pre-labeled dataset.
+"""Manual tree selection interface for ground view analysis and matching with
+satellite data using pre- collected and pre-labeled dataset.
 
 file: manual_selector.py
 author: Cole Malinchock and Jack Elia
@@ -27,6 +26,7 @@ from constants import (
 from converter import Converter
 from data_structs import Point, Pose2d
 from debug_visualizer import DebugVisualizer
+from matplotlib import pyplot as plt
 from path_vector_generator import PathVectorGenerator
 from tree_matcher import TreeMatcher
 
@@ -84,8 +84,7 @@ class SGILMatcherApp:
         self._current_index: int = 0
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """
-        Lookup the RTK/GPS pose for a given image filename.
+        """Lookup the RTK/GPS pose for a given image filename.
 
         :param image_name: Name of the .jpg image.
         :return: Pose2d if RTK heading is valid; otherwise None.
@@ -98,11 +97,11 @@ class SGILMatcherApp:
         return self.get_gps_pose(matches.iloc[0])
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
-        """
-        Convert a log row into a Pose2d using RTK for yaw.
+        """Convert a log row into a Pose2d using RTK for yaw.
 
         Also updates internal gps_pose/correct_pose for error logging.
-        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading, gps_lat, gps_lon.
+        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading,
+            gps_lat, gps_lon.
         :return: Pose2d in local XY + yaw degrees.
         """
         # Convert lat/lon to XY
@@ -118,8 +117,8 @@ class SGILMatcherApp:
     def get_next_image(
         self,
     ) -> tuple[str, list[Point], Pose2d | None]:
-        """
-        Retrieves the next image, shows it for manual tree picking, and returns the clicks and pose.
+        """Retrieves the next image, shows it for manual tree picking, and
+        returns the clicks and pose.
 
         :return:
           - image_name: filename or "0" when exhausted
@@ -151,70 +150,68 @@ class SGILMatcherApp:
             print(f"Error loading image: {image_name}")
             return self.get_next_image()
 
-        # Performs the vectorization of the path detection
-        path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
-            image, self._current_index
-        )
-        print(
-            f"""Vector:
-            <({path_vector[0][0]}, {path_vector[0][1]}),
-            ({path_vector[1][0]}, {path_vector[1][1]})>"""
-        )
-        print(f"Yaw: {path_yaw} deg")
+        # # Performs the vectorization of the path detection
+        # path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
+        #     image, self._current_index
+        # )
+        # print(
+        #     f"""Vector:
+        #     <({path_vector[0][0]}, {path_vector[0][1]}),
+        #     ({path_vector[1][0]}, {path_vector[1][1]})>"""
+        # )
+        # print(f"Yaw: {path_yaw} deg")
 
         # Define the mouse callback function
-        # def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
-        #     """
-        #     Handle mouse click events for point selection.
-        #     """
-        #     # Check if left mouse button was clicked
-        #     if event == cv2.EVENT_LBUTTONDOWN:
-        #         # Add point to list
-        #         selected_points.append(Point(x, y))
-        #         # Draw circle at clicked position
-        #         cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
-        #         # Update the display
-        #         cv2.imshow(window_name, displayed_image)
+        def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
+            """Handle mouse click events for point selection."""
+            # Check if left mouse button was clicked
+            if event == cv2.EVENT_LBUTTONDOWN:
+                # Add point to list
+                selected_points.append(Point(x, y))
+                # Draw circle at clicked position
+                cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
+                # Update the display
+                cv2.imshow(window_name, displayed_image)
 
-        # # Close any existing matplotlib figures and OpenCV windows
-        # plt.close("all")
-        # cv2.destroyAllWindows()
-        # cv2.waitKey(1)
+        # Close any existing matplotlib figures and OpenCV windows
+        plt.close("all")
+        cv2.destroyAllWindows()
+        cv2.waitKey(1)
 
-        # # Create a copy to display and modify
-        # displayed_image = image.copy()
+        # Create a copy to display and modify
+        displayed_image = image.copy()
 
-        # # Create a window name with image info for uniqueness
-        # window_name = f"Select Points - {image_name}"
+        # Create a window name with image info for uniqueness
+        window_name = f"Select Points - {image_name}"
 
-        # # Create window and set it to autosize first, then resize
-        # cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
-        # cv2.imshow(window_name, displayed_image)
+        # Create window and set it to autosize first, then resize
+        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        cv2.imshow(window_name, displayed_image)
 
-        # # Set the mouse callback function
-        # cv2.setMouseCallback(window_name, click_event)
+        # Set the mouse callback function
+        cv2.setMouseCallback(window_name, click_event)
 
-        # print(f"Processing image: {image_name}")
-        # print("Left-click to select trees, press Enter when done, ESC to skip")
+        print(f"Processing image: {image_name}")
+        print("Left-click to select trees, press Enter when done, ESC to skip")
 
-        # # Wait for keypress - Enter key will finish selection
-        # while True:
-        #     key = cv2.waitKey(1) & 0xFF
-        #     # If Enter key is pressed, break the loop
-        #     if key == 13:  # 13 is the ASCII code for Enter
-        #         break
-        #     # If ESC key is pressed, skip this image
-        #     elif key == 27:  # 27 is the ASCII code for ESC
-        #         selected_points = []
-        #         break
+        # Wait for keypress - Enter key will finish selection
+        while True:
+            key = cv2.waitKey(1) & 0xFF
+            # If Enter key is pressed, break the loop
+            if key == 13:  # 13 is the ASCII code for Enter
+                break
+            # If ESC key is pressed, skip this image
+            elif key == 27:  # 27 is the ASCII code for ESC
+                selected_points = []
+                break
 
-        # # Close the specific window
-        # cv2.destroyWindow(window_name)
-        # cv2.waitKey(1)
+        # Close the specific window
+        cv2.destroyWindow(window_name)
+        cv2.waitKey(1)
 
-        # return image_name, selected_points, pose
+        return image_name, selected_points, pose
 
-        return None, None, None
+        # return None, None, None
 
     def run(self) -> None:
         """
