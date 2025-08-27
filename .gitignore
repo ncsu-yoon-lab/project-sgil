@@ -152,3 +152,5 @@ CATKIN_IGNORE
 /dataset/images
 
 project_sgil/debug_plots/
+
+project_sgil/cache/

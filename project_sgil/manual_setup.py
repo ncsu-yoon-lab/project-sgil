@@ -261,8 +261,8 @@ class SGILMatcherApp:
                     pose,
                     save_name,
                 )
-                # DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose,
-                # self.tree_matcher.aoi_trees, est_xy, save_name)
+                DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose,
+                self.tree_matcher.aoi_trees, est_xy, save_name)
 
             # Convert back to lat/lon
             est_latlon = self.converter.xy_to_latlon(est_xy)

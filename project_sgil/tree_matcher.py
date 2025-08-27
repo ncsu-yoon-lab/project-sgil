@@ -23,6 +23,7 @@ from project_sgil.constants import (
     TREE_RADIUS_M,
     SCORE_WEIGHT_THETA_MATCH,
     THETA_MATCHING_TOLERANCE,
+    NUMBER_SELECTED_WEIGHT,
 )
 from project_sgil.debug_visualizer import DebugVisualizer
 from project_sgil.utils import _segment_intersects_circle, distance, get_relative_angle
@@ -261,13 +262,24 @@ class TreeMatcher:
             self.wedges.append(self._create_wedge(current_pose, theta))
 
         # Estimate the location by matching the wedges to the identified trees
-        estimated_locations = self._wedge_matching(self.wedges, current_pose)
+        pose_estimates = self._wedge_matching(self.wedges, current_pose)
 
-        if not estimated_locations:
+        if not pose_estimates:
             raise ValueError("No pose estimates found")
 
+        # Find the pose estimate with the highest score that matched all the wedges
+        # TODO: make the code work for when not all wedges are matched
+        final_estimate = pose_estimates[0]
+        for estimate in pose_estimates:
+            if len(estimate.wedge_combinations) == len(self.wedges) and estimate.score > final_estimate.score:
+                final_estimate = estimate
+
+        # Set the wedges to the pose estimate's matched trees for visualization
+        for wedge, tree in final_estimate.wedge_combinations.items():
+            wedge.matched_tree = tree
+
         # Return the pose with the highest score
-        return max(estimated_locations, key=lambda pe: pe.score).pose
+        return final_estimate.pose
 
     def _get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
         """Identify satellite trees within area of interest.
@@ -353,8 +365,6 @@ class TreeMatcher:
             for wedge, tree in wedge_map.items():
                 wedge.matched_tree = tree
 
-            print(f"Matching combination: {combo_index}")
-
             # Create PoseEstimate
             score = self._calculate_pose_estimate_score(
                 wedge_map=wedge_map,
@@ -363,7 +373,7 @@ class TreeMatcher:
             )
 
             confidence = self.calculate_pose_estimate_confidence(
-                PoseEstimate(Pose2d(x_hat, y_hat, current_pose.yaw), score, 1),
+                PoseEstimate(Pose2d(x_hat, y_hat, current_pose.yaw), score, 1, wedge_map),
                 list(wedge_map.values()),
                 self.aoi_trees,
             )
@@ -378,7 +388,7 @@ class TreeMatcher:
                     f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
                 )
 
-            pose_estimates.append(PoseEstimate(estimated_pose, score, confidence))
+            pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))
 
         return pose_estimates
 
@@ -388,7 +398,8 @@ class TreeMatcher:
         estimated_pose: Pose2d,
         residual_rms: float,
     ) -> float:
-        """Heuristic score using occlusion, RMS (if 3+ trees), and theta matching.
+        """Heuristic score using number of wedges, occlusion, RMS (if 3+ trees),
+        and theta matching.
 
         :param wedge_map: Selected {Wedge -> Tree}.
         :param estimated_pose: Pose used as the viewpoint for checks.
@@ -445,12 +456,8 @@ class TreeMatcher:
             rms_score = 1.0 / (1.0 + (residual_rms / max(1e-9, SCORE_RMS_SCALE)))
             rms_component = SCORE_WEIGHT_RMS * rms_score
 
-        # print("--- Pose Estimate Score Breakdown ---")
-        # print(f"Occlusion component: {occlusion_component:.3f}")
-        # print(f"Theta match component: {theta_match_component:.3f}")
-        # if total_selected > 2:
-        #     print(f"RMS residual: {residual_rms:.3f} m")
-        #     print(f"RMS component: {rms_component:.3f}")
+        # Number of wedges component
+        num_wedges_component = total_selected * NUMBER_SELECTED_WEIGHT
 
         return float(occlusion_component + theta_match_component + rms_component)
 
