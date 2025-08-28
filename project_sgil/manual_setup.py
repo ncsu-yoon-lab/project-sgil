@@ -150,16 +150,11 @@ class SGILMatcherApp:
             print(f"Error loading image: {image_name}")
             return self.get_next_image()
 
+        # TODO: use this code eventually, don't delete it
         # # Performs the vectorization of the path detection
         # path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
         #     image, self._current_index
         # )
-        # print(
-        #     f"""Vector:
-        #     <({path_vector[0][0]}, {path_vector[0][1]}),
-        #     ({path_vector[1][0]}, {path_vector[1][1]})>"""
-        # )
-        # print(f"Yaw: {path_yaw} deg")
 
         # Define the mouse callback function
         def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:

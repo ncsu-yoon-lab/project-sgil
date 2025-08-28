@@ -14,6 +14,8 @@ DATA_LOGGER_PATH = "../dataset/GroundPositionLogger.csv"
 # IMAGE_FOLDER_PATH = "dataset/images"
 IMAGE_FOLDER_PATH = "../dataset/images"
 
+OUTPUT_CSV = "annotated_image_data.csv"
+
 # Boolean to plot points of trees
 PLOT = True
 # PLOT = False
