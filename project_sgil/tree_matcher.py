@@ -268,11 +268,15 @@ class TreeMatcher:
             raise ValueError("No pose estimates found")
 
         # Find the pose estimate with the highest score that matched all the wedges
-        # TODO: make the code work for when not all wedges are matched
-        final_estimate = pose_estimates[0]
-        for estimate in pose_estimates:
-            if len(estimate.wedge_combinations) == len(self.wedges) and estimate.score > final_estimate.score:
-                final_estimate = estimate
+
+        combo_number = 0
+        for i in range(len(pose_estimates)):
+            estimate = pose_estimates[i]
+            if estimate.score > pose_estimates[combo_number].score:
+                combo_number = i
+
+        print(f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}")
+        final_estimate = pose_estimates[combo_number]
 
         # Set the wedges to the pose estimate's matched trees for visualization
         for wedge, tree in final_estimate.wedge_combinations.items():
@@ -379,14 +383,15 @@ class TreeMatcher:
             )
 
             # Debug visualization (only if all wedges were used)
-            if len(wedge_map) == len(wedges):
-                DebugVisualizer.plot_wedges(
-                    wedges,
-                    current_pose,
-                    self.aoi_trees,
-                    Point(x_hat, y_hat),
-                    f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
-                )
+            # if len(wedge_map) == len(wedges):
+            DebugVisualizer.plot_wedges(
+                wedges=wedges,
+                wedge_combination=wedge_map,
+                current_pose=current_pose,
+                aoi_trees=self.aoi_trees,
+                estimated_location=Point(x_hat, y_hat),
+                save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
+            )
 
             pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))
 
@@ -459,7 +464,7 @@ class TreeMatcher:
         # Number of wedges component
         num_wedges_component = total_selected * NUMBER_SELECTED_WEIGHT
 
-        return float(occlusion_component + theta_match_component + rms_component)
+        return float(occlusion_component + theta_match_component + rms_component + num_wedges_component)
 
     def calculate_pose_estimate_confidence(
         self,

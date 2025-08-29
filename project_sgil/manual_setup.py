@@ -81,7 +81,7 @@ class SGILMatcherApp:
         self._image_list: list[str] = sorted(
             f for f in os.listdir(self.image_folder) if f.lower().endswith(".jpg")
         )
-        self._current_index: int = 0
+        self._current_index: int = 20
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
         """Lookup the RTK/GPS pose for a given image filename.
@@ -256,8 +256,8 @@ class SGILMatcherApp:
                     pose,
                     save_name,
                 )
-                DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose,
-                self.tree_matcher.aoi_trees, est_xy, save_name)
+                # DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose,
+                # self.tree_matcher.aoi_trees, est_xy, save_name)
 
             # Convert back to lat/lon
             est_latlon = self.converter.xy_to_latlon(est_xy)

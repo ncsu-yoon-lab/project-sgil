@@ -157,109 +157,128 @@ class DebugVisualizer:
     @staticmethod
     def plot_wedges(
         wedges: list[Wedge],
+        wedge_combination: dict[Wedge, Tree],
         current_pose: Pose2d,
         aoi_trees: list[Tree],
         estimated_location: Point,
         save_name: str | None = None,
     ) -> None:
-        """Visualize wedges and their associated trees.
-
-        :param wedges: List of Wedge objects.
-        :param current_pose: Current position as Pose2d object.
-        :param aoi_trees: List of trees within area of interest as
-            Point.
-        :param estimated_location: Estimated vehicle position as Point.
-        :param save_name: Optional custom name for saved plot.
-        """
+        """Visualize AOI trees, wedge directions, and chosen tree per wedge."""
         fig, ax = plt.subplots(figsize=(10, 8))
 
-        # AOI trees
+        # --- AOI: faint background points for context ---
         if aoi_trees:
             ax.scatter(
                 [t.x for t in aoi_trees],
                 [t.y for t in aoi_trees],
-                s=30,
-                alpha=0.6,
+                s=18,
+                alpha=0.25,
+                c="#777777",
                 label="AOI Trees",
             )
 
-        # Current position
-        ax.scatter(current_pose.x, current_pose.y, s=100, marker="*", label="Current Position")
-
-        colors = ["green", "orange", "purple", "brown", "pink", "gray"]
-
-        # Heading line
+        # --- Pose + heading arrow ---
+        ax.scatter(
+            current_pose.x, current_pose.y, s=90, marker="*", label="Current Pose", c="#1f77b4"
+        )
         heading_rad = math.radians(current_pose.yaw)
-        head_len = 5
+        head_len = 6.0
         ax.plot(
             [current_pose.x, current_pose.x + head_len * math.cos(heading_rad)],
             [current_pose.y, current_pose.y + head_len * math.sin(heading_rad)],
             linestyle="-",
             linewidth=2,
-            alpha=0.7,
+            alpha=0.9,
+            c="#1f77b4",
         )
 
-        for i, wedge in enumerate(wedges):
-            color = colors[i % len(colors)]
+        # --- Color palette per-wedge (cycles) ---
+        colors = [
+            "#2ca02c",
+            "#ff7f0e",
+            "#9467bd",
+            "#8c564b",
+            "#e377c2",
+            "#7f7f7f",
+            "#bcbd22",
+            "#17becf",
+        ]
 
-            # If wedge has a matched tree, draw it and a ray along the wedge-bearing
-            if wedge.matched_tree:
-                tx, ty = wedge.matched_tree.x, wedge.matched_tree.y
-                ax.scatter(
-                    tx,
-                    ty,
-                    s=60,
-                    marker="s",
-                    alpha=0.8,
-                    label=f"Wedge {i + 1} ({-wedge.theta_degrees:.1f}°)",
-                    c=color,
-                )
-                # Ray from tree along relative direction
-                theta_rel = math.radians(-wedge.theta_degrees)
-                ray_dir = (heading_rad - theta_rel - math.radians(180.0)) % (2 * math.pi)
-                ray_len = 25
-                ax.plot(
-                    [tx, tx + ray_len * math.cos(ray_dir)],
-                    [ty, ty + ray_len * math.sin(ray_dir)],
-                    linestyle="-",
-                    linewidth=2,
-                    alpha=0.7,
-                    c=color,
-                )
+        # --- For each wedge: draw guideline, candidates, and selected tree ---
+        for idx, wedge in enumerate(wedges):
+            color = colors[idx % len(colors)]
 
-            # Draw wedge direction from current pose (dashed guideline)
+            # (1) Guideline (dashed) for wedge direction from the current pose
             dir_from_pose = heading_rad - math.radians(-wedge.theta_degrees)
-            guide_len = 20
+            guide_len = 22.0
             ax.plot(
                 [current_pose.x, current_pose.x + guide_len * math.cos(dir_from_pose)],
                 [current_pose.y, current_pose.y + guide_len * math.sin(dir_from_pose)],
                 linestyle="--",
-                linewidth=2,
-                alpha=0.7,
+                linewidth=1.8,
+                alpha=0.8,
                 c=color,
+                label=(f"Wedge {idx + 1} Δθ={wedge.theta_degrees:+.1f}°" if idx == 0 else None),
             )
 
-        # Estimated position
+            # (2) All candidate trees for this wedge (small dots in wedge color)
+            if wedge.trees:
+                ax.scatter(
+                    [t.x for t in wedge.trees],
+                    [t.y for t in wedge.trees],
+                    s=28,
+                    alpha=0.6,
+                    c=color,
+                )
+
+            # (3) If this wedge is in the selected combination, highlight that pick
+            if wedge in wedge_combination:
+                sel = wedge_combination[wedge]
+                ax.scatter(
+                    sel.x,
+                    sel.y,
+                    s=80,
+                    marker="s",
+                    edgecolor="k",
+                    linewidths=1.0,
+                    alpha=0.95,
+                    c=color,
+                    label=(f"Pick for Wedge {idx + 1}" if idx == 0 else None),
+                )
+
+                # Draw a ray through the selected tree along the relative line-of-bearing
+                theta_rel = math.radians(-wedge.theta_degrees)
+                ray_dir = (heading_rad - theta_rel - math.radians(180.0)) % (2 * math.pi)
+                ray_len = 28.0
+                ax.plot(
+                    [sel.x, sel.x + ray_len * math.cos(ray_dir)],
+                    [sel.y, sel.y + ray_len * math.sin(ray_dir)],
+                    linestyle="-",
+                    linewidth=2.0,
+                    alpha=0.9,
+                    c=color,
+                )
+
+        # --- Estimated location (solution) ---
         ax.scatter(
             estimated_location.x,
             estimated_location.y,
-            s=100,
+            s=110,
             marker="*",
             label="Estimated Position",
+            c="#d62728",
         )
 
+        # --- Cosmetics ---
         ax.set_aspect("equal")
-        ax.set_xlabel("X Coordinate")
-        ax.set_ylabel("Y Coordinate")
-        ax.set_title("Wedge Analysis")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_title("Wedge Selection & Geometry")
         ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-
-        plt.grid(True, alpha=0.3)
+        ax.grid(True, alpha=0.3)
         plt.tight_layout()
 
-        filename = (
-            f"{save_name}.png" if save_name else DebugVisualizer._next_name("wedges_plot", ".png")
-        )
+        filename = f"{save_name}.png" if save_name else DebugVisualizer._next_name("wedges_plot", ".png")
         path = DebugVisualizer._save_figure(fig, filename)
         print(f"Wedges plot saved to: {path}")
 
