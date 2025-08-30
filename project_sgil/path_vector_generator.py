@@ -141,17 +141,12 @@ class PathVectorGenerator:
         dx = intersection_point[0] - cx
 
         # Gets the relative yaw based on the difference in x and the focal in the x
-        relative_yaw = math.degrees(math.atan(dx / self.fx))
-        global_yaw = relative_yaw + path_yaw
-        print(f"Relative yaw: {relative_yaw} deg")
-        print(f"Global yaw: {global_yaw} deg")
+        relative_yaw_deg = math.degrees(math.atan(dx / self.fx))
 
-        # Gets the left and right x0 based on the focal x and y and the slopes of the lines
-        x0_left = -(self.fy * self.camera_height) / (self.fx * m_left)
-        x0_right = -(self.fy * self.camera_height) / (self.fx * m_right)
+        global_yaw = path_yaw - relative_yaw_deg
+        global_yaw = global_yaw % 360
 
-        # Finds the displacement in the x based on the x0s
-        x_delta = ((x0_right - path_width / 2) + (x0_left + path_width / 2)) / 2.0
+        x_delta = dx * (self.camera_height / self.fy)
 
         return x_delta, global_yaw
 
@@ -272,7 +267,7 @@ class PathVectorGenerator:
 
         # Checks if heading is closer to the current node or previous node to identify
         # the start and end
-        if delta_heading_prev_node < delta_heading_cur_node:
+        if delta_heading_prev_node > delta_heading_cur_node:
             start_node = closest_cur_node_xy
             end_node = closest_prev_node_xy
 
@@ -283,7 +278,7 @@ class PathVectorGenerator:
         # Get the delta in the start and end nodes to get the heading of the path
         dx = end_node[0] - start_node[0]
         dy = end_node[1] - start_node[1]
-        closest_path_heading = math.degrees(math.atan2(dy, dx))
+        closest_path_heading = (90 - math.degrees(math.atan2(dy, dx))) % 360
 
         return start_node, end_node, closest_path_width, closest_path_heading
 
@@ -400,8 +395,6 @@ class PathVectorGenerator:
                     transformed_path_vector = self.get_path_vector(
                         start_node_xy, end_node_xy, displacement
                     )
-
-                    print(f"Displacement: {displacement} m")
                 else:
                     yaw = estimated_yaw_deg
                     transformed_path_vector = (
