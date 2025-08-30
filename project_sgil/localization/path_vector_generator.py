@@ -1,5 +1,5 @@
-"""
-Manual path vector selection that is capable of producing a path vector from an image.
+"""Manual path vector selection that is capable of producing a path vector from
+an image.
 
 file: path_vector.py
 author: Cole Malinchock and Jack Elia
@@ -12,11 +12,12 @@ import sys
 import cv2
 import numpy as np
 import pandas as pd
+from OSMPythonTools.overpass import Overpass
+
+from project_sgil.constants import H_FOV_DEG, ORIGIN, V_FOV_DEG
 
 # Import custom libraries
-from constants import H_FOV_DEG, ORIGIN, V_FOV_DEG
 from project_sgil.utils.converter import Converter
-from OSMPythonTools.overpass import Overpass
 
 
 class PathVectorGenerator:
@@ -56,8 +57,7 @@ class PathVectorGenerator:
         flags: int,
         param: tuple[list[tuple[int, int]], np.ndarray],
     ) -> None:
-        """
-        Handles the click events.
+        """Handles the click events.
 
         :param event: The click event instance occuring
         :param x: The x location of the event
@@ -83,12 +83,13 @@ class PathVectorGenerator:
         left_points: tuple[tuple[int, int], tuple[int, int]],
         right_points: tuple[tuple[int, int], tuple[int, int]],
     ) -> tuple[tuple[float, float], float, float]:
-        """
-        Gets the intersection between the left and right points and the corresponding slopes.
+        """Gets the intersection between the left and right points and the
+        corresponding slopes.
 
         :param left_points: The left two points of the edge detected
         :param right_points: The right two points of the edge detected
-        :return: The intersection point and the slope of the left and right lines
+        :return: The intersection point and the slope of the left and
+            right lines
         """
 
         # Gets the slope of the left and right points
@@ -123,15 +124,17 @@ class PathVectorGenerator:
         path_width: float,
         path_yaw: float,
     ) -> tuple[float, float]:
-        """
-        Gets the displacement and yaw of the system based on the results of the edges detected.
+        """Gets the displacement and yaw of the system based on the results of
+        the edges detected.
 
-        :param intersection_point: The intersecting point between the two edges
+        :param intersection_point: The intersecting point between the
+            two edges
         :param m_left: The slope of the left line
         :param m_right: The slope of the right line
         :param path_width: The width of the path
         :param path_yaw: The yaw of the path globally
-        :return: The estimated displacement and yaw of the system relative to the path
+        :return: The estimated displacement and yaw of the system
+            relative to the path
         """
 
         # Gets the center point coordinates
@@ -153,8 +156,8 @@ class PathVectorGenerator:
     def get_closest_point_along_line(
         self, p1: tuple[float, float], p2: tuple[float, float], p3: tuple[float, float]
     ) -> float:
-        """
-        Find the point where p3 intersects perpendicular to the line from p1 to p2.
+        """Find the point where p3 intersects perpendicular to the line from p1
+        to p2.
 
         :param p1: The first point of the line
         :param p2: The second point of the line
@@ -190,13 +193,15 @@ class PathVectorGenerator:
         estimated_position_xy: tuple[float, float],
         estimated_heading_deg: float,
     ) -> tuple[tuple[float, float], tuple[float, float], float]:
-        """
-        Gets the data from the path to be handled.
+        """Gets the data from the path to be handled.
 
-        :param estimated_position_latlon: The estimated lat lon of the system
+        :param estimated_position_latlon: The estimated lat lon of the
+            system
         :param estimated_position_xy: The estimated x y of the system
-        :param estimated_heading_deg: The estimated heading of the system
-        :return: The start and end points of the path and the width of the path
+        :param estimated_heading_deg: The estimated heading of the
+            system
+        :return: The start and end points of the path and the width of
+            the path
         """
 
         # Extracts the lat and lon from the estimation
@@ -288,13 +293,13 @@ class PathVectorGenerator:
         end_node_xy: tuple[float, float],
         displacement: float,
     ) -> tuple[float, float]:
-        """
-        Gets the vector of the path from the node and displacement.
+        """Gets the vector of the path from the node and displacement.
 
         :param start_node_xy: The starting point of the path
         :param end_node_xy: The ending point of the path
         :param displacement: The displacement on the path
-        :return: The start and end points from the displacement perpendicular to the path
+        :return: The start and end points from the displacement
+            perpendicular to the path
         """
 
         # Creates a unit vector of the path vector
@@ -329,13 +334,14 @@ class PathVectorGenerator:
     def get_path_vector_and_yaw(
         self, image: np.ndarray, index: int
     ) -> tuple[tuple[tuple[float, float], tuple[float, float]], float]:
-        """
-        Gets the path vector and estimated yaw from the image after manually selecting the edges of
-        the path and given an estimated location.
+        """Gets the path vector and estimated yaw from the image after manually
+        selecting the edges of the path and given an estimated location.
 
         :param image: The image being passed through the system
-        :param index: The index of the dataset that the system is currently on
-        :return: The two points that forms a line which the system likely lies on
+        :param index: The index of the dataset that the system is
+            currently on
+        :return: The two points that forms a line which the system
+            likely lies on
         """
 
         # Get the estimated position of the image and convert it to xy

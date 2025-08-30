@@ -1,5 +1,5 @@
 """Manual tree selection interface for ground view analysis and matching with
-satellite data using pre- collected and pre-labeled dataset.
+satellite data using pre-collected and pre-labeled dataset.
 
 file: manual_selector.py
 author: Cole Malinchock and Jack Elia
@@ -23,12 +23,13 @@ from constants import (
     PLOT,
     RANDOM,
 )
-from project_sgil.utils.converter import Converter
 from data_structs import Point, Pose2d
-from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from matplotlib import pyplot as plt
+
+from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.localization.path_vector_generator import PathVectorGenerator
 from project_sgil.localization.tree_matcher import TreeMatcher
+from project_sgil.utils.converter import Converter
 
 logging.basicConfig(level=logging.INFO)
 

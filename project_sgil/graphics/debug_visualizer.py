@@ -11,10 +11,10 @@ import os
 import matplotlib
 
 from project_sgil.constants import AOI_ANGLE_DEG, AOI_RADIUS_M
+from project_sgil.data_structs import Point, Pose2d, Tree, Wedge
 
 matplotlib.use("Agg")  # Use non-interactive backend that won't interfere with OpenCV
 import matplotlib.pyplot as plt
-from data_structs import Point, Pose2d, Tree, Wedge
 
 
 class DebugVisualizer:
@@ -278,7 +278,9 @@ class DebugVisualizer:
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
 
-        filename = f"{save_name}.png" if save_name else DebugVisualizer._next_name("wedges_plot", ".png")
+        filename = (
+            f"{save_name}.png" if save_name else DebugVisualizer._next_name("wedges_plot", ".png")
+        )
         path = DebugVisualizer._save_figure(fig, filename)
         print(f"Wedges plot saved to: {path}")
 

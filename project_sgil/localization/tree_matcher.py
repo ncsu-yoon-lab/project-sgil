@@ -8,24 +8,23 @@ author: Cole Malinchock and Jack Elia
 import csv
 import math
 
-from project_sgil.utils.converter import Converter
-from data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
-
 from project_sgil.constants import (
     AOI_ANGLE_DEG,
     AOI_RADIUS_M,
     HEADING_ERROR_DEG,
+    NUMBER_SELECTED_WEIGHT,
     ORIGIN,
     SCORE_RMS_SCALE,
     SCORE_WEIGHT_OCCLUSION,
     SCORE_WEIGHT_RMS,
-    TREE_LOCATIONS_PATH,
-    TREE_RADIUS_M,
     SCORE_WEIGHT_THETA_MATCH,
     THETA_MATCHING_TOLERANCE,
-    NUMBER_SELECTED_WEIGHT,
+    TREE_LOCATIONS_PATH,
+    TREE_RADIUS_M,
 )
+from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
+from project_sgil.utils.converter import Converter
 from project_sgil.utils.utils import _segment_intersects_circle, distance, get_relative_angle
 
 
@@ -275,7 +274,9 @@ class TreeMatcher:
             if estimate.score > pose_estimates[combo_number].score:
                 combo_number = i
 
-        print(f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}")
+        print(
+            f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}"
+        )
         final_estimate = pose_estimates[combo_number]
 
         # Set the wedges to the pose estimate's matched trees for visualization
@@ -403,8 +404,8 @@ class TreeMatcher:
         estimated_pose: Pose2d,
         residual_rms: float,
     ) -> float:
-        """Heuristic score using number of wedges, occlusion, RMS (if 3+ trees),
-        and theta matching.
+        """Heuristic score using number of wedges, occlusion, RMS (if 3+
+        trees), and theta matching.
 
         :param wedge_map: Selected {Wedge -> Tree}.
         :param estimated_pose: Pose used as the viewpoint for checks.
@@ -464,7 +465,9 @@ class TreeMatcher:
         # Number of wedges component
         num_wedges_component = total_selected * NUMBER_SELECTED_WEIGHT
 
-        return float(occlusion_component + theta_match_component + rms_component + num_wedges_component)
+        return float(
+            occlusion_component + theta_match_component + rms_component + num_wedges_component
+        )
 
     def calculate_pose_estimate_confidence(
         self,
