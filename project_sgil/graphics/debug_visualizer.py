@@ -22,7 +22,7 @@ class DebugVisualizer:
     debugging."""
 
     # Class-level output directory and counter so static methods can save files.
-    OUTPUT_DIR: str = "debug_plots"
+    OUTPUT_DIR: str = "../debug_plots"
     _PLOT_COUNTER: int = 0
 
     @staticmethod

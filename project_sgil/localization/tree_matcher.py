@@ -8,7 +8,7 @@ author: Cole Malinchock and Jack Elia
 import csv
 import math
 
-from converter import Converter
+from project_sgil.utils.converter import Converter
 from data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 
 from project_sgil.constants import (
@@ -25,8 +25,8 @@ from project_sgil.constants import (
     THETA_MATCHING_TOLERANCE,
     NUMBER_SELECTED_WEIGHT,
 )
-from project_sgil.debug_visualizer import DebugVisualizer
-from project_sgil.utils import _segment_intersects_circle, distance, get_relative_angle
+from project_sgil.graphics.debug_visualizer import DebugVisualizer
+from project_sgil.utils.utils import _segment_intersects_circle, distance, get_relative_angle
 
 
 class TreeMatcher:

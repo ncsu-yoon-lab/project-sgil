@@ -15,7 +15,7 @@ import pandas as pd
 
 # Import custom libraries
 from constants import H_FOV_DEG, ORIGIN, V_FOV_DEG
-from converter import Converter
+from project_sgil.utils.converter import Converter
 from OSMPythonTools.overpass import Overpass
 
 

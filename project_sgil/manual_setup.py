@@ -23,12 +23,12 @@ from constants import (
     PLOT,
     RANDOM,
 )
-from converter import Converter
+from project_sgil.utils.converter import Converter
 from data_structs import Point, Pose2d
-from debug_visualizer import DebugVisualizer
+from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from matplotlib import pyplot as plt
-from path_vector_generator import PathVectorGenerator
-from tree_matcher import TreeMatcher
+from project_sgil.localization.path_vector_generator import PathVectorGenerator
+from project_sgil.localization.tree_matcher import TreeMatcher
 
 logging.basicConfig(level=logging.INFO)
 
