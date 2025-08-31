@@ -385,14 +385,14 @@ class TreeMatcher:
 
             # Debug visualization (only if all wedges were used)
             # if len(wedge_map) == len(wedges):
-            DebugVisualizer.plot_wedges(
-                wedges=wedges,
-                wedge_combination=wedge_map,
-                current_pose=current_pose,
-                aoi_trees=self.aoi_trees,
-                estimated_location=Point(x_hat, y_hat),
-                save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
-            )
+            #     DebugVisualizer.plot_wedges(
+            #         wedges=wedges,
+            #         wedge_combination=wedge_map,
+            #         current_pose=current_pose,
+            #         aoi_trees=self.aoi_trees,
+            #         estimated_location=Point(x_hat, y_hat),
+            #         save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
+            #     )
 
             pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))
 

@@ -34,7 +34,7 @@ from project_sgil.utils.converter import Converter
 logging.basicConfig(level=logging.INFO)
 
 
-class SGILMatcherApp:
+class ManualSGIL:
     """
     Encapsulates the SGIL tree-matching workflow:
       1. Reads robot GPS/RTK logs.
@@ -290,4 +290,4 @@ class SGILMatcherApp:
 
 
 if __name__ == "__main__":
-    SGILMatcherApp().run()
+    ManualSGIL().run()
