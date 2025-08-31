@@ -60,17 +60,25 @@ class Pose2d(Point):
 
     yaw: float
 
+    def __post_init__(self) -> None:
+        # Normalize yaw to be within [0, 360) degrees
+        self.yaw = self.yaw % 360
+
 
 @dataclass
 class PoseEstimate:
     """Represents a pose estimate with a Pose2d and score.
 
-    :param pose: The Pose2d representing the estimated position and orientation.
-    :param score: The score calculated heuristically for the pose estimate. Higher is better.
-    It represents how likely that this pose estimate was made with a correct matching of trees.
-    :param confidence: A float between 0.0 and 1.0 representing the confidence in the pose estimate.
-    This is independent of the score and indicative of the reliability of the estimate.
+    :param pose: The Pose2d representing the estimated position and
+        orientation.
+    :param score: The score calculated heuristically for the pose
+        estimate. Higher is better. It represents how likely that this
+        pose estimate was made with a correct matching of trees.
+    :param confidence: A float between 0.0 and 1.0 representing the
+        confidence in the pose estimate. This is independent of the
+        score and indicative of the reliability of the estimate.
     """
+
     pose: Pose2d
     score: float
     confidence: float
@@ -78,6 +86,25 @@ class PoseEstimate:
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(
-                f"Confidence must be between 0.0 and 1.0, got {self.confidence}"
-            )
+            raise ValueError(f"Confidence must be between 0.0 and 1.0, got {self.confidence}")
+
+
+@dataclass
+class LocalizationResult:
+    """Container for per-image localization results (for final table).
+
+    :param image_name: Image filename processed.
+    :param sgil_err_m: Distance (m) between SGIL estimate and RTK ground
+        truth.
+    :param rtk_pose: RTK-derived pose (XY in local frame, yaw degrees).
+    :param current_pose: Pose passed into the tree matcher for this
+        image.
+    :param estimated_pose: Pose using estimated XY (from tree matcher)
+        and current yaw.
+    """
+
+    image_name: str
+    sgil_err_m: float
+    rtk_pose: Pose2d
+    current_pose: Pose2d
+    estimated_pose: Pose2d

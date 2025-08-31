@@ -23,7 +23,6 @@ from project_sgil.constants import (
     TREE_RADIUS_M,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
-from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.utils.converter import Converter
 from project_sgil.utils.utils import _segment_intersects_circle, distance, get_relative_angle
 
@@ -252,6 +251,9 @@ class TreeMatcher:
             view (positive = left, negative = right).
         :return: Estimated location of the vehicle as Point.
         """
+        # Clear previous state
+        self.wedges.clear()
+        self.aoi_trees.clear()
 
         # The area of interest based on the current pose
         self.aoi_trees = self._get_area_of_interest(current_pose)
@@ -275,7 +277,7 @@ class TreeMatcher:
                 combo_number = i
 
         print(
-            f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}"
+            f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}"  # noqa: E501
         )
         final_estimate = pose_estimates[combo_number]
 
@@ -362,7 +364,7 @@ class TreeMatcher:
             # Compute distance to actual pose
             dx = x_hat - current_pose.x
             dy = y_hat - current_pose.y
-            dist = math.hypot(dx, dy)
+            math.hypot(dx, dy)
 
             combo_index += 1
 
@@ -385,14 +387,14 @@ class TreeMatcher:
 
             # Debug visualization (only if all wedges were used)
             # if len(wedge_map) == len(wedges):
-            #     DebugVisualizer.plot_wedges(
-            #         wedges=wedges,
-            #         wedge_combination=wedge_map,
-            #         current_pose=current_pose,
-            #         aoi_trees=self.aoi_trees,
-            #         estimated_location=Point(x_hat, y_hat),
-            #         save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
-            #     )
+            # DebugVisualizer.plot_wedges(
+            #     wedges=wedges,
+            #     wedge_combination=wedge_map,
+            #     current_pose=current_pose,
+            #     aoi_trees=self.aoi_trees,
+            #     estimated_location=Point(x_hat, y_hat),
+            #     save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",  # noqa: E501
+            # )
 
             pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))
 
