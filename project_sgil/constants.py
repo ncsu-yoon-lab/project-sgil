@@ -24,7 +24,7 @@ PLOT = True
 RANDOM = False
 
 # The error from the heading on the GPS
-HEADING_ERROR_DEG = 5
+HEADING_ERROR_DEG = 6
 
 # Vertical and Horizontal FOV
 H_FOV_DEG = 110  # [degrees]
@@ -40,11 +40,11 @@ AOI_RADIUS_M = 50  # [m]
 # Angle of area of interest (AOI)
 AOI_ANGLE_DEG = (H_FOV_DEG + HEADING_ERROR_DEG) / 2
 
-SCORE_WEIGHT_OCCLUSION = 0.6
+SCORE_WEIGHT_OCCLUSION = 0.5
 SCORE_WEIGHT_RMS = 0.3
 SCORE_WEIGHT_THETA_MATCH = 0.3
-NUMBER_SELECTED_WEIGHT = 0.15
+NUMBER_SELECTED_WEIGHT = 0.3
 
 SCORE_RMS_SCALE = 1.0          # meters
-TREE_RADIUS_M = 2           # meters
+TREE_RADIUS_M = 1.0           # meters
 THETA_MATCHING_TOLERANCE = 1.5 # degrees

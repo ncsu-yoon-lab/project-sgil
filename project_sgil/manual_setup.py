@@ -82,7 +82,7 @@ class SGILMatcherApp:
         self._image_list: list[str] = sorted(
             f for f in os.listdir(self.image_folder) if f.lower().endswith(".jpg")
         )
-        self._current_index: int = 20
+        self._current_index: int = 0
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
         """Lookup the RTK/GPS pose for a given image filename.
@@ -230,6 +230,7 @@ class SGILMatcherApp:
         while True:
             # Gets the name, points chosen, and the pose of the next image
             name, points, pose = self.get_next_image()
+            # pose.yaw -= 17
 
             # Checks that there is another image and a pose
             if name == "0":
@@ -282,6 +283,7 @@ class SGILMatcherApp:
             logging.info(f"  Estimated LatLon: {est_latlon}")
             logging.info(f"  GPS error (m):     {gps_err:.2f}")
             logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
+            logging.info(f"  RTK Yaw (deg):     {pose.yaw:.2f}")
 
             # TODO: remove this break to process all images
             break

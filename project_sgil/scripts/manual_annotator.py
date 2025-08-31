@@ -159,8 +159,9 @@ def annotate_images(image_folder: str, output_csv: str) -> None:
 # ----------------------- Entrypoint -----------------------
 
 if __name__ == "__main__":
-    if not os.path.exists(IMAGE_FOLDER_PATH):
-        print(f"Image folder not found: {IMAGE_FOLDER_PATH}")
+    adjusted_image_folder_path = "../" + IMAGE_FOLDER_PATH
+    if not os.path.exists(adjusted_image_folder_path):
+        print(f"Image folder not found: {adjusted_image_folder_path}")
         sys.exit(1)
 
-    annotate_images(IMAGE_FOLDER_PATH, OUTPUT_CSV)
+    annotate_images(adjusted_image_folder_path, OUTPUT_CSV)
