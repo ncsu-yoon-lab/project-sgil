@@ -65,6 +65,7 @@ class AutomatedSGIL:
         self._last_row_index: int | None = None
         self._correct_pose_latlon: tuple[float, float] | None = None
         self._gps_pose_latlon: tuple[float, float] | None = None
+        self._last_rtk_xy: tuple[float, float] | None = None  # handy for the diagnostic block
 
     def run(self) -> list[LocalizationResult]:
         """Process each labeled image and compute localization results.
@@ -105,12 +106,11 @@ class AutomatedSGIL:
                     sensor_type="main",
                     prefer_quaternion_yaw=True,
                 )
-                self.current_pose.x += float(deltas["delta_x"])
-                self.current_pose.y += float(deltas["delta_y"])
-                self.current_pose.yaw = self._normalize_deg(
-                    self.current_pose.yaw + float(deltas["delta_yaw_deg"])
-                )
+                self.current_pose.x += rtk_pose.x - self._last_rtk_xy[0]
+                self.current_pose.y += rtk_pose.y - self._last_rtk_xy[1]
+                self.current_pose.yaw += float(deltas["delta_yaw_deg"])
                 self._last_row_index = row_index
+            self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
 
             # Parse pixel points for this image; skip if none
             pixel_points = self.parse_tree_points(str(row.get("tree_points", "")).strip())
@@ -121,7 +121,10 @@ class AutomatedSGIL:
             ground_thetas = self.make_ground_thetas(pixel_points)
 
             # Use the pose passed in to the matcher (copy so table shows the exact input)
-            pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
+            pose_for_match = Pose2d(
+                x=self.current_pose.x, y=self.current_pose.y, yaw=self.current_pose.yaw
+            )
+            # pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
 
             # Match and get estimated XY
             est_xy: Point = self.tree_matcher.match_trees(pose_for_match, ground_thetas)
@@ -129,14 +132,13 @@ class AutomatedSGIL:
             # Estimated pose keeps current yaw, replaces XY with estimated XY
             estimated_pose = Pose2d(x=est_xy.x, y=est_xy.y, yaw=self.current_pose.yaw)
 
-            # Update current_pose's XY from the estimate (per your instruction)
+            # Update current_pose's XY from the estimate
             self.current_pose.x = est_xy.x
             self.current_pose.y = est_xy.y
 
             # Compute SGIL error against RTK ground truth (meters)
             sgil_err_m = self._sgil_error_meters(estimated_pose)
 
-            # Optional debug plot
             if PLOT:
                 save_name: str = os.path.splitext(image_name)[0]
                 DebugVisualizer.plot_aoi(
@@ -241,15 +243,6 @@ class AutomatedSGIL:
                 self._correct_pose_latlon[1],
             )
         )
-
-    def _normalize_deg(self, deg: float) -> float:
-        """Normalize an angle in degrees to (-180, 180].
-
-        :param deg: Angle in degrees.
-        :return: Normalized angle in degrees.
-        """
-        d = (deg + 180.0) % 360.0 - 180.0
-        return d if d != -180.0 else 180.0
 
     @staticmethod
     def parse_tree_points(value: str) -> list[Point]:

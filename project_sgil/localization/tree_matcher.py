@@ -324,8 +324,6 @@ class TreeMatcher:
             if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
                 wedge.trees.append(tree)
 
-        print(f"Wedge created with {len(wedge.trees)} trees")
-
         return wedge
 
     def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> list[PoseEstimate]:
