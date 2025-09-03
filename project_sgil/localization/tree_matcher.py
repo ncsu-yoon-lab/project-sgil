@@ -23,6 +23,7 @@ from project_sgil.constants import (
     TREE_RADIUS_M,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
+from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.utils.converter import Converter
 from project_sgil.utils.utils import _segment_intersects_circle, distance, get_relative_angle
 
@@ -31,13 +32,13 @@ class TreeMatcher:
     """Match trees based on satellite and ground view data to estimate vehicle
     position."""
 
-    def __init__(self) -> None:
+    def __init__(self, plot_wedges: bool = False) -> None:
         """Initialize the TreeMatcher.
 
         :param: Initializes the converter and loads satellite tree
             locations.
         """
-
+        self.plot_wedges = plot_wedges
         self.satellite_tree_locations: list[Point] = []
         self.aoi_trees: list[Tree] = []
         self.wedges: list[Wedge] = []
@@ -362,7 +363,7 @@ class TreeMatcher:
             # Compute distance to actual pose
             dx = x_hat - current_pose.x
             dy = y_hat - current_pose.y
-            math.hypot(dx, dy)
+            dist = math.hypot(dx, dy)
 
             combo_index += 1
 
@@ -384,15 +385,15 @@ class TreeMatcher:
             )
 
             # Debug visualization (only if all wedges were used)
-            # if len(wedge_map) == len(wedges):
-            # DebugVisualizer.plot_wedges(
-            #     wedges=wedges,
-            #     wedge_combination=wedge_map,
-            #     current_pose=current_pose,
-            #     aoi_trees=self.aoi_trees,
-            #     estimated_location=Point(x_hat, y_hat),
-            #     save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",  # noqa: E501
-            # )
+            if self.plot_wedges and len(wedge_map) == len(wedges):
+                DebugVisualizer.plot_wedges(
+                    wedges=wedges,
+                    wedge_combination=wedge_map,
+                    current_pose=current_pose,
+                    aoi_trees=self.aoi_trees,
+                    estimated_location=Point(x_hat, y_hat),
+                    save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",  # noqa: E501
+                )
 
             pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))
 

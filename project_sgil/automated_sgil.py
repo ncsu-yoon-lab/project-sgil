@@ -77,7 +77,15 @@ class AutomatedSGIL:
         if PLOT:
             DebugVisualizer.clear_plots()
 
+        i = 0
+
         for _, row in self.labeled_data.iterrows():
+            i += 1
+            if i == 7:
+                self.tree_matcher = TreeMatcher(True)
+            else:
+                self.tree_matcher = TreeMatcher(False)
+
             image_name: str = str(row.get("image_filename", "")).strip()
             if not image_name:
                 continue

@@ -391,19 +391,6 @@ class PathVectorGenerator:
                     displacement = "No Path Detected"
                     print("No path detected")
 
-                # Prints the estimated displacement and yaw
-                print(f"Yaw: {yaw} deg")
-                print(
-                    f"""Original Path Vector: 
-                    <{end_node_xy.x - start_node_xy.x}, 
-                    {end_node_xy.y - start_node_xy.y}>"""
-                )
-                print(
-                    f"""Transformed Path Vector: 
-                    <({transformed_path_vector[0].x}, {transformed_path_vector[0].y}), 
-                    ({transformed_path_vector[1].x}, {transformed_path_vector[1].y})>"""
-                )
-
                 # Destroys all the windows created by cv
                 cv2.destroyAllWindows()
 
