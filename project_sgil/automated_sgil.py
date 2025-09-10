@@ -58,7 +58,7 @@ class AutomatedSGIL:
         self.labeled_data: pd.DataFrame = pd.read_csv(labeled_csv_path)
 
         # IMU analyzer (uses the same CSV as the robot log)
-        self.imu_analyzer: IMUAnalyzer = IMUAnalyzer(data_log_path)
+        self.imu_analyzer: IMUAnalyzer = IMUAnalyzer(self.robot_data_log)
 
         # Runtime state
         self.current_pose: Pose2d | None = None
@@ -106,17 +106,16 @@ class AutomatedSGIL:
                 self.current_pose = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=rtk_pose.yaw)
                 self._last_row_index = row_index
             else:
-                # Integrate IMU deltas from last row to current row (inclusive)
-                period_len = row_index - int(self._last_row_index) + 1
-                deltas = self.imu_analyzer.get_position_yaw_change(
-                    start_index=int(self._last_row_index),
-                    period_length=period_len,
-                    sensor_type="main",
-                    prefer_quaternion_yaw=True,
-                )
+                # use RTK deltas for x/y (as you said), IMU for yaw only
                 self.current_pose.x += rtk_pose.x - self._last_rtk_xy[0]
                 self.current_pose.y += rtk_pose.y - self._last_rtk_xy[1]
-                self.current_pose.yaw += float(deltas["delta_yaw_deg"])
+
+                # yaw from IMU between indices (inclusive window)
+                delta_yaw_deg = self.imu_analyzer.delta_yaw_deg(
+                    int(self._last_row_index), row_index
+                )
+                self.current_pose.yaw += float(delta_yaw_deg)
+
                 self._last_row_index = row_index
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
 

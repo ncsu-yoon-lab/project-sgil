@@ -8,11 +8,11 @@ EARTH_RADIUS_M = 6378137  # [m]
 TREE_LOCATIONS_PATH = "../dataset/tables/TreeLocations-Manual.csv"
 
 # Path to the data logged while traveling
-# DATA_LOGGER_PATH = "../dataset/tables/GroundPositionLogger.csv"
-DATA_LOGGER_PATH = "dataset/tables/Calibration.csv"
+DATA_LOGGER_PATH = "../dataset/tables/GroundPositionLogger.csv"
+# DATA_LOGGER_PATH = "../dataset/tables/Calibration.csv"
 # Path to the folder with all the images
-# IMAGE_FOLDER_PATH = "../dataset/images"
-IMAGE_FOLDER_PATH = "../dataset/images-calibration"
+IMAGE_FOLDER_PATH = "../dataset/images"
+# IMAGE_FOLDER_PATH = "../dataset/images-calibration"
 
 OUTPUT_CSV = "annotated_image_data.csv"
 
