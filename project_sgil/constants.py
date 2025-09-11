@@ -17,8 +17,8 @@ IMAGE_FOLDER_PATH = "../dataset/images"
 OUTPUT_CSV = "annotated_image_data.csv"
 
 # Boolean to plot points of trees
-PLOT = True
-# PLOT = False
+# PLOT = True
+PLOT = False
 
 # Random
 RANDOM = False

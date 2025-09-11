@@ -32,7 +32,7 @@ class TreeMatcher:
     """Match trees based on satellite and ground view data to estimate vehicle
     position."""
 
-    def __init__(self, plot_wedges: bool = False) -> None:
+    def __init__(self, plot_wedges: bool = False, path=TREE_LOCATIONS_PATH) -> None:
         """Initialize the TreeMatcher.
 
         :param: Initializes the converter and loads satellite tree
@@ -45,7 +45,7 @@ class TreeMatcher:
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
 
         # Load tree locations from CSV and convert to Point instances
-        with open(TREE_LOCATIONS_PATH, newline="") as csvfile:
+        with open(path, newline="") as csvfile:
             scanner = csv.reader(csvfile, delimiter=",")
             for row in scanner:
                 x, y = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
@@ -392,7 +392,7 @@ class TreeMatcher:
                     current_pose=current_pose,
                     aoi_trees=self.aoi_trees,
                     estimated_location=Point(x_hat, y_hat),
-                    save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",  # noqa: E501
+                    save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
                 )
 
             pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))

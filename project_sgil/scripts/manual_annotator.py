@@ -97,33 +97,35 @@ def annotate_images(image_folder: str, output_csv: str) -> None:
             print(f"\nImage: {image_name}")
 
             # -------- Stage 1: Optional path selection (4 points: BL, TL, BR, TR) --------
-            path_points: list[Point] = []
-            path_display = image.copy()
-            cv2.imshow(window_name, path_display)
-            cv2.waitKey(1)
+            # path_points: list[Point] = []
+            # path_display = image.copy()
+            # cv2.imshow(window_name, path_display)
+            # cv2.waitKey(1)
+            #
+            # print("Path selection:")
+            # print("  Click 4 corners in order: BL, TL, BR, TR.")
+            # print("  Press Enter to finish (press Enter immediately if no path is visible).")
+            # set_click_callback(window_name, path_display, path_points, label_prefix="P")
+            #
+            # action = wait_for_enter_or_esc()
+            # if action == "esc":
+            #     # Skip image entirely
+            #     print("  Skipping image.")
+            #     cv2.setMouseCallback(window_name, lambda *args: None)
+            #     continue
+            #
+            # # Freeze callbacks before switching stages
+            # cv2.setMouseCallback(window_name, lambda *args: None)
+            #
+            # # Convert path data to CSV-friendly format
+            # if len(path_points) == 4:
+            #     path_points_csv: str | list[tuple[int, int]] = [
+            #         (int(p.x), int(p.y)) for p in path_points
+            #     ]
+            # else:
+            #     path_points_csv = "NO PATH"
 
-            print("Path selection:")
-            print("  Click 4 corners in order: BL, TL, BR, TR.")
-            print("  Press Enter to finish (press Enter immediately if no path is visible).")
-            set_click_callback(window_name, path_display, path_points, label_prefix="P")
-
-            action = wait_for_enter_or_esc()
-            if action == "esc":
-                # Skip image entirely
-                print("  Skipping image.")
-                cv2.setMouseCallback(window_name, lambda *args: None)
-                continue
-
-            # Freeze callbacks before switching stages
-            cv2.setMouseCallback(window_name, lambda *args: None)
-
-            # Convert path data to CSV-friendly format
-            if len(path_points) == 4:
-                path_points_csv: str | list[tuple[int, int]] = [
-                    (int(p.x), int(p.y)) for p in path_points
-                ]
-            else:
-                path_points_csv = "NO PATH"
+            path_points_csv = "NO PATH"
 
             # -------- Stage 2: Tree selection (any number) --------
             tree_points: list[Point] = []

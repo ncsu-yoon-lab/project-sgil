@@ -1,6 +1,5 @@
-"""
-Manual tree selection interface for ground view analysis and matching with satellite data using pre-
-collected and pre-labeled dataset.
+"""Manual tree selection interface for ground view analysis and matching with
+satellite data using pre- collected and pre-labeled dataset.
 
 file: manual_selector.py
 author: Cole Malinchock and Jack Elia
@@ -83,11 +82,10 @@ class ManualSGIL:
         self._image_list: list[str] = sorted(
             f for f in os.listdir(self.image_folder) if f.lower().endswith(".jpg")
         )
-        self._current_index: int = 15
+        self._current_index: int = 0
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """
-        Lookup the RTK/GPS pose for a given image filename.
+        """Lookup the RTK/GPS pose for a given image filename.
 
         :param image_name: Name of the .jpg image.
         :return: Pose2d if RTK heading is valid; otherwise None.
@@ -100,11 +98,11 @@ class ManualSGIL:
         return self.get_gps_pose(matches.iloc[0])
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
-        """
-        Convert a log row into a Pose2d using RTK for yaw.
+        """Convert a log row into a Pose2d using RTK for yaw.
 
         Also updates internal gps_pose/correct_pose for error logging.
-        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading, gps_lat, gps_lon.
+        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading,
+            gps_lat, gps_lon.
         :return: Pose2d in local XY + yaw degrees.
         """
         # Convert lat/lon to XY
@@ -120,8 +118,8 @@ class ManualSGIL:
     def get_next_image(
         self,
     ) -> tuple[str, list[Point], Pose2d | None]:
-        """
-        Retrieves the next image, shows it for manual tree picking, and returns the clicks and pose.
+        """Retrieves the next image, shows it for manual tree picking, and
+        returns the clicks and pose.
 
         :return:
           - image_name: filename or "0" when exhausted
@@ -161,9 +159,7 @@ class ManualSGIL:
 
         # Define the mouse callback function
         def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
-            """
-            Handle mouse click events for point selection.
-            """
+            """Handle mouse click events for point selection."""
             # Check if left mouse button was clicked
             if event == cv2.EVENT_LBUTTONDOWN:
                 # Add point to list
@@ -294,6 +290,7 @@ class ManualSGIL:
         logging.info(f"  GPS error (m):     {gps_err:.2f}")
         logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
         logging.info(f"  RTK Yaw (deg):     {pose.yaw:.2f}")
+
 
 if __name__ == "__main__":
     ManualSGIL().run()
