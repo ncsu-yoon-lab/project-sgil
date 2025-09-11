@@ -31,22 +31,11 @@ class AutomatedSGIL:
 
     def __init__(
         self,
-        labeled_csv_path: str = "../dataset/tables/first18images.csv",
+        labeled_csv_path: str = "../dataset/tables/annotations_interactive.csv",
         image_folder: str = IMAGE_FOLDER_PATH,
         data_log_path: str = DATA_LOGGER_PATH,
         origin: tuple[float, float] = ORIGIN,
     ) -> None:
-        """Initialize state and load data.
-
-        :param labeled_csv_path: Path to CSV with image filenames and
-            tree pixel points.
-        :param image_folder: Folder containing images (kept for parity /
-            plotting).
-        :param data_log_path: Robot data log CSV including
-            image_filename, rtk_lat, rtk_lon, rtk_heading, gps_lat,
-            gps_lon.
-        :param origin: (lat, lon) origin for local frame conversion.
-        """
         self.converter: Converter = Converter(origin[0], origin[1])
         self.tree_matcher: TreeMatcher = TreeMatcher()
         self.image_folder: str = image_folder
@@ -57,93 +46,89 @@ class AutomatedSGIL:
         self.robot_data_log: pd.DataFrame = pd.read_csv(data_log_path)
         self.labeled_data: pd.DataFrame = pd.read_csv(labeled_csv_path)
 
-        # IMU analyzer (uses the same CSV as the robot log)
+        # IMU analyzer (yaw only)
         self.imu_analyzer: IMUAnalyzer = IMUAnalyzer(self.robot_data_log)
 
         # Runtime state
         self.current_pose: Pose2d | None = None
         self._last_row_index: int | None = None
         self._correct_pose_latlon: tuple[float, float] | None = None
-        self._gps_pose_latlon: tuple[float, float] | None = None
-        self._last_rtk_xy: tuple[float, float] | None = None  # handy for the diagnostic block
+        self._last_rtk_xy: tuple[float, float] | None = None  # for RTK deltas
 
     def run(self) -> list[LocalizationResult]:
-        """Process each labeled image and compute localization results.
-
-        :return: List of LocalizationResult objects for the final
-            summary table.
-        """
+        """Process each labeled image and compute localization results."""
         results: list[LocalizationResult] = []
         if PLOT:
             DebugVisualizer.clear_plots()
 
-        i = 0
-
         for _, row in self.labeled_data.iterrows():
-            i += 1
-            if i == 7:
-                self.tree_matcher = TreeMatcher(True)
-            else:
-                self.tree_matcher = TreeMatcher(False)
+            self.tree_matcher = TreeMatcher(False)
 
             image_name: str = str(row.get("image_filename", "")).strip()
             if not image_name:
                 continue
 
+            if image_name == "image_1746551245_831563501.jpg":
+                print(f"\nStopping early at {image_name}")
+                break
+
             rtk_pose: Pose2d | None = self.get_current_pose(image_name)
             if rtk_pose is None:
-                # Skip if no RTK pose available for this image
                 continue
 
-            # Map image -> row index in the robot log (one row per image as you noted)
             row_index = self._row_index_for_image(image_name)
             if row_index is None:
                 continue
 
-            # Initialize current_pose from RTK on the very first image
-            # Subsequent images: update current_pose using IMU deltas
+            # Seed on first image; thereafter update yaw by IMU between last and current
             if self.current_pose is None:
                 self.current_pose = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=rtk_pose.yaw)
                 self._last_row_index = row_index
+                self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
             else:
-                # use RTK deltas for x/y (as you said), IMU for yaw only
-                self.current_pose.x += rtk_pose.x - self._last_rtk_xy[0]
-                self.current_pose.y += rtk_pose.y - self._last_rtk_xy[1]
-
-                # yaw from IMU between indices (inclusive window)
-                delta_yaw_deg = self.imu_analyzer.delta_yaw_deg(
-                    int(self._last_row_index), row_index
-                )
+                # Yaw += IMU delta yaw (degrees)
+                delta_yaw_deg = self.imu_analyzer.delta_yaw_deg(int(self._last_row_index), row_index)
                 self.current_pose.yaw += float(delta_yaw_deg)
-
                 self._last_row_index = row_index
+
+            # RTK Δx,Δy since last anchor (handles skipped images)
+            if self._last_rtk_xy is None:
+                dx_rtk = dy_rtk = 0.0
+            else:
+                dx_rtk = rtk_pose.x - self._last_rtk_xy[0]
+                dy_rtk = rtk_pose.y - self._last_rtk_xy[1]
+
+            # Predicted XY = last estimated XY + RTK ΔXY
+            predicted_x = self.current_pose.x + dx_rtk
+            predicted_y = self.current_pose.y + dy_rtk
+
+            # Parse tree points
+            pixel_points = self.parse_tree_points(str(row.get("tree_points", "")).strip())
+
+            if pixel_points:
+                ground_thetas = self.make_ground_thetas(pixel_points)
+                # Pose used for matching: predicted XY + IMU-updated yaw
+                pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+
+                # Try TreeMatcher; on failure, fall back to predicted
+                try:
+                    pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
+                    est_xy: Point = self.tree_matcher.match_trees(pose_for_match, ground_thetas)
+                    estimated_pose = Pose2d(x=est_xy.x, y=est_xy.y, yaw=self.current_pose.yaw)
+                except Exception as e:
+                    # Fallback: no change beyond RTK ΔXY
+                    estimated_pose = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+                    pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+            else:
+                # No trees: just use predicted pose
+                pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+                estimated_pose = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+
+            # Advance state with the chosen estimate and update RTK anchor
+            self.current_pose = Pose2d(x=estimated_pose.x, y=estimated_pose.y, yaw=self.current_pose.yaw)
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
 
-            # Parse pixel points for this image; skip if none
-            pixel_points = self.parse_tree_points(str(row.get("tree_points", "")).strip())
-            if not pixel_points:
-                continue
-
-            # Compute ground-view thetas (deg) from pixel x
-            ground_thetas = self.make_ground_thetas(pixel_points)
-
-            # Use the pose passed in to the matcher (copy so table shows the exact input)
-            pose_for_match = Pose2d(
-                x=self.current_pose.x, y=self.current_pose.y, yaw=self.current_pose.yaw
-            )
-            # pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
-
-            # Match and get estimated XY
-            est_xy: Point = self.tree_matcher.match_trees(pose_for_match, ground_thetas)
-
-            # Estimated pose keeps current yaw, replaces XY with estimated XY
-            estimated_pose = Pose2d(x=est_xy.x, y=est_xy.y, yaw=self.current_pose.yaw)
-
-            # Update current_pose's XY from the estimate
-            self.current_pose.x = est_xy.x
-            self.current_pose.y = est_xy.y
-
-            # Compute SGIL error against RTK ground truth (meters)
+            # Error vs RTK
             sgil_err_m = self._sgil_error_meters(estimated_pose)
 
             if PLOT:
@@ -155,7 +140,6 @@ class AutomatedSGIL:
                     save_name,
                 )
 
-            # Record table row
             results.append(
                 LocalizationResult(
                     image_name=image_name,
@@ -166,17 +150,15 @@ class AutomatedSGIL:
                 )
             )
 
-        # Print a compact summary table
+        if results:
+            mean_err = sum(r.sgil_err_m for r in results) / len(results)
+            print(f"\nMean SGIL error over {len(results)} images: {mean_err:.3f} m")
+
         self._print_summary_table(results)
         return results
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """Lookup the RTK/GPS pose row corresponding to the given image and
-        convert to Pose2d.
-
-        :param image_name: Image filename to search for.
-        :return: Pose2d if rtk_heading is present; otherwise None.
-        """
+        """Lookup the RTK/GPS pose row corresponding to the given image and convert to Pose2d."""
         df = self.robot_data_log
         matches = df[df["image_filename"].str.contains(image_name, case=False, na=False)]
         if matches.empty:
@@ -187,43 +169,23 @@ class AutomatedSGIL:
         return self._row_to_pose(row)
 
     def make_ground_thetas(self, pixel_points: list[Point]) -> list[float]:
-        """Convert image pixel x-coordinates to ground-view angles (degrees).
-
-        :param pixel_points: Points in image pixel space.
-        :return: List of ground angles (degrees), positive = left,
-            negative = right.
-        """
         thetas: list[float] = []
         for pt in pixel_points:
-            theta = self.converter.image_x_to_theta(pt.x)
-            thetas.append(theta)
+            thetas.append(self.converter.image_x_to_theta(pt.x))
         return thetas
 
     def _row_to_pose(self, row: pd.Series) -> Pose2d:
-        """Convert a log row into a Pose2d and store lat/lon ground truth for
-        error metrics.
-
-        :param row: DataFrame row containing rtk_lat, rtk_lon,
-            rtk_heading, gps_lat, gps_lon.
-        :return: Pose2d in local XY plus yaw (degrees).
-        """
-        lat_rtk = float(row["rtk_lat"])
-        lon_rtk = float(row["rtk_lon"])
+        """Note: using GPS lat/lon here, per your current code."""
+        lat_rtk = float(row["rtk_lat"]); lon_rtk = float(row["rtk_lon"])
         yaw_deg = self.converter.heading_to_yaw(float(row["rtk_heading"]))
         x, y = self.converter.latlon_to_xy((lat_rtk, lon_rtk))
 
         # Save for error metrics
         self._correct_pose_latlon = (lat_rtk, lon_rtk)
-        self._gps_pose_latlon = (float(row["gps_lat"]), float(row["gps_lon"]))
 
         return Pose2d(x=x, y=y, yaw=yaw_deg)
 
     def _row_index_for_image(self, image_name: str) -> int | None:
-        """Get the index of the robot log row that matches an image filename.
-
-        :param image_name: Image filename to search.
-        :return: Integer index if found; otherwise None.
-        """
         matches = self.robot_data_log[
             self.robot_data_log["image_filename"].str.contains(image_name, case=False, na=False)
         ]
@@ -232,13 +194,6 @@ class AutomatedSGIL:
         return int(matches.index[0])
 
     def _sgil_error_meters(self, estimated_pose: Pose2d) -> float:
-        """Compute SGIL error in meters between an estimated pose and RTK
-        ground truth.
-
-        :param estimated_pose: Pose with XY in local frame.
-        :return: Great-circle distance (meters) between estimated and
-            RTK lat/lon.
-        """
         if self._correct_pose_latlon is None:
             return float("nan")
         est_latlon = self.converter.xy_to_latlon(Point(estimated_pose.x, estimated_pose.y))
@@ -253,11 +208,6 @@ class AutomatedSGIL:
 
     @staticmethod
     def parse_tree_points(value: str) -> list[Point]:
-        """Parse the CSV 'tree_points' cell into a list of Points.
-
-        :param value: String like "[(600, 343), (630, 341), ...]" or a sentinel like "NO PATH".
-        :return: List of Point objects (image pixel coordinates).
-        """
         points: list[Point] = []
         if not value:
             return points
@@ -271,14 +221,13 @@ class AutomatedSGIL:
         except (SyntaxError, ValueError):
             return points
 
-        if not isinstance(parsed, list | tuple):
+        if not isinstance(parsed, (list, tuple)):
             return points
 
         for item in parsed:
-            if isinstance(item, list | tuple) and len(item) == 2:
+            if isinstance(item, (list, tuple)) and len(item) == 2:
                 try:
-                    x = float(item[0])
-                    y = float(item[1])
+                    x = float(item[0]); y = float(item[1])
                     points.append(Point(x=x, y=y))
                 except (TypeError, ValueError):
                     continue
@@ -286,10 +235,6 @@ class AutomatedSGIL:
         return points
 
     def _print_summary_table(self, results: list[LocalizationResult]) -> None:
-        """Print a compact summary table for all processed images.
-
-        Columns: image_name, sgil_err_m, rtk_pose, current_pose, estimated_pose.
-        """
         if not results:
             print("No images processed.")
             return
@@ -298,11 +243,7 @@ class AutomatedSGIL:
             return f"(x={p.x:.2f}, y={p.y:.2f}, yaw={p.yaw:.2f}°)"
 
         col1, col2, col3, col4, col5 = (
-            "image_name",
-            "sgil_err_m",
-            "rtk_pose",
-            "current_pose",
-            "estimated_pose",
+            "image_name", "sgil_err_m", "rtk_pose", "current_pose", "estimated_pose",
         )
         print(f"\n{col1:40s} | {col2:10s} | {col3:32s} | {col4:32s} | {col5:32s}")
         print("-" * 40 + "-+-" + "-" * 10 + "-+-" + "-" * 32 + "-+-" + "-" * 32 + "-+-" + "-" * 32)

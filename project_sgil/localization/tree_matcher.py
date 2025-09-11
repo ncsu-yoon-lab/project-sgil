@@ -277,9 +277,9 @@ class TreeMatcher:
             if estimate.score > pose_estimates[combo_number].score:
                 combo_number = i
 
-        print(
-            f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}"  # noqa: E501
-        )
+        # print(
+        #     f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}"  # noqa: E501
+        # )
         final_estimate = pose_estimates[combo_number]
 
         # Set the wedges to the pose estimate's matched trees for visualization
