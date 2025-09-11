@@ -9,6 +9,9 @@ dependencies = [
     "matplotlib",
     "shapely",
     "numpy",
+    "sympy",
+    "OSMPythonTools",
+    "scipy",
 ]
 
 [project.optional-dependencies]
@@ -32,9 +35,10 @@ ignore = [
     "PLR0911",
     "T201",
     "D",
-#    TODO: probably want these two back in
+#    TODO: probably want these three back in
     "PLR0912",
     "PLR0915",
+    "PLR0913"
 ]
 extend-ignore = [
     "D100",

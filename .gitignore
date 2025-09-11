@@ -150,3 +150,8 @@ CATKIN_IGNORE
 /build
 
 /dataset/images
+/dataset/images-calibration
+
+project_sgil/debug_plots/
+
+project_sgil/cache/
