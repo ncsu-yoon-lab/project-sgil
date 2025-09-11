@@ -87,7 +87,9 @@ class AutomatedSGIL:
                 self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
             else:
                 # Yaw += IMU delta yaw (degrees)
-                delta_yaw_deg = self.imu_analyzer.delta_yaw_deg(int(self._last_row_index), row_index)
+                delta_yaw_deg = self.imu_analyzer.delta_yaw_deg(
+                    int(self._last_row_index), row_index
+                )
                 self.current_pose.yaw += float(delta_yaw_deg)
                 self._last_row_index = row_index
 
@@ -112,10 +114,10 @@ class AutomatedSGIL:
 
                 # Try TreeMatcher; on failure, fall back to predicted
                 try:
-                    pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
+                    # pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
                     est_xy: Point = self.tree_matcher.match_trees(pose_for_match, ground_thetas)
                     estimated_pose = Pose2d(x=est_xy.x, y=est_xy.y, yaw=self.current_pose.yaw)
-                except Exception as e:
+                except Exception:
                     # Fallback: no change beyond RTK ΔXY
                     estimated_pose = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
                     pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
@@ -125,7 +127,9 @@ class AutomatedSGIL:
                 estimated_pose = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
 
             # Advance state with the chosen estimate and update RTK anchor
-            self.current_pose = Pose2d(x=estimated_pose.x, y=estimated_pose.y, yaw=self.current_pose.yaw)
+            self.current_pose = Pose2d(
+                x=estimated_pose.x, y=estimated_pose.y, yaw=self.current_pose.yaw
+            )
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
 
             # Error vs RTK
@@ -158,7 +162,8 @@ class AutomatedSGIL:
         return results
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """Lookup the RTK/GPS pose row corresponding to the given image and convert to Pose2d."""
+        """Lookup the RTK/GPS pose row corresponding to the given image and
+        convert to Pose2d."""
         df = self.robot_data_log
         matches = df[df["image_filename"].str.contains(image_name, case=False, na=False)]
         if matches.empty:
@@ -176,7 +181,8 @@ class AutomatedSGIL:
 
     def _row_to_pose(self, row: pd.Series) -> Pose2d:
         """Note: using GPS lat/lon here, per your current code."""
-        lat_rtk = float(row["rtk_lat"]); lon_rtk = float(row["rtk_lon"])
+        lat_rtk = float(row["rtk_lat"])
+        lon_rtk = float(row["rtk_lon"])
         yaw_deg = self.converter.heading_to_yaw(float(row["rtk_heading"]))
         x, y = self.converter.latlon_to_xy((lat_rtk, lon_rtk))
 
@@ -221,13 +227,14 @@ class AutomatedSGIL:
         except (SyntaxError, ValueError):
             return points
 
-        if not isinstance(parsed, (list, tuple)):
+        if not isinstance(parsed, list | tuple):
             return points
 
         for item in parsed:
-            if isinstance(item, (list, tuple)) and len(item) == 2:
+            if isinstance(item, list | tuple) and len(item) == 2:
                 try:
-                    x = float(item[0]); y = float(item[1])
+                    x = float(item[0])
+                    y = float(item[1])
                     points.append(Point(x=x, y=y))
                 except (TypeError, ValueError):
                     continue
@@ -243,7 +250,11 @@ class AutomatedSGIL:
             return f"(x={p.x:.2f}, y={p.y:.2f}, yaw={p.yaw:.2f}°)"
 
         col1, col2, col3, col4, col5 = (
-            "image_name", "sgil_err_m", "rtk_pose", "current_pose", "estimated_pose",
+            "image_name",
+            "sgil_err_m",
+            "rtk_pose",
+            "current_pose",
+            "estimated_pose",
         )
         print(f"\n{col1:40s} | {col2:10s} | {col3:32s} | {col4:32s} | {col5:32s}")
         print("-" * 40 + "-+-" + "-" * 10 + "-+-" + "-" * 32 + "-+-" + "-" * 32 + "-+-" + "-" * 32)
