@@ -1,4 +1,5 @@
-"""Automated tree selection & localization from a labeled CSV.
+"""
+Automated tree selection & localization from a labeled CSV.
 
 file: automated_selector.py
 author: Jack Elia
@@ -8,6 +9,7 @@ from __future__ import annotations
 
 import ast
 import os
+import random
 
 import pandas as pd
 from constants import (
@@ -27,7 +29,9 @@ from project_sgil.utils.converter import Converter
 
 
 class AutomatedSGIL:
-    """Runs SGIL matching using a labeled CSV of tree pixel locations."""
+    """
+    Runs SGIL matching using a labeled CSV of tree pixel locations.
+    """
 
     def __init__(
         self,
@@ -41,6 +45,7 @@ class AutomatedSGIL:
         self.image_folder: str = image_folder
         self.image_shape = IMAGE_SHAPE
         self.camera_height_m = CAMERA_HEIGHT_M
+        self.gps_noise_std = 10
 
         # Data
         self.robot_data_log: pd.DataFrame = pd.read_csv(data_log_path)
@@ -55,8 +60,22 @@ class AutomatedSGIL:
         self._correct_pose_latlon: tuple[float, float] | None = None
         self._last_rtk_xy: tuple[float, float] | None = None  # for RTK deltas
 
+    def get_gps_pose(self, rtk_pose: Pose2d):
+        """
+        Gets the pose from the gps.
+        """
+
+        noise_x = random.gauss(0, self.gps_noise_std)
+        noise_y = random.gauss(0, self.gps_noise_std)
+
+        gps_pose = Pose2d(x=rtk_pose.x + noise_x, y=rtk_pose.y + noise_y, yaw=rtk_pose.yaw)
+
+        return gps_pose
+
     def run(self) -> list[LocalizationResult]:
-        """Process each labeled image and compute localization results."""
+        """
+        Process each labeled image and compute localization results.
+        """
         results: list[LocalizationResult] = []
         if PLOT:
             DebugVisualizer.clear_plots()
@@ -73,6 +92,7 @@ class AutomatedSGIL:
                 break
 
             rtk_pose: Pose2d | None = self.get_current_pose(image_name)
+            gps_pose: Pose2d | None = self.get_gps_pose(rtk_pose)
             if rtk_pose is None:
                 continue
 
@@ -101,8 +121,8 @@ class AutomatedSGIL:
                 dy_rtk = rtk_pose.y - self._last_rtk_xy[1]
 
             # Predicted XY = last estimated XY + RTK ΔXY
-            predicted_x = self.current_pose.x + dx_rtk
-            predicted_y = self.current_pose.y + dy_rtk
+            self.current_pose.x + dx_rtk
+            self.current_pose.y + dy_rtk
 
             # Parse tree points
             pixel_points = self.parse_tree_points(str(row.get("tree_points", "")).strip())
@@ -110,21 +130,23 @@ class AutomatedSGIL:
             if pixel_points:
                 ground_thetas = self.make_ground_thetas(pixel_points)
                 # Pose used for matching: predicted XY + IMU-updated yaw
-                pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
-
+                # pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+                gps_pose.yaw = self.current_pose.yaw
+                pose_for_match = gps_pose
                 # Try TreeMatcher; on failure, fall back to predicted
                 try:
                     # pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
                     est_xy: Point = self.tree_matcher.match_trees(pose_for_match, ground_thetas)
                     estimated_pose = Pose2d(x=est_xy.x, y=est_xy.y, yaw=self.current_pose.yaw)
                 except Exception:
+                    print("here")
                     # Fallback: no change beyond RTK ΔXY
-                    estimated_pose = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
-                    pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+                    estimated_pose = gps_pose
+                    pose_for_match = gps_pose
             else:
                 # No trees: just use predicted pose
-                pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
-                estimated_pose = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
+                pose_for_match = gps_pose
+                estimated_pose = gps_pose
 
             # Advance state with the chosen estimate and update RTK anchor
             self.current_pose = Pose2d(
@@ -162,8 +184,9 @@ class AutomatedSGIL:
         return results
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
-        """Lookup the RTK/GPS pose row corresponding to the given image and
-        convert to Pose2d."""
+        """
+        Lookup the RTK/GPS pose row corresponding to the given image and convert to Pose2d.
+        """
         df = self.robot_data_log
         matches = df[df["image_filename"].str.contains(image_name, case=False, na=False)]
         if matches.empty:

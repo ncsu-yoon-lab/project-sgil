@@ -1,5 +1,6 @@
-"""Tree Matcher script to match trees based on the ground position and the
-angle of the trees seen from the ground.
+"""
+Tree Matcher script to match trees based on the ground position and the angle of the trees seen from
+the ground.
 
 file: tree_matcher.py
 author: Cole Malinchock and Jack Elia
@@ -29,14 +30,15 @@ from project_sgil.utils.utils import _segment_intersects_circle, distance, get_r
 
 
 class TreeMatcher:
-    """Match trees based on satellite and ground view data to estimate vehicle
-    position."""
+    """
+    Match trees based on satellite and ground view data to estimate vehicle position.
+    """
 
     def __init__(self, plot_wedges: bool = False, path=TREE_LOCATIONS_PATH) -> None:
-        """Initialize the TreeMatcher.
+        """
+        Initialize the TreeMatcher.
 
-        :param: Initializes the converter and loads satellite tree
-            locations.
+        :param: Initializes the converter and loads satellite tree locations.
         """
         self.plot_wedges = plot_wedges
         self.satellite_tree_locations: list[Point] = []
@@ -58,17 +60,15 @@ class TreeMatcher:
         n: int,  # max length
         min_len: int = 1,  # minimum length to record
     ) -> list[dict[Wedge, Tree]]:
-        """Gets a dictionary mapping Wedge -> Tree for all possible
-        combinations of selecting up to n trees from the wedges, allowing
-        skipping wedges, and ensuring no Tree is used more than once per
-        combination.
+        """
+        Gets a dictionary mapping Wedge -> Tree for all possible combinations of selecting up to n
+        trees from the wedges, allowing skipping wedges, and ensuring no Tree is used more than once
+        per combination.
 
         :param wedges: Ordered list of wedges to traverse.
         :param n: Maximum number of selections to include in a result.
-        :param min_len: Minimum number of selections required for a
-            result.
-        :return: List of dictionaries mapping Wedge -> Tree (no repeated
-            Tree ids).
+        :param min_len: Minimum number of selections required for a result.
+        :return: List of dictionaries mapping Wedge -> Tree (no repeated Tree ids).
         """
         results: list[dict[Wedge, Tree]] = []
         # Deduplicate identical results even if reached via different recursion paths.
@@ -99,21 +99,16 @@ class TreeMatcher:
         results: list[dict[Wedge, Tree]],
         seen_maps: set[frozenset[tuple[int, int]]],
     ) -> None:
-        """Recursive generator for sequences_as_maps_from_wedges (defined
-        externally).
+        """
+        Recursive generator for sequences_as_maps_from_wedges (defined externally).
 
         :param wedges: Ordered list of wedges to traverse.
-        :param max_length: Hard cap on number of (wedge, tree)
-            selections in one result.
-        :param min_length: Minimum number of selections for a result to
-            be recorded.
+        :param max_length: Hard cap on number of (wedge, tree) selections in one result.
+        :param min_length: Minimum number of selections for a result to be recorded.
         :param wedge_index: Current index into the wedges list.
-        :param chosen_pairs: Accumulated (wedge_index, Tree) selections
-            so far.
-        :param used_ids: Set of Tree ids already selected (prevents
-            reuse across wedges).
-        :param results: Output accumulator for dictionaries mapping
-            Wedge -> Tree.
+        :param chosen_pairs: Accumulated (wedge_index, Tree) selections so far.
+        :param used_ids: Set of Tree ids already selected (prevents reuse across wedges).
+        :param results: Output accumulator for dictionaries mapping Wedge -> Tree.
         :param seen_maps: Set used to deduplicate identical selections.
         """
         # Do not exceed the maximum selection length.
@@ -197,11 +192,11 @@ class TreeMatcher:
     def _solve_least_squares_intersection(
         lines: list[tuple[Point, float]],
     ) -> tuple[float, float, float] | None:
-        """Solve least-squares intersection of lines.
+        """
+        Solve least-squares intersection of lines.
 
         :param lines: Each line defined by (point, angle_in_radians).
-        :return: (x, y, rms_residual) of intersection, or None if lines
-            are degenerate.
+        :return: (x, y, rms_residual) of intersection, or None if lines are degenerate.
         """
         s11 = s12 = s22 = 0.0
         t1 = t2 = 0.0
@@ -245,11 +240,12 @@ class TreeMatcher:
         return x, y, rms
 
     def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
-        """Match trees based on current position and ground view angles.
+        """
+        Match trees based on current position and ground view angles.
 
         :param current_pose: Current position and heading as Pose2d.
-        :param ground_thetas: List of camera angles to trees in ground
-            view (positive = left, negative = right).
+        :param ground_thetas: List of camera angles to trees in ground view (positive = left,
+            negative = right).
         :return: Estimated location of the vehicle as Point.
         """
         # Clear previous state
@@ -277,9 +273,6 @@ class TreeMatcher:
             if estimate.score > pose_estimates[combo_number].score:
                 combo_number = i
 
-        # print(
-        #     f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}"  # noqa: E501
-        # )
         final_estimate = pose_estimates[combo_number]
 
         # Set the wedges to the pose estimate's matched trees for visualization
@@ -290,32 +283,38 @@ class TreeMatcher:
         return final_estimate.pose
 
     def _get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
-        """Identify satellite trees within area of interest.
+        """
+        Identify satellite trees within area of interest.
 
         :param current_pose: Current position estimation as Pose2d.
-        :return: List of tree locations (Point) within the area of
-            interest.
+        :return: List of tree locations (Point) within the area of interest.
         """
 
         area_of_interest_tree_locations: list[Tree] = []
 
+        adjusted_pose = Pose2d(
+            x=current_pose.x - 10 * math.cos(math.radians(current_pose.yaw)),
+            y=current_pose.y - 10 * math.sin(math.radians(current_pose.yaw)),
+            yaw=current_pose.yaw,
+        )
+
         for tree_id, tree in enumerate(self.satellite_tree_locations):
             # Checks if the distance is within the radius
-            if distance(tree, current_pose) < AOI_RADIUS_M:
+            if distance(tree, adjusted_pose) < AOI_RADIUS_M:
                 # Checks if the relative angle to the tree is within the expected limit
-                rel_angle_deg = get_relative_angle(tree, current_pose)
+                rel_angle_deg = get_relative_angle(tree, adjusted_pose)
                 if abs(rel_angle_deg) < AOI_ANGLE_DEG:
                     area_of_interest_tree_locations.append(Tree(tree.x, tree.y, tree_id))
 
         return area_of_interest_tree_locations
 
     def _create_wedge(self, current_pose: Pose2d, theta: float) -> Wedge:
-        """Create a wedge based on current location and ground view angle.
+        """
+        Create a wedge based on current location and ground view angle.
 
         :param current_pose: Current position and orientation as Pose2d.
         :param theta: Ground view angle to a single tree.
-        :return: Wedge object containing the theta and trees in the
-            wedge.
+        :return: Wedge object containing the theta and trees in the wedge.
         """
 
         wedge = Wedge(theta)
@@ -328,8 +327,8 @@ class TreeMatcher:
         return wedge
 
     def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> list[PoseEstimate]:
-        """Estimate poses by evaluating all skip-allowed wedge→tree maps
-        (length ≥ 2).
+        """
+        Estimate poses by evaluating all skip-allowed wedge→tree maps (length ≥ 2).
 
         :param wedges: List of candidate Wedge objects.
         :param current_pose: Current estimated pose of the vehicle.
@@ -405,8 +404,8 @@ class TreeMatcher:
         estimated_pose: Pose2d,
         residual_rms: float,
     ) -> float:
-        """Heuristic score using number of wedges, occlusion, RMS (if 3+
-        trees), and theta matching.
+        """
+        Heuristic score using number of wedges, occlusion, RMS (if 3+ trees), and theta matching.
 
         :param wedge_map: Selected {Wedge -> Tree}.
         :param estimated_pose: Pose used as the viewpoint for checks.
@@ -476,15 +475,14 @@ class TreeMatcher:
         matched_trees: list[Tree],
         all_trees: list[Tree],
     ) -> float:
-        """Calculate confidence for a pose estimate.
+        """
+        Calculate confidence for a pose estimate.
 
-        Confidence is a heuristic measure of reliability, expressed as a
-        value between 0.0 and 1.0. It is independent of the score and
-        focuses on the robustness of the match.
+        Confidence is a heuristic measure of reliability, expressed as a value between 0.0 and 1.0.
+        It is independent of the score and focuses on the robustness of the match.
 
         :param pose_estimate: The PoseEstimate to evaluate.
-        :param matched_trees: Trees that were successfully matched in
-            the estimate.
+        :param matched_trees: Trees that were successfully matched in the estimate.
         :param all_trees: All candidate trees in the area of interest.
         :return: Confidence value in [0.0, 1.0].
         """
