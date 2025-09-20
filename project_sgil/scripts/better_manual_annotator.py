@@ -197,7 +197,8 @@ class InteractiveSGILAnnotator:
 
                 print(f"\nImage: {image_name}")
                 print(
-                    "Tree selection: left-click trees; press Enter when done, ESC to skip image, Q to quit."
+                    "Tree selection: left-click trees; press Enter when done, ESC to skip image, "
+                    "Q to quit."
                 )
                 tree_points: list[Point] = []
                 cb_param = {
@@ -223,8 +224,9 @@ class InteractiveSGILAnnotator:
 
                 if len(tree_points) == 0:
                     print(
-                        "No trees clicked. Press 'n' to reselect, 'esc' to skip, 'q' to quit, or 'y' to accept empty set."
+                        "No trees clicked. Press 'n' to reselect, 'esc' to skip, 'q' to quit, or 'y' to accept empty set."  # noqa: E501
                     )
+
                     next_action = wait_for_yes_no_esc_q()
                     if next_action == "q":
                         print("Quitting.")
@@ -275,7 +277,7 @@ class InteractiveSGILAnnotator:
                         est_pose_imu = Pose2d(est_xy_imu.x, est_xy_imu.y, pose_imu_yaw.yaw)
                         err_imu = self._sgil_error_meters(est_pose_imu)
                         print(
-                            f"[IMU yaw]  yaw={pose_imu_yaw.yaw:.2f}° | Est=({est_xy_imu.x:.2f},{est_xy_imu.y:.2f}) | SGIL err={err_imu:.2f} m"
+                            f"[IMU yaw]  yaw={pose_imu_yaw.yaw:.2f}° | Est=({est_xy_imu.x:.2f},{est_xy_imu.y:.2f}) | SGIL err={err_imu:.2f} m"  # noqa: E501
                         )
                     else:
                         print("[IMU yaw]  match FAILED")
@@ -284,7 +286,7 @@ class InteractiveSGILAnnotator:
                         est_pose_rtk = Pose2d(est_xy_rtk.x, est_xy_rtk.y, pose_rtk_yaw.yaw)
                         err_rtk = self._sgil_error_meters(est_pose_rtk)
                         print(
-                            f"[RTK yaw]  yaw={pose_rtk_yaw.yaw:.2f}° | Est=({est_xy_rtk.x:.2f},{est_xy_rtk.y:.2f}) | SGIL err={err_rtk:.2f} m"
+                            f"[RTK yaw]  yaw={pose_rtk_yaw.yaw:.2f}° | Est=({est_xy_rtk.x:.2f},{est_xy_rtk.y:.2f}) | SGIL err={err_rtk:.2f} m"  # noqa: E501
                         )
                     else:
                         print("[RTK yaw]  match FAILED")
@@ -305,7 +307,6 @@ class InteractiveSGILAnnotator:
 
                     # 'y' — always save trees, regardless of match success
                     self._append_csv_row(image_name, tree_points, "NO PATH")
-                    # Note: Not updating self.current_pose.x/y here because inputs used RTK XY by design.
                     # Yaw is maintained elsewhere via IMU deltas.
                     print("Saved and advanced to next image.")
                     self._index += 1

@@ -1,5 +1,5 @@
-"""
-IMU trajectory integration and visualization script for robotics sensor data analysis.
+"""IMU trajectory integration and visualization script for robotics sensor data
+analysis.
 
 Provides functions to integrate IMU motion data with chunked processing to reduce drift
 accumulation and visualize trajectories from multiple sensor sources.
@@ -15,8 +15,7 @@ from scipy.spatial.transform import Rotation as R
 
 
 def quaternion_to_yaw(qx: float, qy: float, qz: float, qw: float) -> float:
-    """
-    Convert quaternion to yaw angle (rotation around z-axis).
+    """Convert quaternion to yaw angle (rotation around z-axis).
 
     :param qx: Quaternion x component
     :param qy: Quaternion y component
@@ -38,17 +37,19 @@ def integrate_motion_chunked(
     orient_array: tuple[str, str, str, str],
     chunk_size: int = 20,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Integrate velocity data to get position, processing in chunks to reduce drift.
+    """Integrate velocity data to get position, processing in chunks to reduce
+    drift.
 
-    If orientation quaternion columns are provided, use them for yaw. Otherwise integrate angular
-    velocity. Processing in chunks helps reset drift accumulation that occurs during integration.
+    If orientation quaternion columns are provided, use them for yaw.
+    Otherwise integrate angular velocity. Processing in chunks helps
+    reset drift accumulation that occurs during integration.
 
     :param df: DataFrame containing sensor data
     :param dt_col: Column name for timestamp data
     :param vel_yaw_array: List of column names for x and y vel and yaw
     :param orient_array: List of column names for orient in x, y, z, w
-    :param chunk_size: Number of rows per integration chunk to limit drift
+    :param chunk_size: Number of rows per integration chunk to limit
+        drift
     :return: Tuple of (x_positions, y_positions, yaw_angles) arrays
     """
 
@@ -136,12 +137,15 @@ def integrate_motion_chunked(
 
 
 def plot_imu_trajectories(csv_file_path: str, chunk_size: int = 20) -> dict:
-    """
-    Plot 3DOF trajectories from Zed IMU and Cheap IMU data with drift reduction.
+    """Plot 3DOF trajectories from Zed IMU and Cheap IMU data with drift
+    reduction.
 
-    :param csv_file_path: Path to the CSV file containing IMU sensor data
-    :param chunk_size: Number of rows per integration chunk to reduce drift accumulation
-    :return: Dictionary containing trajectory arrays for both sensor types
+    :param csv_file_path: Path to the CSV file containing IMU sensor
+        data
+    :param chunk_size: Number of rows per integration chunk to reduce
+        drift accumulation
+    :return: Dictionary containing trajectory arrays for both sensor
+        types
     """
     # Read CSV file
     df = pd.read_csv(csv_file_path)
@@ -246,11 +250,12 @@ def plot_imu_trajectories(csv_file_path: str, chunk_size: int = 20) -> dict:
 def plot_imu_trajectories_from_df(
     df: pd.DataFrame, chunk_size: int = 20
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-    """
-    Same function but takes a DataFrame directly instead of reading from file.
+    """Same function but takes a DataFrame directly instead of reading from
+    file.
 
     :param df: DataFrame containing IMU sensor data
-    :param chunk_size: Number of rows per integration chunk to reduce drift accumulation
+    :param chunk_size: Number of rows per integration chunk to reduce
+        drift accumulation
     :return: Tuple of (x_positions, y_positions, yaw_angles) arrays
     """
     return integrate_motion_chunked(
@@ -263,14 +268,16 @@ def plot_imu_trajectories_from_df(
 
 
 def compare_chunk_sizes(csv_file_path: str, chunk_sizes: list[int] | None = None) -> None:
-    """
-    Compare trajectories with different chunk sizes to analyze drift effects.
+    """Compare trajectories with different chunk sizes to analyze drift
+    effects.
 
-    Creates side-by-side plots showing how different chunk sizes affect trajectory estimation for
-    both zed IMU and Cheap IMU sensors.
+    Creates side-by-side plots showing how different chunk sizes affect
+    trajectory estimation for both zed IMU and Cheap IMU sensors.
 
-    :param csv_file_path: Path to the CSV file containing IMU sensor data
-    :param chunk_sizes: List of chunk sizes to compare, defaults to [10, 20, 50]
+    :param csv_file_path: Path to the CSV file containing IMU sensor
+        data
+    :param chunk_sizes: List of chunk sizes to compare, defaults to [10,
+        20, 50]
     """
     if chunk_sizes is None:
         chunk_sizes = [10, 20, 50]

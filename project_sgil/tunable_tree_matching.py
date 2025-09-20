@@ -177,7 +177,7 @@ class AutomatedSGILTuner:
             print(
                 f"Combo {i}/{total} ({pct:.1f}%): "
                 f"w_occ={w_occ:.1f}, w_rms={w_rms:.1f}, w_theta={w_theta:.1f}, "
-                f"tree_r={tr:.1f}, theta_tol={t_tol:.1f}, heading_err={h_err:.0f}, w_num={w_num:.1f}"
+                f"tree_r={tr:.1f}, theta_tol={t_tol:.1f}, heading_err={h_err:.0f}, w={w_num:.1f}"
             )
 
             mean_err = self._evaluate_combo(

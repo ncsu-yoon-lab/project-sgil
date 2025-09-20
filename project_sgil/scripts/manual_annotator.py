@@ -35,14 +35,20 @@ def init_window(window_name: str, x: int = 250, y: int = 250) -> None:
 
 def set_click_callback(
     window_name: str,
-    image_display,
+    image_display: cv2.Mat,
     points: list[Point],
     label_prefix: str = "",
 ) -> None:
     """Attach a mouse callback that appends clicked points and draws
     markers."""
 
-    def _callback(event, x, y, flags, param) -> None:
+    def _callback(event: int, x: int, y: int, _: None, __: None) -> None:
+        """Mouse callback to record points and draw them on the image.
+
+        :param event: The mouse event type.
+        :param x: The x-coordinate of the mouse event.
+        :param y: The y-coordinate of the mouse event.
+        """
         if event == cv2.EVENT_LBUTTONDOWN:
             pt = Point(float(x), float(y))
             points.append(pt)
@@ -150,10 +156,6 @@ def annotate_images(image_folder: str, output_csv: str) -> None:
             num_trees = len(tree_points)
             tree_points_csv = [(int(p.x), int(p.y)) for p in tree_points]
             writer.writerow([image_name, num_trees, tree_points_csv, path_points_csv])
-
-            print(
-                f"  Saved {num_trees} tree(s). Path: {path_points_csv if isinstance(path_points_csv, str) else '4 points'}"
-            )
 
     print(f"\nAll done! Results saved to {output_csv}")
 
