@@ -35,14 +35,20 @@ def init_window(window_name: str, x: int = 250, y: int = 250) -> None:
 
 def set_click_callback(
     window_name: str,
-    image_display,
+    image_display: cv2.Mat,
     points: list[Point],
     label_prefix: str = "",
 ) -> None:
     """Attach a mouse callback that appends clicked points and draws
     markers."""
 
-    def _callback(event, x, y, flags, param) -> None:
+    def _callback(event: int, x: int, y: int, _: None, __: None) -> None:
+        """Mouse callback to record points and draw them on the image.
+
+        :param event: The mouse event type.
+        :param x: The x-coordinate of the mouse event.
+        :param y: The y-coordinate of the mouse event.
+        """
         if event == cv2.EVENT_LBUTTONDOWN:
             pt = Point(float(x), float(y))
             points.append(pt)
@@ -97,33 +103,35 @@ def annotate_images(image_folder: str, output_csv: str) -> None:
             print(f"\nImage: {image_name}")
 
             # -------- Stage 1: Optional path selection (4 points: BL, TL, BR, TR) --------
-            path_points: list[Point] = []
-            path_display = image.copy()
-            cv2.imshow(window_name, path_display)
-            cv2.waitKey(1)
+            # path_points: list[Point] = []
+            # path_display = image.copy()
+            # cv2.imshow(window_name, path_display)
+            # cv2.waitKey(1)
+            #
+            # print("Path selection:")
+            # print("  Click 4 corners in order: BL, TL, BR, TR.")
+            # print("  Press Enter to finish (press Enter immediately if no path is visible).")
+            # set_click_callback(window_name, path_display, path_points, label_prefix="P")
+            #
+            # action = wait_for_enter_or_esc()
+            # if action == "esc":
+            #     # Skip image entirely
+            #     print("  Skipping image.")
+            #     cv2.setMouseCallback(window_name, lambda *args: None)
+            #     continue
+            #
+            # # Freeze callbacks before switching stages
+            # cv2.setMouseCallback(window_name, lambda *args: None)
+            #
+            # # Convert path data to CSV-friendly format
+            # if len(path_points) == 4:
+            #     path_points_csv: str | list[tuple[int, int]] = [
+            #         (int(p.x), int(p.y)) for p in path_points
+            #     ]
+            # else:
+            #     path_points_csv = "NO PATH"
 
-            print("Path selection:")
-            print("  Click 4 corners in order: BL, TL, BR, TR.")
-            print("  Press Enter to finish (press Enter immediately if no path is visible).")
-            set_click_callback(window_name, path_display, path_points, label_prefix="P")
-
-            action = wait_for_enter_or_esc()
-            if action == "esc":
-                # Skip image entirely
-                print("  Skipping image.")
-                cv2.setMouseCallback(window_name, lambda *args: None)
-                continue
-
-            # Freeze callbacks before switching stages
-            cv2.setMouseCallback(window_name, lambda *args: None)
-
-            # Convert path data to CSV-friendly format
-            if len(path_points) == 4:
-                path_points_csv: str | list[tuple[int, int]] = [
-                    (int(p.x), int(p.y)) for p in path_points
-                ]
-            else:
-                path_points_csv = "NO PATH"
+            path_points_csv = "NO PATH"
 
             # -------- Stage 2: Tree selection (any number) --------
             tree_points: list[Point] = []
@@ -148,10 +156,6 @@ def annotate_images(image_folder: str, output_csv: str) -> None:
             num_trees = len(tree_points)
             tree_points_csv = [(int(p.x), int(p.y)) for p in tree_points]
             writer.writerow([image_name, num_trees, tree_points_csv, path_points_csv])
-
-            print(
-                f"  Saved {num_trees} tree(s). Path: {path_points_csv if isinstance(path_points_csv, str) else '4 points'}"
-            )
 
     print(f"\nAll done! Results saved to {output_csv}")
 

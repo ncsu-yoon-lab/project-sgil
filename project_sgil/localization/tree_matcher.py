@@ -32,11 +32,12 @@ class TreeMatcher:
     """Match trees based on satellite and ground view data to estimate vehicle
     position."""
 
-    def __init__(self, plot_wedges: bool = False) -> None:
+    def __init__(self, plot_wedges: bool = False, path: str = TREE_LOCATIONS_PATH) -> None:
         """Initialize the TreeMatcher.
 
-        :param: Initializes the converter and loads satellite tree
-            locations.
+        :param plot_wedges: If True, generate debug plots of wedge
+            matching.
+        :param path: Path to the CSV file containing tree locations.
         """
         self.plot_wedges = plot_wedges
         self.satellite_tree_locations: list[Point] = []
@@ -45,7 +46,7 @@ class TreeMatcher:
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
 
         # Load tree locations from CSV and convert to Point instances
-        with open(TREE_LOCATIONS_PATH, newline="") as csvfile:
+        with open(path, newline="") as csvfile:
             scanner = csv.reader(csvfile, delimiter=",")
             for row in scanner:
                 x, y = self.converter.latlon_to_xy((float(row[0]), float(row[1])))
@@ -277,9 +278,6 @@ class TreeMatcher:
             if estimate.score > pose_estimates[combo_number].score:
                 combo_number = i
 
-        print(
-            f"Chose combo {combo_number + 1} with score {pose_estimates[combo_number].score:.2f} and confidence {pose_estimates[combo_number].confidence:.2f}"  # noqa: E501
-        )
         final_estimate = pose_estimates[combo_number]
 
         # Set the wedges to the pose estimate's matched trees for visualization
@@ -299,11 +297,17 @@ class TreeMatcher:
 
         area_of_interest_tree_locations: list[Tree] = []
 
+        adjusted_pose = Pose2d(
+            x=current_pose.x - 10 * math.cos(math.radians(current_pose.yaw)),
+            y=current_pose.y - 10 * math.sin(math.radians(current_pose.yaw)),
+            yaw=current_pose.yaw,
+        )
+
         for tree_id, tree in enumerate(self.satellite_tree_locations):
             # Checks if the distance is within the radius
-            if distance(tree, current_pose) < AOI_RADIUS_M:
+            if distance(tree, adjusted_pose) < AOI_RADIUS_M:
                 # Checks if the relative angle to the tree is within the expected limit
-                rel_angle_deg = get_relative_angle(tree, current_pose)
+                rel_angle_deg = get_relative_angle(tree, adjusted_pose)
                 if abs(rel_angle_deg) < AOI_ANGLE_DEG:
                     area_of_interest_tree_locations.append(Tree(tree.x, tree.y, tree_id))
 
@@ -392,7 +396,7 @@ class TreeMatcher:
                     current_pose=current_pose,
                     aoi_trees=self.aoi_trees,
                     estimated_location=Point(x_hat, y_hat),
-                    save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",  # noqa: E501
+                    save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
                 )
 
             pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))

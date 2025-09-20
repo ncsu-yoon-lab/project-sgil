@@ -57,8 +57,8 @@ def _segment_intersects_circle(
     :param center: Circle center.
     :param radius: Circle radius.
     :return: True if the closest point on the segment to the circle
-        center lies within the segment AND within radius distance of
-        the center.
+        center lies within the segment AND within radius distance of the
+        center.
     """
     dx = end.x - start.x
     dy = end.y - start.y

@@ -24,7 +24,10 @@ class IMUAnalyzer:
         # Coerce numerics we rely on
         for c in [
             "timestamp",
-            "imu_orientation_x", "imu_orientation_y", "imu_orientation_z", "imu_orientation_w",
+            "imu_orientation_x",
+            "imu_orientation_y",
+            "imu_orientation_z",
+            "imu_orientation_w",
             "imu_angular_velocity_z",
         ]:
             if c in self.df.columns:
@@ -34,11 +37,21 @@ class IMUAnalyzer:
         self.t: np.ndarray = self.df["timestamp"].to_numpy(dtype=float)
 
         # Quaternions + gyro-z
-        self.qx: np.ndarray = self.df.get("imu_orientation_x", pd.Series(np.nan, index=self.df.index)).to_numpy(dtype=float)
-        self.qy: np.ndarray = self.df.get("imu_orientation_y", pd.Series(np.nan, index=self.df.index)).to_numpy(dtype=float)
-        self.qz: np.ndarray = self.df.get("imu_orientation_z", pd.Series(np.nan, index=self.df.index)).to_numpy(dtype=float)
-        self.qw: np.ndarray = self.df.get("imu_orientation_w", pd.Series(np.nan, index=self.df.index)).to_numpy(dtype=float)
-        self.wz: np.ndarray = self.df.get("imu_angular_velocity_z", pd.Series(0.0, index=self.df.index)).to_numpy(dtype=float)
+        self.qx: np.ndarray = self.df.get(
+            "imu_orientation_x", pd.Series(np.nan, index=self.df.index)
+        ).to_numpy(dtype=float)
+        self.qy: np.ndarray = self.df.get(
+            "imu_orientation_y", pd.Series(np.nan, index=self.df.index)
+        ).to_numpy(dtype=float)
+        self.qz: np.ndarray = self.df.get(
+            "imu_orientation_z", pd.Series(np.nan, index=self.df.index)
+        ).to_numpy(dtype=float)
+        self.qw: np.ndarray = self.df.get(
+            "imu_orientation_w", pd.Series(np.nan, index=self.df.index)
+        ).to_numpy(dtype=float)
+        self.wz: np.ndarray = self.df.get(
+            "imu_angular_velocity_z", pd.Series(0.0, index=self.df.index)
+        ).to_numpy(dtype=float)
 
         # Precompute continuous yaw (radians)
         self._yaw_unwrapped: np.ndarray = self._build_yaw_series_unwrapped()
@@ -85,7 +98,11 @@ class IMUAnalyzer:
                 dy = self._normalize_angle(yi - yaw[i - 1])
                 yaw[i] = yaw[i - 1] + dy
             else:
-                dt = float(self.t[i] - self.t[i - 1]) if np.isfinite(self.t[i]) and np.isfinite(self.t[i - 1]) else 0.0
+                dt = (
+                    float(self.t[i] - self.t[i - 1])
+                    if np.isfinite(self.t[i]) and np.isfinite(self.t[i - 1])
+                    else 0.0
+                )
                 wz = float(self.wz[i]) if np.isfinite(self.wz[i]) else 0.0
                 yaw[i] = yaw[i - 1] + wz * dt
 

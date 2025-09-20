@@ -1,20 +1,18 @@
 from __future__ import annotations
 
 import math
-from typing import Dict, List
 
 import pandas as pd
 
 # Adjust the import path if your package layout differs
 from project_sgil.localization.imu_analyzer import IMUAnalyzer
 
-
 # -----------------
 # Constants
 # -----------------
-CSV_PATH = "../../dataset/tables/CalibrationNew.csv"      # <- set this to your IMU CSV path
-SAMPLE_EVERY_SECONDS = 1.0        # 1 Hz sampling for the printed/saved table
-PRINT_ROWS = 50                   # how many rows to print to stdout
+CSV_PATH = "../../dataset/tables/CalibrationNew.csv"  # <- set this to your IMU CSV path
+SAMPLE_EVERY_SECONDS = 1.0  # 1 Hz sampling for the printed/saved table
+PRINT_ROWS = 50  # how many rows to print to stdout
 
 
 def wrap_deg_0_360(yaw_deg: float) -> float:
@@ -40,7 +38,7 @@ def main() -> None:
     yaw_deg = 0.0
 
     # Output rows (timestamp, yaw)
-    rows: List[Dict[str, float]] = []
+    rows: list[dict[str, float]] = []
     rows.append({"timestamp": float(t[0]), "yaw_deg": yaw_deg})
 
     # Next whole-second sampling time (starting at the first stamp's whole second)
