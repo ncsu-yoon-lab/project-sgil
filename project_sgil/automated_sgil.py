@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import ast
 import os
+import math
+import statistics
 
 import pandas as pd
 from constants import (
@@ -155,8 +157,18 @@ class AutomatedSGIL:
             )
 
         if results:
-            mean_err = sum(r.sgil_err_m for r in results) / len(results)
-            print(f"\nMean SGIL error over {len(results)} images: {mean_err:.3f} m")
+            valid_errors = [
+                r.sgil_err_m
+                for r in results
+                if pd.notna(r.sgil_err_m) and math.isfinite(r.sgil_err_m)
+            ]
+            if valid_errors:
+                mean_err = sum(valid_errors) / len(valid_errors)
+                median_err = statistics.median(valid_errors)
+                print(f"\nMean SGIL error   over {len(valid_errors)} images: {mean_err:.3f} m")
+                print(f"Median SGIL error over {len(valid_errors)} images: {median_err:.3f} m")
+            else:
+                print("\nNo valid SGIL errors to compute statistics.")
 
         self._print_summary_table(results)
         return results
