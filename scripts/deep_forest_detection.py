@@ -8,5 +8,5 @@ model = main.deepforest()
 model.load_model(model_name="weecology/deepforest-tree", revision="main")
 
 # sample_image_path = get_data("OSBS_029.png")
-img = model.predict_image(path="dataset/satellite_images/fayetteville_st.png")
+img = model.predict_image(path="../dataset/satellite_images/fayetteville_st.png")
 plot_results(img)
