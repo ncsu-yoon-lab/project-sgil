@@ -10,6 +10,9 @@ dependencies = [
     "shapely",
     "numpy",
     "deepforest>=2.0.0",
+    "sympy",
+    "OSMPythonTools",
+    "scipy",
 ]
 
 [project.optional-dependencies]

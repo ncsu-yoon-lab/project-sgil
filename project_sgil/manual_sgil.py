@@ -1,5 +1,5 @@
 """Manual tree selection interface for ground view analysis and matching with
-satellite data using pre-collected and pre-labeled dataset.
+satellite data using pre- collected and pre-labeled dataset.
 
 file: manual_selector.py
 author: Cole Malinchock and Jack Elia
@@ -11,20 +11,30 @@ import os
 import random
 
 import cv2
-import matplotlib.pyplot as plt
 import pandas as pd
 
 # Import custom classes
-from constants import DATA_LOGGER_PATH, IMAGE_FOLDER_PATH, ORIGIN, PLOT, RANDOM
-from converter import Converter
+from constants import (
+    CAMERA_HEIGHT_M,
+    DATA_LOGGER_PATH,
+    IMAGE_FOLDER_PATH,
+    IMAGE_SHAPE,
+    ORIGIN,
+    PLOT,
+    RANDOM,
+)
 from data_structs import Point, Pose2d
-from debug_visualizer import DebugVisualizer
-from tree_matcher import TreeMatcher
+from matplotlib import pyplot as plt
+
+from project_sgil.graphics.debug_visualizer import DebugVisualizer
+from project_sgil.localization.path_vector_generator import PathVectorGenerator
+from project_sgil.localization.tree_matcher import TreeMatcher
+from project_sgil.utils.converter import Converter
 
 logging.basicConfig(level=logging.INFO)
 
 
-class SGILMatcherApp:
+class ManualSGIL:
     """
     Encapsulates the SGIL tree-matching workflow:
       1. Reads robot GPS/RTK logs.
@@ -50,13 +60,19 @@ class SGILMatcherApp:
         :param randomize: Whether to pick the next image at random.
         """
         self.converter = Converter(origin[0], origin[1])
-        self.tree_matcher = TreeMatcher()
-        self.debug_visualizer = DebugVisualizer()
+        self.tree_matcher = TreeMatcher(True)
         self.image_folder = image_folder
         self.randomize = randomize
+        self.image_shape = IMAGE_SHAPE
+        self.camera_height_m = CAMERA_HEIGHT_M
 
         # Load robot log into a DataFrame once
         self.robot_data_log = pd.read_csv(data_log_path)
+        self.path_vector_generator = PathVectorGenerator(
+            image_shape=self.image_shape,
+            camera_height=self.camera_height_m,
+            dataset=self.robot_data_log,
+        )
 
         # Will be set on each call to get_gps_pose
         self.correct_pose: tuple[float, float] | None = None
@@ -108,7 +124,7 @@ class SGILMatcherApp:
         :return:
           - image_name: filename or "0" when exhausted
           - selected_points: list of image-pixel Points
-          - pose: corresponding Pose2d or None
+          - pose: The true corresponding Pose2d from the RTK or None
         """
         if self._current_index >= len(self._image_list):
             return "0", [], None
@@ -134,6 +150,12 @@ class SGILMatcherApp:
         if image is None:
             print(f"Error loading image: {image_name}")
             return self.get_next_image()
+
+        # TODO: use this code eventually, don't delete it
+        # Performs the vectorization of the path detection
+        # path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
+        #     image, self._current_index
+        # )
 
         # Define the mouse callback function
         def click_event(event: int, x: int, y: int, flags: list, param: any) -> None:
@@ -185,6 +207,8 @@ class SGILMatcherApp:
 
         return image_name, selected_points, pose
 
+        # return None, None, None
+
     def run(self) -> None:
         """
         Main application loop: for each image, collect clicks,
@@ -200,62 +224,73 @@ class SGILMatcherApp:
         print("- Press Ctrl+C to quit")
         print("- Debug plots will be saved to 'debug_plots/' folder\n")
 
-        # Continues until there are no more images
-        while True:
-            # Gets the name, points chosen, and the pose of the next image
-            name, points, pose = self.get_next_image()
+        DebugVisualizer.clear_plots()
 
-            # Checks that there is another image and a pose
-            if name == "0":
-                logging.info("All images processed. Exiting.")
-                break
+        # Gets the name, points chosen, and the pose of the next image
+        name, points, pose = self.get_next_image()
+        # pose.yaw -= 5
 
-            if not pose:
-                logging.warning(f"No valid pose for {name}; skipping.")
-                continue
+        image_name = self._image_list[self._current_index]
 
-            # Gets the ground thetas from the image and matches the corresponding trees with the
-            # satellite data
-            ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
-            est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
+        # Load and display for click events
+        path = os.path.join(self.image_folder, image_name)
+        image = cv2.imread(path)
+        image.copy()
+        if image is None:
+            print(f"Error loading image: {image_name}")
+            return self.get_next_image()
 
-            print("Estimated location xy: ", est_xy)
+        # Performs the vectorization of the path detection
+        path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
+            image, self._current_index
+        )
 
-            # Get data for debug visualization
-            aoi_sat_trees = self.tree_matcher.aoi_sat_trees
-            all_sat_tree_loc = self.tree_matcher.all_sat_tree_loc
-            wedges = self.tree_matcher.wedges
+        print(f"Yaw: {path_yaw} deg")
 
-            # Create debug visualization (saved to file, no display conflicts)
-            if PLOT:
-                # Use image name (without extension) as save name
-                save_name = os.path.splitext(name)[0]
-                self.debug_visualizer.plot_aoi(all_sat_tree_loc, aoi_sat_trees, pose, save_name)
-                self.debug_visualizer.plot_wedges(wedges, pose, aoi_sat_trees, est_xy, save_name)
+        # Gets the ground thetas from the image and matches the corresponding trees with the
+        # satellite data
+        ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
+        est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
 
-            # Convert back to lat/lon
-            est_latlon = self.converter.xy_to_latlon(est_xy)
+        print("Estimated location xy: ", est_xy)
 
-            # Print out GPS vs SGIL errors
-            assert self.correct_pose and self.gps_pose, "Pose info missing!"
-            gps_err = self.converter.haversine(
-                self.gps_pose[0],
-                self.gps_pose[1],
-                self.correct_pose[0],
-                self.correct_pose[1],
+        # Create debug visualization (saved to file, no display conflicts)
+        if PLOT:
+            # Use image name (without extension) as save name
+            save_name = os.path.splitext(name)[0]
+            DebugVisualizer.plot_aoi(
+                self.tree_matcher.satellite_tree_locations,
+                self.tree_matcher.aoi_trees,
+                pose,
+                save_name,
             )
-            sgil_err = self.converter.haversine(
-                est_latlon[0],
-                est_latlon[1],
-                self.correct_pose[0],
-                self.correct_pose[1],
-            )
+            # DebugVisualizer.plot_wedges(self.tree_matcher.wedges, pose,
+            # self.tree_matcher.aoi_trees, est_xy, save_name)
 
-            logging.info(f"Image: {name}")
-            logging.info(f"  Estimated LatLon: {est_latlon}")
-            logging.info(f"  GPS error (m):     {gps_err:.2f}")
-            logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
+        # Convert back to lat/lon
+        est_latlon = self.converter.xy_to_latlon(est_xy)
+
+        # Print out GPS vs SGIL errors
+        assert self.correct_pose and self.gps_pose, "Pose info missing!"
+        gps_err = self.converter.haversine(
+            self.gps_pose[0],
+            self.gps_pose[1],
+            self.correct_pose[0],
+            self.correct_pose[1],
+        )
+        sgil_err = self.converter.haversine(
+            est_latlon[0],
+            est_latlon[1],
+            self.correct_pose[0],
+            self.correct_pose[1],
+        )
+
+        logging.info(f"Image: {name}")
+        logging.info(f"  Estimated LatLon: {est_latlon}")
+        logging.info(f"  GPS error (m):     {gps_err:.2f}")
+        logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
+        logging.info(f"  RTK Yaw (deg):     {pose.yaw:.2f}")
 
 
 if __name__ == "__main__":
-    SGILMatcherApp().run()
+    ManualSGIL().run()

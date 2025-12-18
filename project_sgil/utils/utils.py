@@ -42,3 +42,43 @@ def std_deviation_of_distances(points: list[Point], centroid: Point) -> float:
 
     # Calculates the standard deviation of all the distances
     return statistics.stdev(distances) if len(distances) > 1 else 0.0
+
+
+def _segment_intersects_circle(
+    start: Point,
+    end: Point,
+    center: Point,
+    radius: float,
+) -> bool:
+    """Check if the segment from start→end intersects (or grazes) a circle.
+
+    :param start: Segment start point.
+    :param end: Segment end point.
+    :param center: Circle center.
+    :param radius: Circle radius.
+    :return: True if the closest point on the segment to the circle
+        center lies within the segment AND within radius distance of the
+        center.
+    """
+    dx = end.x - start.x
+    dy = end.y - start.y
+    seg_len_sq = dx * dx + dy * dy
+    if seg_len_sq == 0.0:
+        # Degenerate segment: start == end. Treat as point-in-circle check.
+        dist_sq = (start.x - center.x) ** 2 + (start.y - center.y) ** 2
+        return dist_sq <= radius * radius
+
+    # Project center onto the infinite line; get param t along the segment
+    t = ((center.x - start.x) * dx + (center.y - start.y) * dy) / seg_len_sq
+
+    # We only care about intersection with the finite segment (0 <= t <= 1)
+    if t < 0.0 or t > 1.0:
+        return False
+
+    # Closest point on the segment to the circle center
+    closest_x = start.x + t * dx
+    closest_y = start.y + t * dy
+
+    # Distance from closest point to center
+    dist_sq = (closest_x - center.x) ** 2 + (closest_y - center.y) ** 2
+    return dist_sq <= radius * radius

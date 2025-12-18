@@ -1,6 +1,6 @@
 import math
 
-from project_sgil.constants import EARTH_RADIUS_M, H_FOV_DEG, ORIGIN
+from project_sgil.constants import EARTH_RADIUS_M, H_FOV_DEG
 from project_sgil.data_structs import Point
 
 # TODO: make this class use our data classes, and organize methods by private, static, and public
@@ -51,16 +51,18 @@ class Converter:
         :param point: Tuple of (latitude, longitude) in degrees.
         :return: Tuple of (x, y) in meters relative to the origin.
         """
-        lat: float = float(point[0])
-        lon: float = float(point[1])
+        lat = math.radians(float(point[0]))
+        lon = math.radians(float(point[1]))
+        origin_lat = math.radians(self.origin[0])
+        origin_lon = math.radians(self.origin[1])
 
-        x: float = self.haversine(ORIGIN[0], lon, self.origin[0], self.origin[1])
-        y: float = self.haversine(lat, self.origin[1], self.origin[0], self.origin[1])
+        # Calculate differences in radians
+        d_lat = lat - origin_lat
+        d_lon = lon - origin_lon
 
-        if lon < self.origin[1]:
-            x = -x
-        if lat < self.origin[0]:
-            y = -y
+        # Convert to meters using local approximation
+        y = d_lat * EARTH_RADIUS_M
+        x = d_lon * EARTH_RADIUS_M * math.cos(origin_lat)
 
         return (x, y)
 
