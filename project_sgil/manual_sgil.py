@@ -14,7 +14,7 @@ import cv2
 import pandas as pd
 
 # Import custom classes
-from constants import (
+from project_sgil.constants import (
     CAMERA_HEIGHT_M,
     DATA_LOGGER_PATH,
     IMAGE_FOLDER_PATH,
@@ -23,7 +23,8 @@ from constants import (
     PLOT,
     RANDOM,
 )
-from data_structs import Point, Pose2d
+from project_sgil.data_structs import Point, Pose2d
+
 from matplotlib import pyplot as plt
 
 from project_sgil.graphics.debug_visualizer import DebugVisualizer

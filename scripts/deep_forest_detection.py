@@ -1,6 +1,7 @@
 from deepforest import main
 from deepforest import get_data
 from deepforest.visualize import plot_results
+
 # Initialize the model class
 model = main.deepforest()
 

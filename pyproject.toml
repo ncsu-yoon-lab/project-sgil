@@ -2,14 +2,14 @@
 name = "project_sgil"
 version = "0.1.0"
 description = "A tree-based localization method"
-requires-python = ">=3.10"
+requires-python = "==3.12.*"
 dependencies = [
     "opencv-python",
     "pandas",
     "matplotlib",
     "shapely",
     "numpy",
-    "deepforest>=2.0.0",
+    "deepforest",
     "sympy",
     "OSMPythonTools",
     "scipy",
@@ -35,8 +35,8 @@ ignore = [
     "PLR2004",
     "PLR0911",
     "T201",
+    "T203",
     "D",
-#    TODO: probably want these two back in
     "PLR0912",
     "PLR0915",
 ]

@@ -25,4 +25,6 @@ uv run ruff check . --fix
 ### Run the code
 
 ```bash
-uv run 
+# While in the root of the project, run:
+uv run python -m project_sgil.manual_sgil
+```
