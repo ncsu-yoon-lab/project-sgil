@@ -13,6 +13,7 @@ dependencies = [
     "sympy",
     "OSMPythonTools",
     "scipy",
+    "PyYAML"
 ]
 
 [project.optional-dependencies]
@@ -22,6 +23,11 @@ dev = [
     "pre-commit",
     "docformatter",
     "pandas",
+]
+
+[tool.uv]
+override-dependencies = [
+    "albumentations==1.4.24",
 ]
 
 [tool.ruff]
@@ -58,11 +64,3 @@ fixable = ["ALL"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
-
-[tool.docformatter]
-wrap-summaries = 100
-wrap-descriptions = 100
-pre-summary-newline = true
-make-summary-multi-line = true
-recursive = true
-in-place = true

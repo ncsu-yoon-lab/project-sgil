@@ -4,7 +4,7 @@ The goal of this project is to use CV paired with satellite imagery to improve l
 
 ## Setup
 
-This project is for Linux systems. If on Windows, please use WSL.
+This project is for Linux systems. If on Windows, please use WSL. Also, depending on the images you're using, you will need to download them separately.
 
 ### Setup Environment
 
