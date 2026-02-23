@@ -155,3 +155,5 @@ CATKIN_IGNORE
 project_sgil/debug_plots/
 
 project_sgil/cache/
+
+debug_plots/

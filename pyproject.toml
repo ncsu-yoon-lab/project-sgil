@@ -10,10 +10,14 @@ dependencies = [
     "shapely",
     "numpy",
     "deepforest",
+    "torch",
+    "torchvision",
+    "torchaudio",
     "sympy",
     "OSMPythonTools",
     "scipy",
-    "PyYAML"
+    "PyYAML",
+    "earthengine-api",
 ]
 
 [project.optional-dependencies]
@@ -35,6 +39,16 @@ line-length = 100
 target-version = "py310"
 show-fixes = true
 unsafe-fixes = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+torchaudio = { index = "pytorch-cu124" }
 
 [tool.ruff.lint]
 ignore = [
