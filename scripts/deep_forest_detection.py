@@ -12,15 +12,23 @@ import pandas as pd
 IMAGE_PATH = "../dataset/satellite_images/RaleighSatellite.png"
 
 # DeepForest inference
-SCORE_THRESH = 0.12           # model confidence threshold (lower = more boxes)
-PATCH_SIZE = 900              # tile size in pixels for predict_tile (bigger => fewer split crowns)
+SCORE_THRESH = 0.1           # model confidence threshold (lower = more boxes; was 0.12)
+PATCH_SIZES = [900, 1500]     # tile sizes for predict_tile (larger helps big crowns)
 PATCH_OVERLAP = 0.45          # tile overlap fraction (higher => fewer patch-boundary fragments)
 
 # Multi-pass preprocessing (helps dark crowns)
-GAMMAS = [1.0, 0.75, .65]     # gamma correction passes (smaller = brighten shadows)
-USE_CLAHE = True              # apply CLAHE on L channel to boost local contrast
-CLAHE_CLIP_LIMIT = 2.0        # CLAHE strength (higher = stronger contrast; too high can add noise)
-CLAHE_TILE_GRID = (8, 8)      # CLAHE tile size (smaller tiles = more local contrast)
+# Each pass: (gamma, clahe_clip_limit | None, clahe_tile_grid | None, use_hist_eq)
+PASSES = [
+    # Standard passes
+    (1.0,  2.0, (8, 8), False),
+    (0.75, 2.0, (8, 8), False),
+    (0.65, 2.0, (8, 8), False),
+    # More aggressive brightening for dark canopies
+    (0.50, 2.0, (8, 8), False),
+    (0.40, 4.0, (4, 4), False),   # stronger CLAHE on aggressively brightened image
+    # Histogram equalization pass (no gamma/CLAHE, different contrast stretch)
+    (1.0,  None, None, True),
+]
 
 # Merge / de-dup
 DO_MERGE = True               # cluster + fuse related boxes
@@ -51,20 +59,28 @@ MAX_ASPECT = 3.5              # max(w/h, h/w)
 # It helps reject non-tree false positives (roofs, shadows, pavement) that DeepForest can pick up.
 USE_VEG_FILTER = True
 
-# "Green" hue range in HSV (OpenCV hue: [0..179]). These are deliberately broad.
-LOWER_GREEN_HSV = (20, 15, 10)
-UPPER_GREEN_HSV = (95, 255, 255)
+# "Green" hue range in HSV (OpenCV hue: [0..179]).
+LOWER_GREEN_HSV = (22, 20, 15)   # hue 22 catches yellow-green trees; sat/val slightly relaxed
+UPPER_GREEN_HSV = (90, 255, 255)
 
 # We only evaluate the brightest pixels in the box (makes it more robust to shadows).
 BRIGHT_FRACTION = 0.50        # fraction of brightest pixels (by V) considered
-MIN_GREEN_RATIO = 0.07        # min fraction of bright pixels that fall in green hue range
-MIN_MEAN_SAT_BRIGHT = 16.0    # min mean saturation among bright pixels
-MIN_MEAN_V_BRIGHT = 40.0      # min mean brightness among bright pixels (helps reject gray roofs)
+MIN_GREEN_RATIO = 0.18        # min fraction of bright pixels in green hue range
+MIN_MEAN_SAT_BRIGHT = 22.0    # min mean saturation among bright pixels
+MIN_MEAN_V_BRIGHT = 42.0      # min mean brightness among bright pixels
 
 # Dominant hue among bright pixels must be in green range. Helps reject tan/white roofs.
 USE_DOMINANT_HUE_CHECK = True
 DOMINANT_HUE_BINS = 36        # number of hue bins over [0..179]
-MIN_DOMINANT_HUE_FRAC = 0.16  # fraction of bright pixels falling in the dominant bin
+MIN_DOMINANT_HUE_FRAC = 0.18  # fraction of bright pixels falling in the dominant bin
+
+# --- Filtering: texture / "lumpiness" gate ---
+# Trees seen from above are lumpy (shadows between branches, varied colors).
+# Flat surfaces (pavement, roofs, parking lots) are homogeneous.
+# We measure texture via std-dev of Laplacian (edge density) and local intensity variance.
+USE_TEXTURE_FILTER = True
+MIN_LAPLACIAN_STD = 21.0      # min std-dev of Laplacian; flat surfaces score ~3-8, trees ~20-50+
+MIN_LOCAL_STD = 18.0          # min std-dev of grayscale intensity across the crop
 
 # Drawing
 DRAW_REJECTED = True          # draw rejected detections (blue) + rejection reason labels
@@ -73,6 +89,7 @@ DRAW_THICKNESS_KEEP = 3       # thickness of kept (red) boxes
 DRAW_THICKNESS_REJECT = 2     # thickness of rejected boxes
 COLOR_KEEP_BRG = (0, 0, 255)  # kept box color (B,G,R)
 COLOR_REJECT_BRG = (255, 0, 0)  # rejected box color (B,G,R)
+COLOR_TEXTURE_BRG = (255, 255, 0)  # texture-rejected box color (B,G,R) — cyan
 
 # Output files
 SAVE_DEBUG_PASSES = False      # keep the temporary gamma/CLAHE images on disk (debugging)
@@ -98,6 +115,15 @@ def apply_clahe_lab(img_bgr: np.ndarray, clip_limit=2.0, tile_grid_size=(8, 8)) 
     L2 = clahe.apply(L)
     lab2 = cv2.merge([L2, A, B])
     return cv2.cvtColor(lab2, cv2.COLOR_LAB2BGR)
+
+
+def apply_hist_eq_v(img_bgr: np.ndarray) -> np.ndarray:
+    """Equalize the V channel in HSV — a different contrast stretch than CLAHE."""
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    H, S, V = cv2.split(hsv)
+    V = cv2.equalizeHist(V)
+    hsv2 = cv2.merge([H, S, V])
+    return cv2.cvtColor(hsv2, cv2.COLOR_HSV2BGR)
 
 
 def _bright_pixel_mask_v(box_hsv: np.ndarray, bright_fraction: float) -> np.ndarray | None:
@@ -190,6 +216,36 @@ def veg_ok(
         return False
 
     return True
+
+
+def texture_ok(
+    crop_bgr: np.ndarray,
+    min_laplacian_std: float,
+    min_local_std: float,
+) -> bool:
+    """Reject homogeneous / flat crops (pavement, roofs, parking lots).
+
+    Trees viewed from above are "lumpy" — lots of shadows between branches,
+    varied leaf colors, etc.  Flat man-made surfaces are smooth/uniform.
+
+    We use two cheap measures:
+      1. std-dev of Laplacian  — high for textured / edge-rich areas
+      2. std-dev of grayscale  — high when there is local brightness variation
+    Both must exceed their thresholds for the crop to pass.
+    """
+    if crop_bgr.size == 0:
+        return False
+
+    gray = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
+
+    # Laplacian edge density
+    lap = cv2.Laplacian(gray, cv2.CV_64F)
+    lap_std = float(np.std(lap))
+
+    # Local intensity variation
+    local_std = float(np.std(gray.astype(np.float32)))
+
+    return lap_std >= min_laplacian_std and local_std >= min_local_std
 
 
 def iou(boxA, boxB):
@@ -358,30 +414,35 @@ def main():
     all_preds = []
     tmp_paths = []
 
-    for gamma in GAMMAS:
+    for pass_idx, (gamma, clahe_clip, clahe_grid, use_hist_eq) in enumerate(PASSES):
         proc = apply_gamma(img_bgr, gamma)
-        if USE_CLAHE:
+        if use_hist_eq:
+            proc = apply_hist_eq_v(proc)
+        elif clahe_clip is not None and clahe_grid is not None:
             proc = apply_clahe_lab(
                 proc,
-                clip_limit=CLAHE_CLIP_LIMIT,
-                tile_grid_size=CLAHE_TILE_GRID,
+                clip_limit=clahe_clip,
+                tile_grid_size=clahe_grid,
             )
 
-        tmp_path = os.path.join(work_dir, f"__tmp_df_gamma{gamma}_clahe{int(USE_CLAHE)}.jpg")
+        tag = f"pass{pass_idx}_g{gamma}_heq{int(use_hist_eq)}"
+        tmp_path = os.path.join(work_dir, f"__tmp_df_{tag}.jpg")
         cv2.imwrite(tmp_path, proc)
         tmp_paths.append(tmp_path)
 
-        pred = model.predict_tile(
-            path=tmp_path,
-            patch_size=PATCH_SIZE,
-            patch_overlap=PATCH_OVERLAP
-        )
+        for patch_size in PATCH_SIZES:
+            pred = model.predict_tile(
+                path=tmp_path,
+                patch_size=patch_size,
+                patch_overlap=PATCH_OVERLAP
+            )
 
-        if pred is not None and len(pred) > 0:
-            pred = pred.copy()
-            pred["gamma"] = gamma
-            pred["clahe"] = int(USE_CLAHE)
-            all_preds.append(pred)
+            if pred is not None and len(pred) > 0:
+                pred = pred.copy()
+                pred["gamma"] = gamma
+                pred["patch_size"] = patch_size
+                pred["pass_idx"] = pass_idx
+                all_preds.append(pred)
 
     if not SAVE_DEBUG_PASSES:
         for p in tmp_paths:
@@ -451,6 +512,17 @@ def main():
                 rejected.append(((xmin, ymin, xmax, ymax), "not_green"))
                 continue
 
+        # --- texture / lumpiness gate ---
+        if USE_TEXTURE_FILTER:
+            crop_bgr = img_bgr[ymin:ymax, xmin:xmax]
+            if not texture_ok(
+                crop_bgr,
+                min_laplacian_std=MIN_LAPLACIAN_STD,
+                min_local_std=MIN_LOCAL_STD,
+            ):
+                rejected.append(((xmin, ymin, xmax, ymax), "too_flat"))
+                continue
+
         # Keep
         kept_rows.append(row.copy())
         kept_boxes.append((xmin, ymin, xmax, ymax))
@@ -477,13 +549,14 @@ def main():
     # Draw
     annotated = img_bgr.copy()
 
-    # Draw rejected (blue) first
+    # Draw rejected first
     if DRAW_REJECTED and not HIDE_BLUE:
         for (x1, y1, x2, y2), reason in rejected:
-            cv2.rectangle(annotated, (x1, y1), (x2, y2), COLOR_REJECT_BRG, DRAW_THICKNESS_REJECT)
+            color = COLOR_TEXTURE_BRG if reason == "too_flat" else COLOR_REJECT_BRG
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, DRAW_THICKNESS_REJECT)
             cv2.putText(
                 annotated, reason, (x1, max(0, y1 - 4)),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.35, COLOR_REJECT_BRG, 1, cv2.LINE_AA
+                cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1, cv2.LINE_AA
             )
 
     # Draw kept (red) on top
