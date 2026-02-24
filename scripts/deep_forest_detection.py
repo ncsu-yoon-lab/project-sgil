@@ -24,19 +24,19 @@ CLAHE_TILE_GRID = (8, 8)      # CLAHE tile size (smaller tiles = more local cont
 
 # Merge / de-dup
 DO_MERGE = True               # cluster + fuse related boxes
-                              # (helps big trees collapsing from many small boxes)
+# (helps big trees collapsing from many small boxes)
 MERGE_MODE = "wbf"            # "wbf" (tighter) or "union" (one big envelope)
 MERGE_IOU = 0.15              # merge boxes if IoU is at least this
 MERGE_IOA = 0.45              # merge boxes if intersection-over-smaller-area is at least this
-                              # (catches fragments)
+# (catches fragments)
 MERGE_CENTER_FRAC = 0.30      # merge boxes if centers are this close
-                              # (fraction of the larger box max side)
+# (fraction of the larger box max side)
 
 # NMS merge (final de-dup after fusion)
 DO_NMS = True                 # de-duplicate overlapping detections after filtering/merging
 NMS_IOU = 0.30                # IoU threshold for suppression
 
-# --- Filtering: size (requested) ---
+# --- Filtering: size ---
 MIN_SIDE_PX = 25              # reject tiny boxes; each side must be at least this many pixels
 MIN_AREA_PX = 500             # reject very small boxes by area (w*h)
 MAX_SIDE_PX = 5000            # reject absurdly large boxes (usually false positives)
@@ -46,45 +46,32 @@ MAX_AREA_PX = 25_500_000       # reject absurdly large boxes by area
 USE_ASPECT_FILTER = True      # reject extremely skinny boxes (often fragments)
 MAX_ASPECT = 3.5              # max(w/h, h/w)
 
-# --- Filtering: color/vegetation ---
-# HSV green-ish range
-LOWER_GREEN = np.array([
-    18, 10, 5
-])  # lower HSV bound for "green" pixels (H,S,V) (looser => catches darker green)
-UPPER_GREEN = np.array([98, 255, 255])  # upper HSV bound for "green" pixels (H,S,V)
+# --- Filtering: simple vegetation/color gate ---
+# This is intentionally lightweight (no LAB/ExG stats, no tuning script).
+# It helps reject non-tree false positives (roofs, shadows, pavement) that DeepForest can pick up.
+USE_VEG_FILTER = True
 
-# Shadow-tolerant green test:
-BRIGHT_FRACTION = 0.65         # evaluate brightest fraction of pixels in the box (higher => includes more dark canopy)
-GREEN_RATIO_THRESH = 0.05      # min fraction of (bright-ish) pixels that must be green
+# "Green" hue range in HSV (OpenCV hue: [0..179]). These are deliberately broad.
+LOWER_GREEN_HSV = (20, 15, 10)
+UPPER_GREEN_HSV = (95, 255, 255)
 
-# Optional: "shadow green" rescue (for dark crowns that fail HSV green ratio)
-ENABLE_SHADOW_GREEN_RESCUE = True   # allow dark-but-colorful vegetation through
-MIN_BRIGHT_V_PCT = 22               # minimum V percentile threshold for "bright" pixels (lower => tolerate shadows)
-MIN_LAB_B_BRIGHT = 130.0            # mean LAB b* on bright pixels; >128 biases yellow/green
-MIN_LAB_CHROMA_RESCUE = 12.0        # require higher chroma when using rescue path
+# We only evaluate the brightest pixels in the box (makes it more robust to shadows).
+BRIGHT_FRACTION = 0.50        # fraction of brightest pixels (by V) considered
+MIN_GREEN_RATIO = 0.07        # min fraction of bright pixels that fall in green hue range
+MIN_MEAN_SAT_BRIGHT = 16.0    # min mean saturation among bright pixels
+MIN_MEAN_V_BRIGHT = 40.0      # min mean brightness among bright pixels (helps reject gray roofs)
 
-# Gray/roof rejection (computed on the same bright pixels)
-MIN_MEAN_SAT_BRIGHT = 18       # min mean HSV saturation (bright pixels); low = gray/roof
-MIN_LAB_CHROMA_BRIGHT = 10     # min mean LAB chroma (bright pixels); low = neutral surfaces
-
-# Vegetation index (Excess Green) on bright pixels: exg = 2G - R - B (on [0..1] channels)
-MIN_EXG_BRIGHT = 0.015          # min mean ExG (bright pixels)
-                               # low/negative => non-veg
-
-MIN_BRIGHT_PIXELS = 120
-
-# Extra dark-canopy rescue: allow low saturation/chroma boxes if ExG is strong.
-# (This helps keep very dark canopies that still show strong green dominance.)
-ENABLE_DARK_VEG_RESCUE = True  # let very dark crowns through if ExG says "vegetation"
-DARK_VEG_MIN_EXG = 0.06        # strong green dominance even if saturation is low
-DARK_VEG_MIN_CHROMA = 6.0      # still require some chroma (avoid pure gray surfaces)
+# Dominant hue among bright pixels must be in green range. Helps reject tan/white roofs.
+USE_DOMINANT_HUE_CHECK = True
+DOMINANT_HUE_BINS = 36        # number of hue bins over [0..179]
+MIN_DOMINANT_HUE_FRAC = 0.16  # fraction of bright pixels falling in the dominant bin
 
 # Drawing
-DRAW_REJECTED = True           # draw rejected detections (blue) + rejection reason labels
-HIDE_BLUE = False              # if True, never draw rejected (blue) boxes even if DRAW_REJECTED=True
-DRAW_THICKNESS_KEEP = 3        # thickness of kept (red) boxes
-DRAW_THICKNESS_REJECT = 2      # thickness of rejected boxes
-COLOR_KEEP_BRG = (0, 0, 255)   # kept box color (B,G,R)
+DRAW_REJECTED = True          # draw rejected detections (blue) + rejection reason labels
+HIDE_BLUE = False             # if True, never draw rejected (blue) boxes even if DRAW_REJECTED=True
+DRAW_THICKNESS_KEEP = 3       # thickness of kept (red) boxes
+DRAW_THICKNESS_REJECT = 2     # thickness of rejected boxes
+COLOR_KEEP_BRG = (0, 0, 255)  # kept box color (B,G,R)
 COLOR_REJECT_BRG = (255, 0, 0)  # rejected box color (B,G,R)
 
 # Output files
@@ -111,6 +98,98 @@ def apply_clahe_lab(img_bgr: np.ndarray, clip_limit=2.0, tile_grid_size=(8, 8)) 
     L2 = clahe.apply(L)
     lab2 = cv2.merge([L2, A, B])
     return cv2.cvtColor(lab2, cv2.COLOR_LAB2BGR)
+
+
+def _bright_pixel_mask_v(box_hsv: np.ndarray, bright_fraction: float) -> np.ndarray | None:
+    """Return a mask (uint8 0/255) selecting the brightest pixels by V within a crop."""
+    if box_hsv.size == 0:
+        return None
+    V = box_hsv[:, :, 2].astype(np.uint8)
+    if V.size == 0:
+        return None
+    v_flat = V.reshape(-1)
+    # quantile can be slightly expensive but crops are small.
+    thresh = float(np.quantile(v_flat, 1.0 - float(bright_fraction)))
+    mask = (V >= thresh).astype(np.uint8) * 255
+    if cv2.countNonZero(mask) == 0:
+        return None
+    return mask
+
+
+def veg_ok(
+    crop_hsv: np.ndarray,
+    bright_fraction: float,
+    lower_green_hsv: tuple[int, int, int],
+    upper_green_hsv: tuple[int, int, int],
+    min_green_ratio: float,
+    min_mean_sat_bright: float,
+    min_mean_v_bright: float,
+    use_dominant_hue_check: bool,
+    dominant_hue_bins: int,
+    min_dominant_hue_frac: float,
+) -> bool:
+    """Lightweight vegetation gate.
+
+    Checks "green ratio" among bright pixels + mean saturation/brightness.
+    Optionally enforces that the dominant hue among bright pixels is in green range.
+    """
+    bright_mask = _bright_pixel_mask_v(crop_hsv, bright_fraction)
+    if bright_mask is None:
+        return False
+
+    bright_cnt = float(cv2.countNonZero(bright_mask))
+    if bright_cnt <= 0:
+        return False
+
+    lower = np.array(lower_green_hsv, dtype=np.uint8)
+    upper = np.array(upper_green_hsv, dtype=np.uint8)
+
+    # green ratio among bright pixels
+    green_mask = cv2.inRange(crop_hsv, lower, upper)
+    green_and_bright = cv2.bitwise_and(green_mask, bright_mask)
+    green_cnt = float(cv2.countNonZero(green_and_bright))
+    green_ratio = green_cnt / (bright_cnt + 1e-9)
+
+    # mean sat/value among bright pixels
+    S = crop_hsv[:, :, 1].astype(np.uint8)
+    V = crop_hsv[:, :, 2].astype(np.uint8)
+    mean_sat_bright = float(cv2.mean(S, mask=bright_mask)[0])
+    mean_v_bright = float(cv2.mean(V, mask=bright_mask)[0])
+
+    if green_ratio < float(min_green_ratio):
+        return False
+    if mean_sat_bright < float(min_mean_sat_bright):
+        return False
+    if mean_v_bright < float(min_mean_v_bright):
+        return False
+
+    if not use_dominant_hue_check:
+        return True
+
+    # dominant hue check on bright pixels
+    H = crop_hsv[:, :, 0].astype(np.uint8)
+    h_vals = H[bright_mask > 0]
+    if h_vals.size == 0:
+        return False
+
+    bins = int(max(6, dominant_hue_bins))
+    # Histogram bins over [0..179]
+    hist, bin_edges = np.histogram(h_vals, bins=bins, range=(0, 180))
+    dom_idx = int(np.argmax(hist))
+    dom_frac = float(hist[dom_idx]) / float(h_vals.size + 1e-9)
+    if dom_frac < float(min_dominant_hue_frac):
+        # no strong dominant hue => likely mixed material/texture, reject
+        return False
+
+    dom_center = 0.5 * (bin_edges[dom_idx] + bin_edges[dom_idx + 1])
+    dom_center = int(dom_center)
+
+    # Check if dominant bin center is within green hue bounds
+    # (wrap not handled here; green doesn't wrap)
+    if not (int(lower_green_hsv[0]) <= dom_center <= int(upper_green_hsv[0])):
+        return False
+
+    return True
 
 
 def iou(boxA, boxB):
@@ -170,7 +249,10 @@ def should_merge(boxA, boxB) -> bool:
     return False
 
 
-def fuse_cluster(boxes: list[tuple[int, int, int, int]], scores: list[float]) -> tuple[int, int, int, int]:
+def fuse_cluster(
+    boxes: list[tuple[int, int, int, int]],
+    scores: list[float],
+) -> tuple[int, int, int, int]:
     """Fuse a cluster of boxes into one (either weighted average or union)."""
     if not boxes:
         return (0, 0, 0, 0)
@@ -228,7 +310,9 @@ def cluster_and_fuse(boxes: list[tuple[int, int, int, int]], scores: list[float]
     for idxs in clusters.values():
         b = [boxes[k] for k in idxs]
         s = [scores[k] for k in idxs]
-        fused_boxes.append(fuse_cluster(b, s))
+        fused_boxes.append(
+            fuse_cluster(b, s)
+        )
         fused_scores.append(float(max(s)))
 
     return fused_boxes, fused_scores
@@ -249,94 +333,14 @@ def nms(boxes, scores, iou_thresh=0.35):
     return keep
 
 
-def bright_pixel_masks(box_hsv: np.ndarray, bright_fraction: float):
-    """
-    Returns:
-      bright_mask (uint8 0/255) for brightest fraction of pixels by V channel
-      denom = countNonZero(bright_mask)
-      bright_S = saturation values within box (uint8)
-    """
-    V = box_hsv[:, :, 2].astype(np.uint8)
-    v_flat = V.reshape(-1)
-    if v_flat.size == 0:
-        return None, 0
-
-    thresh = np.quantile(v_flat, 1.0 - bright_fraction)
-    bright_mask = (V >= thresh).astype(np.uint8) * 255
-    denom = int(cv2.countNonZero(bright_mask))
-    return bright_mask, denom
-
-
-def bright_v_threshold(box_hsv: np.ndarray, bright_fraction: float) -> float:
-    """Return the V threshold used to create the bright-pixel mask (percentile of V)."""
-    if box_hsv.size == 0:
-        return 0.0
-    V = box_hsv[:, :, 2].astype(np.uint8).reshape(-1)
-    if V.size == 0:
-        return 0.0
-    return float(np.quantile(V, 1.0 - bright_fraction))
-
-
-def lab_chroma_exg_b_and_exg_bright(
-    box_bgr: np.ndarray, bright_mask: np.ndarray
-) -> tuple[float, float, float]:
-    """Compute (LAB chroma, ExG, LAB b*) on *bright pixels* only."""
-    if box_bgr.size == 0:
-        return 0.0, 0.0, 128.0
-
-    lab = cv2.cvtColor(box_bgr, cv2.COLOR_BGR2LAB)
-    a_ch = lab[:, :, 1].astype(np.float32) - 128.0
-    b_ch = lab[:, :, 2].astype(np.float32) - 128.0
-    chroma = cv2.magnitude(a_ch, b_ch)
-    mean_chroma = float(cv2.mean(chroma, mask=bright_mask)[0])
-
-    mean_lab_b = float(cv2.mean(lab[:, :, 2].astype(np.float32), mask=bright_mask)[0])
-
-    bgr = box_bgr.astype(np.float32) / 255.0
-    B = bgr[:, :, 0]
-    G = bgr[:, :, 1]
-    R = bgr[:, :, 2]
-    exg = 2.0 * G - R - B
-    mean_exg = float(cv2.mean(exg, mask=bright_mask)[0])
-
-    return mean_chroma, mean_exg, mean_lab_b
-
-
-def green_ratio_and_sat(box_hsv: np.ndarray) -> tuple[float, float, int, np.ndarray | None]:
-    """
-    Shadow-tolerant green ratio computed on brightest pixels only, plus mean saturation
-    of those brightest pixels.
-
-    Returns: (green_ratio, mean_sat_bright, bright_pixel_count, bright_mask)
-    """
-    if box_hsv.size == 0:
-        return 0.0, 0.0, 0, None
-
-    bright_mask, bright_count = bright_pixel_masks(box_hsv, BRIGHT_FRACTION)
-    if bright_mask is None or bright_count == 0:
-        return 0.0, 0.0, 0, None
-
-    green_mask = cv2.inRange(box_hsv, LOWER_GREEN, UPPER_GREEN)
-    green_and_bright = cv2.bitwise_and(green_mask, bright_mask)
-
-    green_ratio = float(cv2.countNonZero(green_and_bright)) / float(
-        bright_count + 1e-9
-    )
-
-    # mean saturation over bright pixels
-    S = box_hsv[:, :, 1].astype(np.uint8)
-    mean_sat_bright = float(cv2.mean(S, mask=bright_mask)[0])
-
-    return green_ratio, mean_sat_bright, bright_count, bright_mask
-
-
 def main():
     img_bgr = cv2.imread(IMAGE_PATH)
     if img_bgr is None:
         raise FileNotFoundError(f"Could not read image at: {IMAGE_PATH}")
 
-    h, w = img_bgr.shape[:2]
     hsv_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+
+    h, w = img_bgr.shape[:2]
 
     base, ext = os.path.splitext(IMAGE_PATH)
     work_dir = os.path.dirname(IMAGE_PATH) or "."
@@ -346,7 +350,8 @@ def main():
 
     # Model
     model = df_main.deepforest()
-    model.load_model(model_name="weecology/deepforest-tree", revision="main")
+    # model.load_model(model_name="weecology/deepforest-tree", revision="main")
+    model.load_model()
     model.model.score_thresh = SCORE_THRESH
 
     # Multi-pass predict
@@ -428,58 +433,26 @@ def main():
                 rejected.append(((xmin, ymin, xmax, ymax), "too_skinny"))
                 continue
 
-        # --- color filters ---
-        box_hsv = hsv_img[ymin:ymax, xmin:xmax]
-        green_ratio, mean_sat_bright, bright_cnt, bright_mask = green_ratio_and_sat(box_hsv)
-
-        if bright_cnt < MIN_BRIGHT_PIXELS or bright_mask is None:
-            rejected.append(((xmin, ymin, xmax, ymax), "too_few_bright_px"))
-            continue
-
-        box_bgr = img_bgr[ymin:ymax, xmin:xmax]
-        mean_chroma, mean_exg, mean_lab_b = lab_chroma_exg_b_and_exg_bright(box_bgr, bright_mask)
-
-        # Primary gray-roof kill-switch: low saturation OR low chroma on bright pixels
-        if mean_sat_bright < MIN_MEAN_SAT_BRIGHT or mean_chroma < MIN_LAB_CHROMA_BRIGHT:
-            # Dark canopy rescue: some trees are very dark but still have strong "green dominance".
-            if ENABLE_DARK_VEG_RESCUE and mean_exg >= DARK_VEG_MIN_EXG and mean_chroma >= DARK_VEG_MIN_CHROMA:
-                pass
-            else:
-                rejected.append(((xmin, ymin, xmax, ymax), "low_colorfulness"))
-                continue
-
-        # Secondary vegetation proxy: ExG must be at least mildly positive
-        if mean_exg < MIN_EXG_BRIGHT:
-            rejected.append(((xmin, ymin, xmax, ymax), "low_exg"))
-            continue
-
-        # Main green test; if it fails, optionally allow a "shadow green" rescue
-        if green_ratio < GREEN_RATIO_THRESH:
-            if not ENABLE_SHADOW_GREEN_RESCUE:
-                rejected.append(((xmin, ymin, xmax, ymax), "low_green_ratio"))
-                continue
-
-            v_thr = bright_v_threshold(box_hsv, BRIGHT_FRACTION)
-            if v_thr < MIN_BRIGHT_V_PCT:
-                rejected.append(((xmin, ymin, xmax, ymax), "low_green_ratio"))
-                continue
-
-            # Rescue rule: dark crowns often have weak HSV green ratio, but still show
-            # (a) decent colorfulness and (b) b* shifted above neutral (128).
-            if not (mean_lab_b >= MIN_LAB_B_BRIGHT and mean_chroma >= MIN_LAB_CHROMA_RESCUE):
-                rejected.append(((xmin, ymin, xmax, ymax), "low_green_ratio"))
+        # --- vegetation/color gate ---
+        if USE_VEG_FILTER:
+            crop_hsv = hsv_img[ymin:ymax, xmin:xmax]
+            if not veg_ok(
+                crop_hsv,
+                bright_fraction=BRIGHT_FRACTION,
+                lower_green_hsv=LOWER_GREEN_HSV,
+                upper_green_hsv=UPPER_GREEN_HSV,
+                min_green_ratio=MIN_GREEN_RATIO,
+                min_mean_sat_bright=MIN_MEAN_SAT_BRIGHT,
+                min_mean_v_bright=MIN_MEAN_V_BRIGHT,
+                use_dominant_hue_check=USE_DOMINANT_HUE_CHECK,
+                dominant_hue_bins=DOMINANT_HUE_BINS,
+                min_dominant_hue_frac=MIN_DOMINANT_HUE_FRAC,
+            ):
+                rejected.append(((xmin, ymin, xmax, ymax), "not_green"))
                 continue
 
         # Keep
-        r = row.copy()
-        r["green_ratio_bright"] = green_ratio
-        r["mean_sat_bright"] = mean_sat_bright
-        r["lab_chroma_bright"] = mean_chroma
-        r["lab_b_bright"] = mean_lab_b
-        r["exg_bright"] = mean_exg
-        r["bright_px"] = bright_cnt
-
-        kept_rows.append(r)
+        kept_rows.append(row.copy())
         kept_boxes.append((xmin, ymin, xmax, ymax))
         kept_scores.append(float(row["score"]) if "score" in row else 1.0)
 
@@ -498,7 +471,6 @@ def main():
     if DO_NMS and len(keep_idx) > 1:
         keep_idx = nms(np.array(merged_boxes), np.array(merged_scores), iou_thresh=NMS_IOU)
 
-    # For CSV: we don’t have per-fused-row metadata; keep the filtered original rows.
     kept_df = pd.DataFrame(kept_rows)
     kept_df.to_csv(filt_csv_path, index=False)
 
