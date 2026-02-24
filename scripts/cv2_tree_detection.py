@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import pandas as pd
 
-image_path = "../dataset/satellite_images/RaleighSatelliteSuperCropped.png"
+image_path = "../dataset/satellite_trees/RaleighSatelliteSuperCropped.png"
 
 base, ext = os.path.splitext(image_path)
 out_path = f"{base}_HSV_SIMPLE_boxes.png"

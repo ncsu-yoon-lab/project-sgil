@@ -28,3 +28,12 @@ uv run ruff check . --fix
 # While in the root of the project, run:
 uv run python -m project_sgil.manual_sgil
 ```
+
+## Manual tree labeling
+
+Use the manual labeling tool to click tree centers on the Raleigh satellite image. Clicks are saved to a CSV next to the image and existing points are reloaded when you reopen the tool.
+
+```bash
+# Run the labeling tool
+uv run python scripts\manual_sat_tree_detection.py
+```

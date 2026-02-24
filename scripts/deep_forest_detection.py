@@ -1,6 +1,7 @@
 import deepforest.main as df_main
 import cv2
 import os
+import itertools
 import numpy as np
 import pandas as pd
 
@@ -9,7 +10,7 @@ import pandas as pd
 # ============================================================
 
 # Input
-IMAGE_PATH = "../dataset/satellite_images/RaleighSatellite.png"
+IMAGE_PATH = "../dataset/satellite_trees/RaleighSatellite.png"
 
 # DeepForest inference
 SCORE_THRESH = 0.1           # model confidence threshold (lower = more boxes; was 0.12)
@@ -52,7 +53,7 @@ MAX_AREA_PX = 25_500_000       # reject absurdly large boxes by area
 
 # Optional: fragment/sliver rejection
 USE_ASPECT_FILTER = True      # reject extremely skinny boxes (often fragments)
-MAX_ASPECT = 3.5              # max(w/h, h/w)
+MAX_ASPECT = 3              # max(w/h, h/w)
 
 # --- Filtering: simple vegetation/color gate ---
 # This is intentionally lightweight (no LAB/ExG stats, no tuning script).
@@ -64,9 +65,9 @@ LOWER_GREEN_HSV = (22, 20, 15)   # hue 22 catches yellow-green trees; sat/val sl
 UPPER_GREEN_HSV = (90, 255, 255)
 
 # We only evaluate the brightest pixels in the box (makes it more robust to shadows).
-BRIGHT_FRACTION = 0.50        # fraction of brightest pixels (by V) considered
-MIN_GREEN_RATIO = 0.18        # min fraction of bright pixels in green hue range
-MIN_MEAN_SAT_BRIGHT = 22.0    # min mean saturation among bright pixels
+BRIGHT_FRACTION = 0.52        # fraction of brightest pixels (by V) considered
+MIN_GREEN_RATIO = 0.19        # min fraction of bright pixels in green hue range
+MIN_MEAN_SAT_BRIGHT = 35.0    # min mean saturation among bright pixels
 MIN_MEAN_V_BRIGHT = 42.0      # min mean brightness among bright pixels
 
 # Dominant hue among bright pixels must be in green range. Helps reject tan/white roofs.
@@ -79,12 +80,12 @@ MIN_DOMINANT_HUE_FRAC = 0.18  # fraction of bright pixels falling in the dominan
 # Flat surfaces (pavement, roofs, parking lots) are homogeneous.
 # We measure texture via std-dev of Laplacian (edge density) and local intensity variance.
 USE_TEXTURE_FILTER = True
-MIN_LAPLACIAN_STD = 21.0      # min std-dev of Laplacian; flat surfaces score ~3-8, trees ~20-50+
-MIN_LOCAL_STD = 18.0          # min std-dev of grayscale intensity across the crop
+MIN_LAPLACIAN_STD = 22.0      # min std-dev of Laplacian; flat surfaces score ~3-8, trees ~20-50+
+MIN_LOCAL_STD = 21.0          # min std-dev of grayscale intensity across the crop
 
 # Drawing
-DRAW_REJECTED = True          # draw rejected detections (blue) + rejection reason labels
-HIDE_BLUE = False             # if True, never draw rejected (blue) boxes even if DRAW_REJECTED=True
+DRAW_REJECTED = False          # draw rejected detections (blue) + rejection reason labels
+HIDE_BLUE = True             # if True, never draw rejected (blue) boxes even if DRAW_REJECTED=True
 DRAW_THICKNESS_KEEP = 3       # thickness of kept (red) boxes
 DRAW_THICKNESS_REJECT = 2     # thickness of rejected boxes
 COLOR_KEEP_BRG = (0, 0, 255)  # kept box color (B,G,R)
@@ -401,8 +402,7 @@ def main():
     base, ext = os.path.splitext(IMAGE_PATH)
     work_dir = os.path.dirname(IMAGE_PATH) or "."
     out_path = f"{base}_DEEPFOREST_multipass_boxes.png"
-    raw_csv_path = f"{base}_deepforest_multipass_raw.csv"
-    filt_csv_path = f"{base}_deepforest_multipass_filtered.csv"
+    trees_csv_path = f"{base}_deepforest_trees.csv"
 
     # Model
     model = df_main.deepforest()
@@ -453,7 +453,6 @@ def main():
         raise RuntimeError("No predictions returned from any pass.")
 
     pred_all = pd.concat(all_preds, ignore_index=True)
-    pred_all.to_csv(raw_csv_path, index=False)
 
     # Filter + collect for merge/NMS
     kept_rows = []
@@ -529,7 +528,6 @@ def main():
         kept_scores.append(float(row["score"]) if "score" in row else 1.0)
 
     if not kept_rows:
-        pd.DataFrame(pred_all.head(0)).to_csv(filt_csv_path, index=False)
         raise RuntimeError("All predictions filtered out. Lower thresholds or size filters.")
 
     # Cluster + fuse (big-tree fragmentation fix)
@@ -543,8 +541,14 @@ def main():
     if DO_NMS and len(keep_idx) > 1:
         keep_idx = nms(np.array(merged_boxes), np.array(merged_scores), iou_thresh=NMS_IOU)
 
-    kept_df = pd.DataFrame(kept_rows)
-    kept_df.to_csv(filt_csv_path, index=False)
+    # Save final tree centers (pixel x,y)
+    centers = []
+    for i in keep_idx:
+        x1, y1, x2, y2 = merged_boxes[i]
+        cx = int(round(0.5 * (x1 + x2)))
+        cy = int(round(0.5 * (y1 + y2)))
+        centers.append((cx, cy))
+    pd.DataFrame(centers, columns=["x", "y"]).to_csv(trees_csv_path, index=False)
 
     # Draw
     annotated = img_bgr.copy()
@@ -570,8 +574,7 @@ def main():
 
     # Summary
     print(f"Saved annotated image to: {out_path}")
-    print(f"Saved raw predictions to: {raw_csv_path}")
-    print(f"Saved filtered predictions to: {filt_csv_path}")
+    print(f"Saved tree centers to: {trees_csv_path}")
     print(f"Total raw detections (all passes): {len(pred_all)}")
     print(f"Kept pre-merge: {len(kept_rows)}")
     if DO_MERGE:
@@ -580,5 +583,294 @@ def main():
     print(f"Rejected (blue): {len(rejected)}")
 
 
+# ============================================================
+# Grid search over filter parameters
+# ============================================================
+
+# The 6 most impactful filtering variables and their search ranges.
+# Focused on reducing false positives (non-tree detections).
+GRID = {
+    "min_green_ratio":    [0.12, 0.18, 0.25],          # 3 values
+    "min_mean_sat":       [18.0, 22.0, 28.0],           # 3 values
+    "lower_hue":          [22, 28],                      # 2 values  (lower bound of green hue)
+    "min_laplacian_std":  [15.0, 21.0, 28.0],           # 3 values
+    "min_local_std":      [12.0, 18.0, 24.0],           # 3 values
+    "score_thresh":       [0.08, 0.12],                  # 2 values
+}
+# Full cartesian would be 324 combos — too many.
+# We pair texture axes diagonally and trim color combos to stay ≤ 50.
+
+
+def _filter_predictions(
+    pred_all: pd.DataFrame,
+    img_bgr: np.ndarray,
+    hsv_img: np.ndarray,
+    *,
+    score_thresh: float,
+    min_green_ratio: float,
+    min_mean_sat: float,
+    lower_hue: int,
+    min_laplacian_std: float,
+    min_local_std: float,
+) -> tuple[list[tuple[int, int, int, int]], list[float], list[tuple[tuple[int, int, int, int], str]]]:
+    """Run the full filter pipeline on pre-computed predictions with the given params.
+
+    Returns (kept_boxes, kept_scores, rejected).
+    """
+    h, w = img_bgr.shape[:2]
+    lower_green = (lower_hue, 20, 15)
+    upper_green = UPPER_GREEN_HSV
+
+    kept_boxes: list[tuple[int, int, int, int]] = []
+    kept_scores: list[float] = []
+    rejected: list[tuple[tuple[int, int, int, int], str]] = []
+
+    for _, row in pred_all.iterrows():
+        if float(row.get("score", 1.0)) < score_thresh:
+            continue
+
+        xmin, ymin, xmax, ymax = int(row.xmin), int(row.ymin), int(row.xmax), int(row.ymax)
+        xmin = max(0, min(w - 1, xmin))
+        ymin = max(0, min(h - 1, ymin))
+        xmax = max(0, min(w - 1, xmax))
+        ymax = max(0, min(h - 1, ymax))
+
+        if xmax <= xmin or ymax <= ymin:
+            continue
+
+        bw, bh = xmax - xmin, ymax - ymin
+        area = bw * bh
+
+        # Size filters (fixed — not part of grid)
+        if bw < MIN_SIDE_PX or bh < MIN_SIDE_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_small_side"))
+            continue
+        if area < MIN_AREA_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_small_area"))
+            continue
+        if bw > MAX_SIDE_PX or bh > MAX_SIDE_PX or area > MAX_AREA_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_large"))
+            continue
+        if USE_ASPECT_FILTER:
+            aspect = max(bw / float(bh + 1e-9), bh / float(bw + 1e-9))
+            if aspect > MAX_ASPECT:
+                rejected.append(((xmin, ymin, xmax, ymax), "too_skinny"))
+                continue
+
+        # Vegetation / color gate
+        crop_hsv = hsv_img[ymin:ymax, xmin:xmax]
+        if not veg_ok(
+            crop_hsv,
+            bright_fraction=BRIGHT_FRACTION,
+            lower_green_hsv=lower_green,
+            upper_green_hsv=upper_green,
+            min_green_ratio=min_green_ratio,
+            min_mean_sat_bright=min_mean_sat,
+            min_mean_v_bright=MIN_MEAN_V_BRIGHT,
+            use_dominant_hue_check=USE_DOMINANT_HUE_CHECK,
+            dominant_hue_bins=DOMINANT_HUE_BINS,
+            min_dominant_hue_frac=MIN_DOMINANT_HUE_FRAC,
+        ):
+            rejected.append(((xmin, ymin, xmax, ymax), "not_green"))
+            continue
+
+        # Texture / lumpiness gate
+        crop_bgr = img_bgr[ymin:ymax, xmin:xmax]
+        if not texture_ok(crop_bgr, min_laplacian_std=min_laplacian_std, min_local_std=min_local_std):
+            rejected.append(((xmin, ymin, xmax, ymax), "too_flat"))
+            continue
+
+        kept_boxes.append((xmin, ymin, xmax, ymax))
+        kept_scores.append(float(row.get("score", 1.0)))
+
+    return kept_boxes, kept_scores, rejected
+
+
+def _draw_result(
+    img_bgr: np.ndarray,
+    kept_boxes: list[tuple[int, int, int, int]],
+    kept_scores: list[float],
+    rejected: list[tuple[tuple[int, int, int, int], str]],
+) -> tuple[np.ndarray, int, int]:
+    """Draw boxes on image — same style as main()."""
+    # Merge + NMS
+    merged_boxes = kept_boxes
+    merged_scores = kept_scores
+    if DO_MERGE and len(kept_boxes) > 1:
+        merged_boxes, merged_scores = cluster_and_fuse(kept_boxes, kept_scores)
+    keep_idx = list(range(len(merged_boxes)))
+    if DO_NMS and len(keep_idx) > 1:
+        keep_idx = nms(np.array(merged_boxes), np.array(merged_scores), iou_thresh=NMS_IOU)
+
+    annotated = img_bgr.copy()
+
+    # Rejected boxes
+    if DRAW_REJECTED and not HIDE_BLUE:
+        for (x1, y1, x2, y2), reason in rejected:
+            color = COLOR_TEXTURE_BRG if reason == "too_flat" else COLOR_REJECT_BRG
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, DRAW_THICKNESS_REJECT)
+            cv2.putText(
+                annotated, reason, (x1, max(0, y1 - 4)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1, cv2.LINE_AA,
+            )
+
+    # Kept boxes
+    for i in keep_idx:
+        x1, y1, x2, y2 = merged_boxes[i]
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), COLOR_KEEP_BRG, DRAW_THICKNESS_KEEP)
+
+    return annotated, len(keep_idx), len(rejected)
+
+
+def grid_search():
+    """Run DeepForest inference once, then sweep filter params and save an image per combo.
+
+    Saves images to a 'grid_search/' subfolder next to the input image.
+    """
+    img_bgr = cv2.imread(IMAGE_PATH)
+    if img_bgr is None:
+        raise FileNotFoundError(f"Could not read image at: {IMAGE_PATH}")
+    hsv_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    h, w = img_bgr.shape[:2]
+
+    base, ext = os.path.splitext(IMAGE_PATH)
+    work_dir = os.path.dirname(IMAGE_PATH) or "."
+    grid_dir = os.path.join(work_dir, "grid_search")
+    os.makedirs(grid_dir, exist_ok=True)
+
+    raw_csv_path = f"{base}_deepforest_multipass_raw.csv"
+
+    # --- Step 1: Run inference (or load cached) ---
+    if os.path.exists(raw_csv_path):
+        print(f"Loading cached raw predictions from: {raw_csv_path}")
+        pred_all = pd.read_csv(raw_csv_path)
+    else:
+        print("Running DeepForest inference (this only happens once)...")
+        model = df_main.deepforest()
+        model.load_model()
+        # Use the LOWEST score thresh from the grid so we don't miss any candidates
+        model.model.score_thresh = min(GRID["score_thresh"])
+
+        all_preds = []
+        tmp_paths = []
+
+        for pass_idx, (gamma, clahe_clip, clahe_grid, use_hist_eq) in enumerate(PASSES):
+            proc = apply_gamma(img_bgr, gamma)
+            if use_hist_eq:
+                proc = apply_hist_eq_v(proc)
+            elif clahe_clip is not None and clahe_grid is not None:
+                proc = apply_clahe_lab(proc, clip_limit=clahe_clip, tile_grid_size=clahe_grid)
+
+            tag = f"pass{pass_idx}_g{gamma}_heq{int(use_hist_eq)}"
+            tmp_path = os.path.join(work_dir, f"__tmp_df_{tag}.jpg")
+            cv2.imwrite(tmp_path, proc)
+            tmp_paths.append(tmp_path)
+
+            for patch_size in PATCH_SIZES:
+                pred = model.predict_tile(path=tmp_path, patch_size=patch_size, patch_overlap=PATCH_OVERLAP)
+                if pred is not None and len(pred) > 0:
+                    pred = pred.copy()
+                    pred["gamma"] = gamma
+                    pred["patch_size"] = patch_size
+                    pred["pass_idx"] = pass_idx
+                    all_preds.append(pred)
+
+        if not SAVE_DEBUG_PASSES:
+            for p in tmp_paths:
+                if os.path.exists(p):
+                    os.remove(p)
+
+        if not all_preds:
+            raise RuntimeError("No predictions returned from any pass.")
+
+        pred_all = pd.concat(all_preds, ignore_index=True)
+        print(f"Loaded raw predictions ({len(pred_all)} detections) in memory")
+
+    # --- Step 2: Build param combos (capped ~48) ---
+    # Instead of full cartesian product (324), we pair related axes:
+    #   - color group: min_green_ratio × min_mean_sat × lower_hue  (3×3×2 = 18)
+    #   - texture group: min_laplacian_std × min_local_std           (3×3 = 9, but pick diagonal-ish = 3)
+    #   - score_thresh: 2 values
+    # Strategy: full color grid × diagonal texture × score_thresh
+    #   => 18 × 3 × 2 = 108 — still too many
+    # Trim color to representative combos:
+
+    color_combos = list(itertools.product(
+        GRID["min_green_ratio"],
+        GRID["min_mean_sat"],
+        GRID["lower_hue"],
+    ))
+    # Texture: pair low-low, mid-mid, high-high (diagonal)
+    tex_lap = GRID["min_laplacian_std"]
+    tex_loc = GRID["min_local_std"]
+    texture_combos = list(zip(tex_lap, tex_loc))  # [(15,12), (21,18), (28,24)]
+
+    score_combos = GRID["score_thresh"]
+
+    all_combos = list(itertools.product(color_combos, texture_combos, score_combos))
+    # Trim to ~50 by subsampling color combos if needed
+    while len(all_combos) > 50:
+        color_combos = color_combos[::2]
+        all_combos = list(itertools.product(color_combos, texture_combos, score_combos))
+
+    print(f"\nGrid search: {len(all_combos)} parameter combinations")
+    print(f"Output directory: {grid_dir}\n")
+
+    # --- Step 3: Filter + draw for each combo ---
+    summary_rows = []
+
+    for idx, (color, texture, score_th) in enumerate(all_combos):
+        mgr, mms, lh = color
+        mls, mloc = texture
+
+        tag = (
+            f"gr{mgr:.2f}_sat{mms:.0f}_hue{lh}"
+            f"_lap{mls:.0f}_loc{mloc:.0f}"
+            f"_sc{score_th:.2f}"
+        )
+
+        print(f"  [{idx + 1}/{len(all_combos)}] {tag} ... ", end="", flush=True)
+
+        kept_boxes, kept_scores, rejected = _filter_predictions(
+            pred_all, img_bgr, hsv_img,
+            score_thresh=score_th,
+            min_green_ratio=mgr,
+            min_mean_sat=mms,
+            lower_hue=lh,
+            min_laplacian_std=mls,
+            min_local_std=mloc,
+        )
+
+        if not kept_boxes:
+            print("0 kept — skipped")
+            continue
+
+        annotated, n_kept, n_rejected = _draw_result(img_bgr, kept_boxes, kept_scores, rejected)
+
+        out_path = os.path.join(grid_dir, f"grid_{idx:03d}_{tag}.jpg")
+        cv2.imwrite(out_path, annotated)
+        print(f"{n_kept} kept, {n_rejected} rejected")
+
+        summary_rows.append({
+            "combo_idx": idx,
+            "tag": tag,
+            "min_green_ratio": mgr,
+            "min_mean_sat": mms,
+            "lower_hue": lh,
+            "min_laplacian_std": mls,
+            "min_local_std": mloc,
+            "score_thresh": score_th,
+            "n_kept": n_kept,
+            "n_rejected": n_rejected,
+        })
+
+    # Save summary CSV
+    summary_path = os.path.join(grid_dir, "grid_search_summary.csv")
+    pd.DataFrame(summary_rows).to_csv(summary_path, index=False)
+    print(f"\nDone! Summary saved to: {summary_path}")
+    print(f"Images saved to: {grid_dir}/")
+
+
 if __name__ == "__main__":
+    # grid_search()
     main()
