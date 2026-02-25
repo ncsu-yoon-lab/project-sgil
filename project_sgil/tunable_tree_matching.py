@@ -21,7 +21,7 @@ from data_structs import Point, Pose2d, Tree, Wedge
 from project_sgil.localization.imu_analyzer import IMUAnalyzer
 from project_sgil.localization.tree_matcher import TreeMatcher
 from project_sgil.utils.converter import Converter
-from project_sgil.utils.utils import _segment_intersects_circle, get_relative_angle
+from project_sgil.utils.utils import _segment_intersects_circle, get_relative_angle, normalize_deg
 
 # ---------- Tunable matcher (weights + geometric thresholds) ----------
 
@@ -89,7 +89,7 @@ class TunableTreeMatcher(TreeMatcher):
                 visible_count += 1
 
             observed_deg = get_relative_angle(selected_tree, estimated_pose)
-            diff = (observed_deg - wedge.theta_degrees + 180.0) % 360.0 - 180.0
+            diff = normalize_deg(observed_deg - wedge.theta_degrees)
             if abs(diff) <= self.theta_tol_deg:
                 theta_match_count += 1
 

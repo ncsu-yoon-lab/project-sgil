@@ -25,7 +25,7 @@ from project_sgil.constants import (
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.utils.converter import Converter
-from project_sgil.utils.utils import _segment_intersects_circle, distance, get_relative_angle
+from project_sgil.utils.utils import _segment_intersects_circle, distance, get_relative_angle, normalize_deg
 
 
 class TreeMatcher:
@@ -448,7 +448,7 @@ class TreeMatcher:
             observed_deg = get_relative_angle(selected_tree, estimated_pose)
 
             # Smallest signed difference in degrees (wrap at 180)
-            diff = (observed_deg - wedge.theta_degrees + 180.0) % 360.0 - 180.0
+            diff = normalize_deg(observed_deg - wedge.theta_degrees)
             if abs(diff) <= THETA_MATCHING_TOLERANCE:
                 theta_match_count += 1
 
@@ -456,6 +456,7 @@ class TreeMatcher:
         visibility_ratio = visible_count / float(total_selected)
         occlusion_component = SCORE_WEIGHT_OCCLUSION * visibility_ratio
 
+        # TODO: maybe make this not a ratio
         # Theta matching component: fraction of angle-consistent selections
         theta_match_ratio = theta_match_count / float(total_selected)
         theta_match_component = SCORE_WEIGHT_THETA_MATCH * theta_match_ratio
@@ -506,4 +507,3 @@ class TreeMatcher:
 
         # Clamp to [0.0, 1.0]
         return max(0.0, min(1.0, confidence))
-

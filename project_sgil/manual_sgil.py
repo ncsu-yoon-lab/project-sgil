@@ -6,13 +6,13 @@ author: Cole Malinchock and Jack Elia
 """
 
 # Import standard libraries
+import json
 import logging
 import os
 import random
 from typing import Any
 
 import cv2
-import pandas as pd
 
 # Import custom classes
 from project_sgil.constants import (
@@ -54,8 +54,8 @@ class ManualSGIL:
     ) -> None:
         """
         :param image_folder: Path containing the .jpg images.
-        :param data_log_path: CSV with columns including
-                              image_filename, rtk_lat, rtk_lon,
+        :param data_log_path: JSON with frames containing
+                              frame_name, rtk_lat, rtk_lon,
                               rtk_heading, gps_lat, gps_lon.
         :param origin: (lat, lon) of the converter origin.
         :param randomize: Whether to pick the next image at random.
@@ -67,8 +67,9 @@ class ManualSGIL:
         self.image_shape = IMAGE_SHAPE
         self.camera_height_m = CAMERA_HEIGHT_M
 
-        # Load robot log into a DataFrame once
-        self.robot_data_log = pd.read_csv(data_log_path)
+        # Load robot log into a frame lookup once
+        self.data_log_path = self._resolve_json_path(data_log_path)
+        self.frame_lookup = self._load_frame_lookup(self.data_log_path)
 
         # Will be set on each call to get_gps_pose
         self.correct_pose: tuple[float, float] | None = None
@@ -80,35 +81,58 @@ class ManualSGIL:
         )
         self._current_index: int = 0
 
+    @staticmethod
+    def _resolve_json_path(path: str) -> str:
+        if path.lower().endswith(".json"):
+            return path
+        if path.lower().endswith(".csv"):
+            return path[:-4] + ".json"
+        return path + ".json"
+
+    @staticmethod
+    def _load_frame_lookup(path: str) -> dict[str, dict[str, Any]]:
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"JSON log not found: {path}")
+
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        frames = data.get("frames", [])
+        lookup: dict[str, dict[str, Any]] = {}
+        for frame in frames:
+            name = str(frame.get("frame_name", "")).strip()
+            if name:
+                lookup[name] = frame
+
+        return lookup
+
     def get_current_pose(self, image_name: str) -> Pose2d | None:
         """Lookup the RTK/GPS pose for a given image filename.
 
         :param image_name: Name of the .jpg image.
         :return: Pose2d if RTK heading is valid; otherwise None.
         """
-        df = self.robot_data_log
-        matches = df[df["image_filename"].str.contains(image_name, case=False, na=False)]
-        if matches.empty or pd.isna(matches.iloc[0]["rtk_heading"]):
+        frame = self.frame_lookup.get(image_name)
+        if frame is None or frame.get("rtk_heading") is None:
             return None
 
-        row = matches.iloc[0]
-        return self.get_gps_pose(row)
+        return self.get_gps_pose(frame)
 
-    def get_gps_pose(self, row: pd.Series) -> Pose2d:
-        """Convert a log row into a Pose2d using RTK for yaw.
+    def get_gps_pose(self, frame: dict[str, Any]) -> Pose2d:
+        """Convert a log frame into a Pose2d using RTK for yaw.
 
         Also updates internal gps_pose/correct_pose for error logging.
-        :param row: pandas Series with rtk_lat, rtk_lon, rtk_heading,
+        :param frame: dict with rtk_lat, rtk_lon, rtk_heading,
             gps_lat, gps_lon.
         :return: Pose2d in local XY + yaw degrees.
         """
         # Convert lat/lon to XY
-        x, y = self.converter.latlon_to_xy((row["rtk_lat"], row["rtk_lon"]))
-        yaw = self.converter.heading_to_yaw(row["rtk_heading"])
+        x, y = self.converter.latlon_to_xy((frame["rtk_lat"], frame["rtk_lon"]))
+        yaw = self.converter.heading_to_yaw(frame["rtk_heading"])
 
         # Store lat/lon for later error computation
-        self.correct_pose = (row["rtk_lat"], row["rtk_lon"])
-        self.gps_pose = (row["gps_lat"], row["gps_lon"])
+        self.correct_pose = (frame["rtk_lat"], frame["rtk_lon"])
+        self.gps_pose = (frame["gps_lat"], frame["gps_lon"])
 
         return Pose2d(x=x, y=y, yaw=yaw)
 

@@ -2,6 +2,7 @@ import math
 
 from project_sgil.constants import EARTH_RADIUS_M, H_FOV_DEG
 from project_sgil.data_structs import Point
+from project_sgil.utils.utils import normalize_deg
 
 # TODO: make this class use our data classes, and organize methods by private, static, and public
 
@@ -110,4 +111,4 @@ class Converter:
         :param heading: Compass heading in degrees (0=N, 90=E).
         :return: Yaw angle in degrees where 0 is +x axis.
         """
-        return (450 - heading) % 360
+        return normalize_deg(450 - heading)
