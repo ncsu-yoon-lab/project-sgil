@@ -2,16 +2,22 @@
 name = "project_sgil"
 version = "0.1.0"
 description = "A tree-based localization method"
-requires-python = ">=3.10"
+requires-python = "==3.12.*"
 dependencies = [
     "opencv-python",
     "pandas",
     "matplotlib",
     "shapely",
     "numpy",
+    "deepforest",
+    "torch",
+    "torchvision",
+    "torchaudio",
     "sympy",
     "OSMPythonTools",
     "scipy",
+    "PyYAML",
+    "earthengine-api",
 ]
 
 [project.optional-dependencies]
@@ -23,22 +29,36 @@ dev = [
     "pandas",
 ]
 
+[tool.uv]
+override-dependencies = [
+    "albumentations==1.4.24",
+]
+
 [tool.ruff]
 line-length = 100
 target-version = "py310"
 show-fixes = true
 unsafe-fixes = true
 
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+torchaudio = { index = "pytorch-cu124" }
+
 [tool.ruff.lint]
 ignore = [
     "PLR2004",
     "PLR0911",
     "T201",
+    "T203",
     "D",
-#    TODO: probably want these three back in
     "PLR0912",
     "PLR0915",
-    "PLR0913"
 ]
 extend-ignore = [
     "D100",
@@ -58,11 +78,3 @@ fixable = ["ALL"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
-
-[tool.docformatter]
-wrap-summaries = 100
-wrap-descriptions = 100
-pre-summary-newline = true
-make-summary-multi-line = true
-recursive = true
-in-place = true

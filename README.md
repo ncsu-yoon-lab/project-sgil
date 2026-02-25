@@ -4,41 +4,36 @@ The goal of this project is to use CV paired with satellite imagery to improve l
 
 ## Setup
 
-This project is for Linux systems. If on Windows, please use WSL.
+This project is for Linux systems. If on Windows, please use WSL. Also, depending on the images you're using, you will need to download them separately.
 
-### Install system prerequisites
+### Setup Environment
 
-```bash
-sudo apt update
-sudo apt install -y python3 python3-venv python3-pip
-```
-
-### Create a virtual environment
+We use uv for our project. You can install it [here](https://docs.astral.sh/uv/getting-started/installation/)
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+# Setup venv with uv
+uv sync --all-extras
 ```
-
-### Install Python dependencies
-
-```bash
-pip install --upgrade pip setuptools wheel
-pip install -e .[dev]
-```
-
-### Install pre-commit
-
-```bash
-pre-commit install
-```
-
-## Usage
-
-We use pre‑commit to automatically run Ruff and Docformatter on every commit.
 
 ### Lint and format the code
 
 ```bash
-pre-commit run --all-files
+uv run ruff format .
+uv run ruff check . --fix
+```
+
+### Run the code
+
+```bash
+# While in the root of the project, run:
+uv run python -m project_sgil.manual_sgil
+```
+
+## Manual tree labeling
+
+Use the manual labeling tool to click tree centers on the Raleigh satellite image. Clicks are saved to a CSV next to the image and existing points are reloaded when you reopen the tool.
+
+```bash
+# Run the labeling tool
+uv run python scripts\manual_sat_tree_detection.py
 ```

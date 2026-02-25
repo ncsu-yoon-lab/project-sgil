@@ -1,0 +1,876 @@
+import deepforest.main as df_main
+import cv2
+import os
+import itertools
+import numpy as np
+import pandas as pd
+
+# ============================================================
+# CONSTANTS (tune these)
+# ============================================================
+
+# Input
+IMAGE_PATH = "../dataset/satellite_trees/RaleighSatellite.png"
+
+# DeepForest inference
+SCORE_THRESH = 0.1           # model confidence threshold (lower = more boxes; was 0.12)
+PATCH_SIZES = [900, 1500]     # tile sizes for predict_tile (larger helps big crowns)
+PATCH_OVERLAP = 0.45          # tile overlap fraction (higher => fewer patch-boundary fragments)
+
+# Multi-pass preprocessing (helps dark crowns)
+# Each pass: (gamma, clahe_clip_limit | None, clahe_tile_grid | None, use_hist_eq)
+PASSES = [
+    # Standard passes
+    (1.0,  2.0, (8, 8), False),
+    (0.75, 2.0, (8, 8), False),
+    (0.65, 2.0, (8, 8), False),
+    # More aggressive brightening for dark canopies
+    (0.50, 2.0, (8, 8), False),
+    (0.40, 4.0, (4, 4), False),   # stronger CLAHE on aggressively brightened image
+    # Histogram equalization pass (no gamma/CLAHE, different contrast stretch)
+    (1.0,  None, None, True),
+]
+
+# Merge / de-dup
+DO_MERGE = True               # cluster + fuse related boxes
+# (helps big trees collapsing from many small boxes)
+MERGE_MODE = "wbf"            # "wbf" (tighter) or "union" (one big envelope)
+MERGE_IOU = 0.15              # merge boxes if IoU is at least this
+MERGE_IOA = 0.45              # merge boxes if intersection-over-smaller-area is at least this
+# (catches fragments)
+MERGE_CENTER_FRAC = 0.30      # merge boxes if centers are this close
+# (fraction of the larger box max side)
+
+# NMS merge (final de-dup after fusion)
+DO_NMS = True                 # de-duplicate overlapping detections after filtering/merging
+NMS_IOU = 0.30                # IoU threshold for suppression
+
+# --- Filtering: size ---
+MIN_SIDE_PX = 25              # reject tiny boxes; each side must be at least this many pixels
+MIN_AREA_PX = 500             # reject very small boxes by area (w*h)
+MAX_SIDE_PX = 5000            # reject absurdly large boxes (usually false positives)
+MAX_AREA_PX = 25_500_000       # reject absurdly large boxes by area
+
+# Optional: fragment/sliver rejection
+USE_ASPECT_FILTER = True      # reject extremely skinny boxes (often fragments)
+MAX_ASPECT = 3              # max(w/h, h/w)
+
+# --- Filtering: simple vegetation/color gate ---
+# This is intentionally lightweight (no LAB/ExG stats, no tuning script).
+# It helps reject non-tree false positives (roofs, shadows, pavement) that DeepForest can pick up.
+USE_VEG_FILTER = True
+
+# "Green" hue range in HSV (OpenCV hue: [0..179]).
+LOWER_GREEN_HSV = (22, 20, 15)   # hue 22 catches yellow-green trees; sat/val slightly relaxed
+UPPER_GREEN_HSV = (90, 255, 255)
+
+# We only evaluate the brightest pixels in the box (makes it more robust to shadows).
+BRIGHT_FRACTION = 0.52        # fraction of brightest pixels (by V) considered
+MIN_GREEN_RATIO = 0.19        # min fraction of bright pixels in green hue range
+MIN_MEAN_SAT_BRIGHT = 35.0    # min mean saturation among bright pixels
+MIN_MEAN_V_BRIGHT = 42.0      # min mean brightness among bright pixels
+
+# Dominant hue among bright pixels must be in green range. Helps reject tan/white roofs.
+USE_DOMINANT_HUE_CHECK = True
+DOMINANT_HUE_BINS = 36        # number of hue bins over [0..179]
+MIN_DOMINANT_HUE_FRAC = 0.18  # fraction of bright pixels falling in the dominant bin
+
+# --- Filtering: texture / "lumpiness" gate ---
+# Trees seen from above are lumpy (shadows between branches, varied colors).
+# Flat surfaces (pavement, roofs, parking lots) are homogeneous.
+# We measure texture via std-dev of Laplacian (edge density) and local intensity variance.
+USE_TEXTURE_FILTER = True
+MIN_LAPLACIAN_STD = 22.0      # min std-dev of Laplacian; flat surfaces score ~3-8, trees ~20-50+
+MIN_LOCAL_STD = 21.0          # min std-dev of grayscale intensity across the crop
+
+# Drawing
+DRAW_REJECTED = False          # draw rejected detections (blue) + rejection reason labels
+HIDE_BLUE = True             # if True, never draw rejected (blue) boxes even if DRAW_REJECTED=True
+DRAW_THICKNESS_KEEP = 3       # thickness of kept (red) boxes
+DRAW_THICKNESS_REJECT = 2     # thickness of rejected boxes
+COLOR_KEEP_BRG = (0, 0, 255)  # kept box color (B,G,R)
+COLOR_REJECT_BRG = (255, 0, 0)  # rejected box color (B,G,R)
+COLOR_TEXTURE_BRG = (255, 255, 0)  # texture-rejected box color (B,G,R) — cyan
+
+# Output files
+SAVE_DEBUG_PASSES = False      # keep the temporary gamma/CLAHE images on disk (debugging)
+
+# ============================================================
+# End constants
+# ============================================================
+
+
+def apply_gamma(img_bgr: np.ndarray, gamma: float) -> np.ndarray:
+    if gamma == 1.0:
+        return img_bgr
+    inv = 1.0 / gamma
+    table = (np.arange(256) / 255.0) ** inv
+    table = np.clip(table * 255.0, 0, 255).astype(np.uint8)
+    return cv2.LUT(img_bgr, table)
+
+
+def apply_clahe_lab(img_bgr: np.ndarray, clip_limit=2.0, tile_grid_size=(8, 8)) -> np.ndarray:
+    lab = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2LAB)
+    L, A, B = cv2.split(lab)
+    clahe = cv2.createCLAHE(clipLimit=clip_limit, tileGridSize=tile_grid_size)
+    L2 = clahe.apply(L)
+    lab2 = cv2.merge([L2, A, B])
+    return cv2.cvtColor(lab2, cv2.COLOR_LAB2BGR)
+
+
+def apply_hist_eq_v(img_bgr: np.ndarray) -> np.ndarray:
+    """Equalize the V channel in HSV — a different contrast stretch than CLAHE."""
+    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    H, S, V = cv2.split(hsv)
+    V = cv2.equalizeHist(V)
+    hsv2 = cv2.merge([H, S, V])
+    return cv2.cvtColor(hsv2, cv2.COLOR_HSV2BGR)
+
+
+def _bright_pixel_mask_v(box_hsv: np.ndarray, bright_fraction: float) -> np.ndarray | None:
+    """Return a mask (uint8 0/255) selecting the brightest pixels by V within a crop."""
+    if box_hsv.size == 0:
+        return None
+    V = box_hsv[:, :, 2].astype(np.uint8)
+    if V.size == 0:
+        return None
+    v_flat = V.reshape(-1)
+    # quantile can be slightly expensive but crops are small.
+    thresh = float(np.quantile(v_flat, 1.0 - float(bright_fraction)))
+    mask = (V >= thresh).astype(np.uint8) * 255
+    if cv2.countNonZero(mask) == 0:
+        return None
+    return mask
+
+
+def veg_ok(
+    crop_hsv: np.ndarray,
+    bright_fraction: float,
+    lower_green_hsv: tuple[int, int, int],
+    upper_green_hsv: tuple[int, int, int],
+    min_green_ratio: float,
+    min_mean_sat_bright: float,
+    min_mean_v_bright: float,
+    use_dominant_hue_check: bool,
+    dominant_hue_bins: int,
+    min_dominant_hue_frac: float,
+) -> bool:
+    """Lightweight vegetation gate.
+
+    Checks "green ratio" among bright pixels + mean saturation/brightness.
+    Optionally enforces that the dominant hue among bright pixels is in green range.
+    """
+    bright_mask = _bright_pixel_mask_v(crop_hsv, bright_fraction)
+    if bright_mask is None:
+        return False
+
+    bright_cnt = float(cv2.countNonZero(bright_mask))
+    if bright_cnt <= 0:
+        return False
+
+    lower = np.array(lower_green_hsv, dtype=np.uint8)
+    upper = np.array(upper_green_hsv, dtype=np.uint8)
+
+    # green ratio among bright pixels
+    green_mask = cv2.inRange(crop_hsv, lower, upper)
+    green_and_bright = cv2.bitwise_and(green_mask, bright_mask)
+    green_cnt = float(cv2.countNonZero(green_and_bright))
+    green_ratio = green_cnt / (bright_cnt + 1e-9)
+
+    # mean sat/value among bright pixels
+    S = crop_hsv[:, :, 1].astype(np.uint8)
+    V = crop_hsv[:, :, 2].astype(np.uint8)
+    mean_sat_bright = float(cv2.mean(S, mask=bright_mask)[0])
+    mean_v_bright = float(cv2.mean(V, mask=bright_mask)[0])
+
+    if green_ratio < float(min_green_ratio):
+        return False
+    if mean_sat_bright < float(min_mean_sat_bright):
+        return False
+    if mean_v_bright < float(min_mean_v_bright):
+        return False
+
+    if not use_dominant_hue_check:
+        return True
+
+    # dominant hue check on bright pixels
+    H = crop_hsv[:, :, 0].astype(np.uint8)
+    h_vals = H[bright_mask > 0]
+    if h_vals.size == 0:
+        return False
+
+    bins = int(max(6, dominant_hue_bins))
+    # Histogram bins over [0..179]
+    hist, bin_edges = np.histogram(h_vals, bins=bins, range=(0, 180))
+    dom_idx = int(np.argmax(hist))
+    dom_frac = float(hist[dom_idx]) / float(h_vals.size + 1e-9)
+    if dom_frac < float(min_dominant_hue_frac):
+        # no strong dominant hue => likely mixed material/texture, reject
+        return False
+
+    dom_center = 0.5 * (bin_edges[dom_idx] + bin_edges[dom_idx + 1])
+    dom_center = int(dom_center)
+
+    # Check if dominant bin center is within green hue bounds
+    # (wrap not handled here; green doesn't wrap)
+    if not (int(lower_green_hsv[0]) <= dom_center <= int(upper_green_hsv[0])):
+        return False
+
+    return True
+
+
+def texture_ok(
+    crop_bgr: np.ndarray,
+    min_laplacian_std: float,
+    min_local_std: float,
+) -> bool:
+    """Reject homogeneous / flat crops (pavement, roofs, parking lots).
+
+    Trees viewed from above are "lumpy" — lots of shadows between branches,
+    varied leaf colors, etc.  Flat man-made surfaces are smooth/uniform.
+
+    We use two cheap measures:
+      1. std-dev of Laplacian  — high for textured / edge-rich areas
+      2. std-dev of grayscale  — high when there is local brightness variation
+    Both must exceed their thresholds for the crop to pass.
+    """
+    if crop_bgr.size == 0:
+        return False
+
+    gray = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2GRAY)
+
+    # Laplacian edge density
+    lap = cv2.Laplacian(gray, cv2.CV_64F)
+    lap_std = float(np.std(lap))
+
+    # Local intensity variation
+    local_std = float(np.std(gray.astype(np.float32)))
+
+    return lap_std >= min_laplacian_std and local_std >= min_local_std
+
+
+def iou(boxA, boxB):
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    interW = max(0, xB - xA)
+    interH = max(0, yB - yA)
+    inter = interW * interH
+    if inter == 0:
+        return 0.0
+    areaA = max(0, boxA[2] - boxA[0]) * max(0, boxA[3] - boxA[1])
+    areaB = max(0, boxB[2] - boxB[0]) * max(0, boxB[3] - boxB[1])
+    return inter / float(areaA + areaB - inter + 1e-9)
+
+
+def ioa_smaller(boxA, boxB) -> float:
+    """Intersection-over-area-of-smaller-box. Useful for merging fragments inside a big tree box."""
+    xA = max(boxA[0], boxB[0])
+    yA = max(boxA[1], boxB[1])
+    xB = min(boxA[2], boxB[2])
+    yB = min(boxA[3], boxB[3])
+    interW = max(0, xB - xA)
+    interH = max(0, yB - yA)
+    inter = interW * interH
+    if inter == 0:
+        return 0.0
+    areaA = max(0, boxA[2] - boxA[0]) * max(0, boxA[3] - boxA[1])
+    areaB = max(0, boxB[2] - boxB[0]) * max(0, boxB[3] - boxB[1])
+    denom = max(1.0, float(min(areaA, areaB)))
+    return float(inter) / denom
+
+
+def center_dist(boxA, boxB) -> float:
+    ax = 0.5 * (boxA[0] + boxA[2])
+    ay = 0.5 * (
+        boxA[1] + boxA[3]
+    )
+    bx = 0.5 * (boxB[0] + boxB[2])
+    by = 0.5 * (boxB[1] + boxB[3])
+    return float(np.hypot(ax - bx, ay - by))
+
+
+def max_side(box) -> float:
+    return float(max(1.0, (box[2] - box[0]), (box[3] - box[1])))
+
+
+def should_merge(boxA, boxB) -> bool:
+    if iou(boxA, boxB) >= MERGE_IOU:
+        return True
+    if ioa_smaller(boxA, boxB) >= MERGE_IOA:
+        return True
+    # If they’re really close (often patch splits), merge.
+    if center_dist(boxA, boxB) <= MERGE_CENTER_FRAC * max(max_side(boxA), max_side(boxB)):
+        return True
+    return False
+
+
+def fuse_cluster(
+    boxes: list[tuple[int, int, int, int]],
+    scores: list[float],
+) -> tuple[int, int, int, int]:
+    """Fuse a cluster of boxes into one (either weighted average or union)."""
+    if not boxes:
+        return (0, 0, 0, 0)
+
+    if MERGE_MODE.lower() == "union" or len(boxes) == 1:
+        xs1 = [b[0] for b in boxes]
+        ys1 = [b[1] for b in boxes]
+        xs2 = [b[2] for b in boxes]
+        ys2 = [b[3] for b in boxes]
+        return (int(min(xs1)), int(min(ys1)), int(max(xs2)), int(max(ys2)))
+
+    # Weighted Box Fusion (simple): coordinate = sum(score * coord) / sum(score)
+    wts = np.asarray(scores, dtype=np.float32)
+    if not np.isfinite(wts).all() or wts.sum() <= 1e-9:
+        wts = np.ones(len(boxes), dtype=np.float32)
+    wts = wts / (wts.sum() + 1e-9)
+
+    arr = np.asarray(boxes, dtype=np.float32)
+    fused = (arr * wts[:, None]).sum(axis=0)
+    return (int(fused[0]), int(fused[1]), int(fused[2]), int(fused[3]))
+
+
+def cluster_and_fuse(boxes: list[tuple[int, int, int, int]], scores: list[float]):
+    """Group boxes that likely refer to the same crown, then fuse each group into one box."""
+    n = len(boxes)
+    if n <= 1:
+        return boxes, scores
+
+    # Union-Find for clustering
+    parent = list(range(n))
+
+    def find(a):
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def union(a, b):
+        ra, rb = find(a), find(b)
+        if ra != rb:
+            parent[rb] = ra
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if should_merge(boxes[i], boxes[j]):
+                union(i, j)
+
+    clusters: dict[int, list[int]] = {}
+    for i in range(n):
+        r = find(i)
+        clusters.setdefault(r, []).append(i)
+
+    fused_boxes: list[tuple[int, int, int, int]] = []
+    fused_scores: list[float] = []
+    for idxs in clusters.values():
+        b = [boxes[k] for k in idxs]
+        s = [scores[k] for k in idxs]
+        fused_boxes.append(
+            fuse_cluster(b, s)
+        )
+        fused_scores.append(float(max(s)))
+
+    return fused_boxes, fused_scores
+
+
+def nms(boxes, scores, iou_thresh=0.35):
+    idxs = np.argsort(scores)[::-1]
+    keep = []
+    while len(idxs) > 0:
+        cur = idxs[0]
+        keep.append(cur)
+        rest = idxs[1:]
+        survivors = []
+        for r in rest:
+            if iou(boxes[cur], boxes[r]) <= iou_thresh:
+                survivors.append(r)
+        idxs = np.array(survivors, dtype=int)
+    return keep
+
+
+def main():
+    img_bgr = cv2.imread(IMAGE_PATH)
+    if img_bgr is None:
+        raise FileNotFoundError(f"Could not read image at: {IMAGE_PATH}")
+
+    hsv_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+
+    h, w = img_bgr.shape[:2]
+
+    base, ext = os.path.splitext(IMAGE_PATH)
+    work_dir = os.path.dirname(IMAGE_PATH) or "."
+    out_path = f"{base}_DEEPFOREST_multipass_boxes.png"
+    trees_csv_path = f"{base}_deepforest_trees.csv"
+
+    # Model
+    model = df_main.deepforest()
+    # model.load_model(model_name="weecology/deepforest-tree", revision="main")
+    model.load_model()
+    model.model.score_thresh = SCORE_THRESH
+
+    # Multi-pass predict
+    all_preds = []
+    tmp_paths = []
+
+    for pass_idx, (gamma, clahe_clip, clahe_grid, use_hist_eq) in enumerate(PASSES):
+        proc = apply_gamma(img_bgr, gamma)
+        if use_hist_eq:
+            proc = apply_hist_eq_v(proc)
+        elif clahe_clip is not None and clahe_grid is not None:
+            proc = apply_clahe_lab(
+                proc,
+                clip_limit=clahe_clip,
+                tile_grid_size=clahe_grid,
+            )
+
+        tag = f"pass{pass_idx}_g{gamma}_heq{int(use_hist_eq)}"
+        tmp_path = os.path.join(work_dir, f"__tmp_df_{tag}.jpg")
+        cv2.imwrite(tmp_path, proc)
+        tmp_paths.append(tmp_path)
+
+        for patch_size in PATCH_SIZES:
+            pred = model.predict_tile(
+                path=tmp_path,
+                patch_size=patch_size,
+                patch_overlap=PATCH_OVERLAP
+            )
+
+            if pred is not None and len(pred) > 0:
+                pred = pred.copy()
+                pred["gamma"] = gamma
+                pred["patch_size"] = patch_size
+                pred["pass_idx"] = pass_idx
+                all_preds.append(pred)
+
+    if not SAVE_DEBUG_PASSES:
+        for p in tmp_paths:
+            if os.path.exists(p):
+                os.remove(p)
+
+    if not all_preds:
+        raise RuntimeError("No predictions returned from any pass.")
+
+    pred_all = pd.concat(all_preds, ignore_index=True)
+
+    # Filter + collect for merge/NMS
+    kept_rows = []
+    kept_boxes: list[tuple[int, int, int, int]] = []
+    kept_scores: list[float] = []
+
+    rejected = []  # for blue boxes: (box, reason)
+
+    for _, row in pred_all.iterrows():
+        xmin, ymin, xmax, ymax = int(row.xmin), int(row.ymin), int(row.xmax), int(row.ymax)
+
+        # Clamp
+        xmin = max(0, min(w - 1, xmin))
+        ymin = max(0, min(h - 1, ymin))
+        xmax = max(0, min(w - 1, xmax))
+        ymax = max(0, min(h - 1, ymax))
+
+        if xmax <= xmin or ymax <= ymin:
+            continue
+
+        bw = xmax - xmin
+        bh = ymax - ymin
+        area = bw * bh
+
+        # --- size filters ---
+        if bw < MIN_SIDE_PX or bh < MIN_SIDE_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_small_side"))
+            continue
+        if area < MIN_AREA_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_small_area"))
+            continue
+        if bw > MAX_SIDE_PX or bh > MAX_SIDE_PX or area > MAX_AREA_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_large"))
+            continue
+        if USE_ASPECT_FILTER:
+            aspect = max(bw / float(bh + 1e-9), bh / float(bw + 1e-9))
+            if aspect > MAX_ASPECT:
+                rejected.append(((xmin, ymin, xmax, ymax), "too_skinny"))
+                continue
+
+        # --- vegetation/color gate ---
+        if USE_VEG_FILTER:
+            crop_hsv = hsv_img[ymin:ymax, xmin:xmax]
+            if not veg_ok(
+                crop_hsv,
+                bright_fraction=BRIGHT_FRACTION,
+                lower_green_hsv=LOWER_GREEN_HSV,
+                upper_green_hsv=UPPER_GREEN_HSV,
+                min_green_ratio=MIN_GREEN_RATIO,
+                min_mean_sat_bright=MIN_MEAN_SAT_BRIGHT,
+                min_mean_v_bright=MIN_MEAN_V_BRIGHT,
+                use_dominant_hue_check=USE_DOMINANT_HUE_CHECK,
+                dominant_hue_bins=DOMINANT_HUE_BINS,
+                min_dominant_hue_frac=MIN_DOMINANT_HUE_FRAC,
+            ):
+                rejected.append(((xmin, ymin, xmax, ymax), "not_green"))
+                continue
+
+        # --- texture / lumpiness gate ---
+        if USE_TEXTURE_FILTER:
+            crop_bgr = img_bgr[ymin:ymax, xmin:xmax]
+            if not texture_ok(
+                crop_bgr,
+                min_laplacian_std=MIN_LAPLACIAN_STD,
+                min_local_std=MIN_LOCAL_STD,
+            ):
+                rejected.append(((xmin, ymin, xmax, ymax), "too_flat"))
+                continue
+
+        # Keep
+        kept_rows.append(row.copy())
+        kept_boxes.append((xmin, ymin, xmax, ymax))
+        kept_scores.append(float(row["score"]) if "score" in row else 1.0)
+
+    if not kept_rows:
+        raise RuntimeError("All predictions filtered out. Lower thresholds or size filters.")
+
+    # Cluster + fuse (big-tree fragmentation fix)
+    merged_boxes = kept_boxes
+    merged_scores = kept_scores
+    if DO_MERGE and len(kept_boxes) > 1:
+        merged_boxes, merged_scores = cluster_and_fuse(kept_boxes, kept_scores)
+
+    # NMS on merged
+    keep_idx = list(range(len(merged_boxes)))
+    if DO_NMS and len(keep_idx) > 1:
+        keep_idx = nms(np.array(merged_boxes), np.array(merged_scores), iou_thresh=NMS_IOU)
+
+    # Save final tree centers (pixel x,y)
+    centers = []
+    for i in keep_idx:
+        x1, y1, x2, y2 = merged_boxes[i]
+        cx = int(round(0.5 * (x1 + x2)))
+        cy = int(round(0.5 * (y1 + y2)))
+        centers.append((cx, cy))
+    pd.DataFrame(centers, columns=["x", "y"]).to_csv(trees_csv_path, index=False)
+
+    # Draw
+    annotated = img_bgr.copy()
+
+    # Draw rejected first
+    if DRAW_REJECTED and not HIDE_BLUE:
+        for (x1, y1, x2, y2), reason in rejected:
+            color = COLOR_TEXTURE_BRG if reason == "too_flat" else COLOR_REJECT_BRG
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, DRAW_THICKNESS_REJECT)
+            cv2.putText(
+                annotated, reason, (x1, max(0, y1 - 4)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1, cv2.LINE_AA
+            )
+
+    # Draw kept (red) on top
+    for i in keep_idx:
+        x1, y1, x2, y2 = merged_boxes[i]
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), COLOR_KEEP_BRG, DRAW_THICKNESS_KEEP)
+
+    ok = cv2.imwrite(out_path, annotated)
+    if not ok:
+        raise RuntimeError(f"Failed to write output image to: {out_path}")
+
+    # Summary
+    print(f"Saved annotated image to: {out_path}")
+    print(f"Saved tree centers to: {trees_csv_path}")
+    print(f"Total raw detections (all passes): {len(pred_all)}")
+    print(f"Kept pre-merge: {len(kept_rows)}")
+    if DO_MERGE:
+        print(f"After merge: {len(merged_boxes)}")
+    print(f"Kept after NMS: {len(keep_idx)}")
+    print(f"Rejected (blue): {len(rejected)}")
+
+
+# ============================================================
+# Grid search over filter parameters
+# ============================================================
+
+# The 6 most impactful filtering variables and their search ranges.
+# Focused on reducing false positives (non-tree detections).
+GRID = {
+    "min_green_ratio":    [0.12, 0.18, 0.25],          # 3 values
+    "min_mean_sat":       [18.0, 22.0, 28.0],           # 3 values
+    "lower_hue":          [22, 28],                      # 2 values  (lower bound of green hue)
+    "min_laplacian_std":  [15.0, 21.0, 28.0],           # 3 values
+    "min_local_std":      [12.0, 18.0, 24.0],           # 3 values
+    "score_thresh":       [0.08, 0.12],                  # 2 values
+}
+# Full cartesian would be 324 combos — too many.
+# We pair texture axes diagonally and trim color combos to stay ≤ 50.
+
+
+def _filter_predictions(
+    pred_all: pd.DataFrame,
+    img_bgr: np.ndarray,
+    hsv_img: np.ndarray,
+    *,
+    score_thresh: float,
+    min_green_ratio: float,
+    min_mean_sat: float,
+    lower_hue: int,
+    min_laplacian_std: float,
+    min_local_std: float,
+) -> tuple[list[tuple[int, int, int, int]], list[float], list[tuple[tuple[int, int, int, int], str]]]:
+    """Run the full filter pipeline on pre-computed predictions with the given params.
+
+    Returns (kept_boxes, kept_scores, rejected).
+    """
+    h, w = img_bgr.shape[:2]
+    lower_green = (lower_hue, 20, 15)
+    upper_green = UPPER_GREEN_HSV
+
+    kept_boxes: list[tuple[int, int, int, int]] = []
+    kept_scores: list[float] = []
+    rejected: list[tuple[tuple[int, int, int, int], str]] = []
+
+    for _, row in pred_all.iterrows():
+        if float(row.get("score", 1.0)) < score_thresh:
+            continue
+
+        xmin, ymin, xmax, ymax = int(row.xmin), int(row.ymin), int(row.xmax), int(row.ymax)
+        xmin = max(0, min(w - 1, xmin))
+        ymin = max(0, min(h - 1, ymin))
+        xmax = max(0, min(w - 1, xmax))
+        ymax = max(0, min(h - 1, ymax))
+
+        if xmax <= xmin or ymax <= ymin:
+            continue
+
+        bw, bh = xmax - xmin, ymax - ymin
+        area = bw * bh
+
+        # Size filters (fixed — not part of grid)
+        if bw < MIN_SIDE_PX or bh < MIN_SIDE_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_small_side"))
+            continue
+        if area < MIN_AREA_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_small_area"))
+            continue
+        if bw > MAX_SIDE_PX or bh > MAX_SIDE_PX or area > MAX_AREA_PX:
+            rejected.append(((xmin, ymin, xmax, ymax), "too_large"))
+            continue
+        if USE_ASPECT_FILTER:
+            aspect = max(bw / float(bh + 1e-9), bh / float(bw + 1e-9))
+            if aspect > MAX_ASPECT:
+                rejected.append(((xmin, ymin, xmax, ymax), "too_skinny"))
+                continue
+
+        # Vegetation / color gate
+        crop_hsv = hsv_img[ymin:ymax, xmin:xmax]
+        if not veg_ok(
+            crop_hsv,
+            bright_fraction=BRIGHT_FRACTION,
+            lower_green_hsv=lower_green,
+            upper_green_hsv=upper_green,
+            min_green_ratio=min_green_ratio,
+            min_mean_sat_bright=min_mean_sat,
+            min_mean_v_bright=MIN_MEAN_V_BRIGHT,
+            use_dominant_hue_check=USE_DOMINANT_HUE_CHECK,
+            dominant_hue_bins=DOMINANT_HUE_BINS,
+            min_dominant_hue_frac=MIN_DOMINANT_HUE_FRAC,
+        ):
+            rejected.append(((xmin, ymin, xmax, ymax), "not_green"))
+            continue
+
+        # Texture / lumpiness gate
+        crop_bgr = img_bgr[ymin:ymax, xmin:xmax]
+        if not texture_ok(crop_bgr, min_laplacian_std=min_laplacian_std, min_local_std=min_local_std):
+            rejected.append(((xmin, ymin, xmax, ymax), "too_flat"))
+            continue
+
+        kept_boxes.append((xmin, ymin, xmax, ymax))
+        kept_scores.append(float(row.get("score", 1.0)))
+
+    return kept_boxes, kept_scores, rejected
+
+
+def _draw_result(
+    img_bgr: np.ndarray,
+    kept_boxes: list[tuple[int, int, int, int]],
+    kept_scores: list[float],
+    rejected: list[tuple[tuple[int, int, int, int], str]],
+) -> tuple[np.ndarray, int, int]:
+    """Draw boxes on image — same style as main()."""
+    # Merge + NMS
+    merged_boxes = kept_boxes
+    merged_scores = kept_scores
+    if DO_MERGE and len(kept_boxes) > 1:
+        merged_boxes, merged_scores = cluster_and_fuse(kept_boxes, kept_scores)
+    keep_idx = list(range(len(merged_boxes)))
+    if DO_NMS and len(keep_idx) > 1:
+        keep_idx = nms(np.array(merged_boxes), np.array(merged_scores), iou_thresh=NMS_IOU)
+
+    annotated = img_bgr.copy()
+
+    # Rejected boxes
+    if DRAW_REJECTED and not HIDE_BLUE:
+        for (x1, y1, x2, y2), reason in rejected:
+            color = COLOR_TEXTURE_BRG if reason == "too_flat" else COLOR_REJECT_BRG
+            cv2.rectangle(annotated, (x1, y1), (x2, y2), color, DRAW_THICKNESS_REJECT)
+            cv2.putText(
+                annotated, reason, (x1, max(0, y1 - 4)),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.35, color, 1, cv2.LINE_AA,
+            )
+
+    # Kept boxes
+    for i in keep_idx:
+        x1, y1, x2, y2 = merged_boxes[i]
+        cv2.rectangle(annotated, (x1, y1), (x2, y2), COLOR_KEEP_BRG, DRAW_THICKNESS_KEEP)
+
+    return annotated, len(keep_idx), len(rejected)
+
+
+def grid_search():
+    """Run DeepForest inference once, then sweep filter params and save an image per combo.
+
+    Saves images to a 'grid_search/' subfolder next to the input image.
+    """
+    img_bgr = cv2.imread(IMAGE_PATH)
+    if img_bgr is None:
+        raise FileNotFoundError(f"Could not read image at: {IMAGE_PATH}")
+    hsv_img = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+    h, w = img_bgr.shape[:2]
+
+    base, ext = os.path.splitext(IMAGE_PATH)
+    work_dir = os.path.dirname(IMAGE_PATH) or "."
+    grid_dir = os.path.join(work_dir, "grid_search")
+    os.makedirs(grid_dir, exist_ok=True)
+
+    raw_csv_path = f"{base}_deepforest_multipass_raw.csv"
+
+    # --- Step 1: Run inference (or load cached) ---
+    if os.path.exists(raw_csv_path):
+        print(f"Loading cached raw predictions from: {raw_csv_path}")
+        pred_all = pd.read_csv(raw_csv_path)
+    else:
+        print("Running DeepForest inference (this only happens once)...")
+        model = df_main.deepforest()
+        model.load_model()
+        # Use the LOWEST score thresh from the grid so we don't miss any candidates
+        model.model.score_thresh = min(GRID["score_thresh"])
+
+        all_preds = []
+        tmp_paths = []
+
+        for pass_idx, (gamma, clahe_clip, clahe_grid, use_hist_eq) in enumerate(PASSES):
+            proc = apply_gamma(img_bgr, gamma)
+            if use_hist_eq:
+                proc = apply_hist_eq_v(proc)
+            elif clahe_clip is not None and clahe_grid is not None:
+                proc = apply_clahe_lab(proc, clip_limit=clahe_clip, tile_grid_size=clahe_grid)
+
+            tag = f"pass{pass_idx}_g{gamma}_heq{int(use_hist_eq)}"
+            tmp_path = os.path.join(work_dir, f"__tmp_df_{tag}.jpg")
+            cv2.imwrite(tmp_path, proc)
+            tmp_paths.append(tmp_path)
+
+            for patch_size in PATCH_SIZES:
+                pred = model.predict_tile(path=tmp_path, patch_size=patch_size, patch_overlap=PATCH_OVERLAP)
+                if pred is not None and len(pred) > 0:
+                    pred = pred.copy()
+                    pred["gamma"] = gamma
+                    pred["patch_size"] = patch_size
+                    pred["pass_idx"] = pass_idx
+                    all_preds.append(pred)
+
+        if not SAVE_DEBUG_PASSES:
+            for p in tmp_paths:
+                if os.path.exists(p):
+                    os.remove(p)
+
+        if not all_preds:
+            raise RuntimeError("No predictions returned from any pass.")
+
+        pred_all = pd.concat(all_preds, ignore_index=True)
+        print(f"Loaded raw predictions ({len(pred_all)} detections) in memory")
+
+    # --- Step 2: Build param combos (capped ~48) ---
+    # Instead of full cartesian product (324), we pair related axes:
+    #   - color group: min_green_ratio × min_mean_sat × lower_hue  (3×3×2 = 18)
+    #   - texture group: min_laplacian_std × min_local_std           (3×3 = 9, but pick diagonal-ish = 3)
+    #   - score_thresh: 2 values
+    # Strategy: full color grid × diagonal texture × score_thresh
+    #   => 18 × 3 × 2 = 108 — still too many
+    # Trim color to representative combos:
+
+    color_combos = list(itertools.product(
+        GRID["min_green_ratio"],
+        GRID["min_mean_sat"],
+        GRID["lower_hue"],
+    ))
+    # Texture: pair low-low, mid-mid, high-high (diagonal)
+    tex_lap = GRID["min_laplacian_std"]
+    tex_loc = GRID["min_local_std"]
+    texture_combos = list(zip(tex_lap, tex_loc))  # [(15,12), (21,18), (28,24)]
+
+    score_combos = GRID["score_thresh"]
+
+    all_combos = list(itertools.product(color_combos, texture_combos, score_combos))
+    # Trim to ~50 by subsampling color combos if needed
+    while len(all_combos) > 50:
+        color_combos = color_combos[::2]
+        all_combos = list(itertools.product(color_combos, texture_combos, score_combos))
+
+    print(f"\nGrid search: {len(all_combos)} parameter combinations")
+    print(f"Output directory: {grid_dir}\n")
+
+    # --- Step 3: Filter + draw for each combo ---
+    summary_rows = []
+
+    for idx, (color, texture, score_th) in enumerate(all_combos):
+        mgr, mms, lh = color
+        mls, mloc = texture
+
+        tag = (
+            f"gr{mgr:.2f}_sat{mms:.0f}_hue{lh}"
+            f"_lap{mls:.0f}_loc{mloc:.0f}"
+            f"_sc{score_th:.2f}"
+        )
+
+        print(f"  [{idx + 1}/{len(all_combos)}] {tag} ... ", end="", flush=True)
+
+        kept_boxes, kept_scores, rejected = _filter_predictions(
+            pred_all, img_bgr, hsv_img,
+            score_thresh=score_th,
+            min_green_ratio=mgr,
+            min_mean_sat=mms,
+            lower_hue=lh,
+            min_laplacian_std=mls,
+            min_local_std=mloc,
+        )
+
+        if not kept_boxes:
+            print("0 kept — skipped")
+            continue
+
+        annotated, n_kept, n_rejected = _draw_result(img_bgr, kept_boxes, kept_scores, rejected)
+
+        out_path = os.path.join(grid_dir, f"grid_{idx:03d}_{tag}.jpg")
+        cv2.imwrite(out_path, annotated)
+        print(f"{n_kept} kept, {n_rejected} rejected")
+
+        summary_rows.append({
+            "combo_idx": idx,
+            "tag": tag,
+            "min_green_ratio": mgr,
+            "min_mean_sat": mms,
+            "lower_hue": lh,
+            "min_laplacian_std": mls,
+            "min_local_std": mloc,
+            "score_thresh": score_th,
+            "n_kept": n_kept,
+            "n_rejected": n_rejected,
+        })
+
+    # Save summary CSV
+    summary_path = os.path.join(grid_dir, "grid_search_summary.csv")
+    pd.DataFrame(summary_rows).to_csv(summary_path, index=False)
+    print(f"\nDone! Summary saved to: {summary_path}")
+    print(f"Images saved to: {grid_dir}/")
+
+
+if __name__ == "__main__":
+    # grid_search()
+    main()

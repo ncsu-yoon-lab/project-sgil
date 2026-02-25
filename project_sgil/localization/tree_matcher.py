@@ -506,3 +506,4 @@ class TreeMatcher:
 
         # Clamp to [0.0, 1.0]
         return max(0.0, min(1.0, confidence))
+
