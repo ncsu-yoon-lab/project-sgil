@@ -1,3 +1,8 @@
+from project_sgil.data_structs import Point
+
+IMAGE_TOP_LEFT = Point(35.776006, -78.644325)
+IMAGE_BOTTOM_RIGHT = Point(35.772600, -78.637597)
+
 # Origin of the plot
 ORIGIN = (35.770771, -78.674804)
 
