@@ -23,7 +23,6 @@ from constants import (
 from data_structs import LocalizationResult, Point, Pose2d
 
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
-from project_sgil.localization.imu_analyzer import IMUAnalyzer
 from project_sgil.localization.tree_matcher import TreeMatcher
 from project_sgil.utils.converter import Converter
 
@@ -47,9 +46,6 @@ class AutomatedSGIL:
         # Data
         self.robot_data_log: pd.DataFrame = pd.read_csv(data_log_path)
         self.labeled_data: pd.DataFrame = pd.read_csv(labeled_csv_path)
-
-        # IMU analyzer (yaw only)
-        self.imu_analyzer: IMUAnalyzer = IMUAnalyzer(self.robot_data_log)
 
         # Runtime state
         self.current_pose: Pose2d | None = None
@@ -82,17 +78,12 @@ class AutomatedSGIL:
             if row_index is None:
                 continue
 
-            # Seed on first image; thereafter update yaw by IMU between last and current
             if self.current_pose is None:
                 self.current_pose = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=rtk_pose.yaw)
                 self._last_row_index = row_index
                 self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
             else:
-                # Yaw += IMU delta yaw (degrees)
-                delta_yaw_deg = self.imu_analyzer.delta_yaw_deg(
-                    int(self._last_row_index), row_index
-                )
-                self.current_pose.yaw += float(delta_yaw_deg)
+                self.current_pose.yaw = rtk_pose.yaw
                 self._last_row_index = row_index
 
             # RTK Δx,Δy since last anchor (handles skipped images)
@@ -111,7 +102,7 @@ class AutomatedSGIL:
 
             if pixel_points:
                 ground_thetas = self.make_ground_thetas(pixel_points)
-                # Pose used for matching: predicted XY + IMU-updated yaw
+                # Pose used for matching: predicted XY + RTK yaw
                 pose_for_match = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
 
                 # Try TreeMatcher; on failure, fall back to predicted

@@ -29,8 +29,6 @@ from project_sgil.data_structs import Point, Pose2d
 from matplotlib import pyplot as plt
 
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
-from project_sgil.localization.path_vector_generator import PathVectorGenerator
-from project_sgil.localization.gps_analyzer import GPSAnalyzer
 from project_sgil.localization.tree_matcher import TreeMatcher
 from project_sgil.utils.converter import Converter
 
@@ -53,7 +51,6 @@ class ManualSGIL:
         data_log_path: str = DATA_LOGGER_PATH,
         origin: tuple[float, float] = ORIGIN,
         randomize: bool = RANDOM,
-        enable_path_vector: bool = True,
     ) -> None:
         """
         :param image_folder: Path containing the .jpg images.
@@ -62,8 +59,6 @@ class ManualSGIL:
                               rtk_heading, gps_lat, gps_lon.
         :param origin: (lat, lon) of the converter origin.
         :param randomize: Whether to pick the next image at random.
-        :param enable_path_vector: If True, runs the interactive path-vector/yaw
-            step (clicking path corners). If False, skips it.
         """
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher(True)
@@ -71,21 +66,9 @@ class ManualSGIL:
         self.randomize = randomize
         self.image_shape = IMAGE_SHAPE
         self.camera_height_m = CAMERA_HEIGHT_M
-        self.enable_path_vector = bool(enable_path_vector)
 
         # Load robot log into a DataFrame once
         self.robot_data_log = pd.read_csv(data_log_path)
-
-        # Streaming GPS heading estimator (averaged over recent fixes)
-        self.gps_analyzer = GPSAnalyzer(window_size=10, min_distance_m=0.75, max_dt_s=5.0)
-
-        self.path_vector_generator: PathVectorGenerator | None = None
-        if self.enable_path_vector:
-            self.path_vector_generator = PathVectorGenerator(
-                image_shape=self.image_shape,
-                camera_height=self.camera_height_m,
-                dataset=self.robot_data_log,
-            )
 
         # Will be set on each call to get_gps_pose
         self.correct_pose: tuple[float, float] | None = None
@@ -109,17 +92,6 @@ class ManualSGIL:
             return None
 
         row = matches.iloc[0]
-        # Update GPS analyzer with the newest GPS fix (if present)
-        try:
-            self.gps_analyzer.update(
-                float(row.get("timestamp")),
-                float(row.get("gps_lat")),
-                float(row.get("gps_lon")),
-            )
-        except Exception:
-            # Keep ManualSGIL robust to missing columns / bad rows
-            pass
-
         return self.get_gps_pose(row)
 
     def get_gps_pose(self, row: pd.Series) -> Pose2d:
@@ -175,12 +147,6 @@ class ManualSGIL:
         if image is None:
             print(f"Error loading image: {image_name}")
             return self.get_next_image()
-
-        # TODO: use this code eventually, don't delete it
-        # Performs the vectorization of the path detection
-        # path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
-        #     image, self._current_index
-        # )
 
         # Define the mouse callback function
         def click_event(event: int, x: int, y: int, flags: int, param: Any | None) -> None:
@@ -269,17 +235,6 @@ class ManualSGIL:
                 print(f"Error loading image: {name}")
                 continue
 
-            # Optional interactive path-vector selection (click path corners)
-            if self.enable_path_vector and self.path_vector_generator is not None:
-                path_vector, path_yaw = self.path_vector_generator.get_path_vector_and_yaw(
-                    image, self._current_index
-                )
-                print(f"Yaw: {path_yaw} deg")
-            else:
-                path_vector = None
-                path_yaw = None
-                print("Path-vector step disabled")
-
             # Gets the ground thetas from the image and matches the corresponding trees with the
             # satellite data
             ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
@@ -322,18 +277,6 @@ class ManualSGIL:
             logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
             logging.info(f"  RTK Yaw (deg):     {pose.yaw:.2f}")
 
-            gps_heading = self.gps_analyzer.averaged_heading_deg()
-            if gps_heading is None:
-                logging.info("  GPS Heading (deg): n/a")
-            else:
-                # GPSAnalyzer returns a course/bearing in compass degrees (0=N, 90=E).
-                # Our yaw convention is 0=+x (East), 90=+y (North), i.e. yaw = (90 - bearing).
-                gps_yaw = (90.0 - gps_heading) % 360.0
-                logging.info(f"  GPS Bearing (deg): {gps_heading:.2f}")
-                logging.info(f"  GPS Yaw (deg):     {gps_yaw:.2f}")
-
 
 if __name__ == "__main__":
-    # Default to no path-vector clicks when running as a module.
-    # Set enable_path_vector=True if you want the interactive path-corner step.
-    ManualSGIL(enable_path_vector=False).run()
+    ManualSGIL().run()

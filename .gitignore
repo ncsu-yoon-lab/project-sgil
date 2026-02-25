@@ -157,3 +157,9 @@ project_sgil/debug_plots/
 project_sgil/cache/
 
 debug_plots/
+
+.idea
+
+cache
+
+lightning_logs/
