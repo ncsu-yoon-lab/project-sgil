@@ -5,6 +5,7 @@ file: tree_matcher.py
 author: Cole Malinchock and Jack Elia
 """
 
+import collections
 import csv
 import math
 
@@ -12,6 +13,9 @@ from project_sgil.constants import (
     AOI_ANGLE_DEG,
     AOI_RADIUS_M,
     HEADING_ERROR_DEG,
+    HEADING_SWEEP_ENABLED,
+    HEADING_SWEEP_RANGE_DEG,
+    HEADING_SWEEP_STEP_DEG,
     NUMBER_SELECTED_WEIGHT,
     ORIGIN,
     SCORE_RMS_SCALE,
@@ -249,64 +253,174 @@ class TreeMatcher:
     def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
         """Match trees based on current position and ground view angles.
 
+        When HEADING_SWEEP_ENABLED is True the method tries multiple candidate
+        headings (current yaw ± HEADING_SWEEP_RANGE_DEG in steps of
+        HEADING_SWEEP_STEP_DEG) and returns the pose with the highest score.
+        When disabled, behaviour is identical to the original single-heading
+        approach.
+
         :param current_pose: Current position and heading as Pose2d.
         :param ground_thetas: List of camera angles to trees in ground
             view (positive = left, negative = right).
         :return: Estimated location of the vehicle as Point.
         """
-        # Clear previous state
-        self.wedges.clear()
-        self.aoi_trees.clear()
 
-        # The area of interest based on the current pose
-        self.aoi_trees = self._get_area_of_interest(current_pose)
-
-        # Loop through all the thetas and make their corresponding wedges
-        for theta in ground_thetas:
-            self.wedges.append(self._create_wedge(current_pose, theta))
-
-        # Debug: summarize matching inputs
-        print(
-            f"[TreeMatcher] pose=({current_pose.x:.2f}, {current_pose.y:.2f}, yaw={current_pose.yaw:.2f}) "
-            f"ground_thetas={len(ground_thetas)} aoi_trees={len(self.aoi_trees)}"
-        )
-        if self.wedges:
-            wedge_sizes = [len(w.trees) for w in self.wedges]
-            empty_wedges = sum(1 for s in wedge_sizes if s == 0)
-            min_w = min(wedge_sizes)
-            max_w = max(wedge_sizes)
-            avg_w = sum(wedge_sizes) / len(wedge_sizes)
-            print(
-                f"[TreeMatcher] wedges={len(self.wedges)} empty_wedges={empty_wedges} "
-                f"min={min_w} max={max_w} avg={avg_w:.2f}"
-            )
+        # Build the list of candidate yaw values to evaluate
+        if HEADING_SWEEP_ENABLED:
+            candidate_yaws: list[float] = []
+            steps = int(HEADING_SWEEP_RANGE_DEG / HEADING_SWEEP_STEP_DEG)
+            for i in range(-steps, steps + 1):
+                candidate_yaws.append(
+                    current_pose.yaw + i * HEADING_SWEEP_STEP_DEG
+                )
         else:
-            print("[TreeMatcher] No wedges created (no ground_thetas).")
+            candidate_yaws = [current_pose.yaw]
 
-        # Estimate the location by matching the wedges to the identified trees
-        pose_estimates = self._wedge_matching(self.wedges, current_pose)
+        # During heading sweep we suppress per-combo plotting inside
+        # _wedge_matching and instead plot the best combo per candidate
+        # yaw afterwards.
+        sweep_active = HEADING_SWEEP_ENABLED and len(candidate_yaws) > 1
+        saved_plot_wedges = self.plot_wedges
+        if sweep_active:
+            self.plot_wedges = False
 
-        if not pose_estimates:
-            # Extra debug to hint why no estimates were found
-            if len(self.wedges) < 2:
-                print("[TreeMatcher] No pose estimates: need at least 2 wedges for matching.")
-            elif len(self.aoi_trees) == 0:
-                print("[TreeMatcher] No pose estimates: AOI contains 0 trees.")
+        # Each entry: (PoseEstimate, wedges_snapshot, aoi_snapshot,
+        #              candidate_pose)
+        all_entries: list[
+            tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]
+        ] = []
+
+        for candidate_yaw in candidate_yaws:
+            # Clear previous state for this candidate heading
+            self.wedges.clear()
+            self.aoi_trees.clear()
+
+            candidate_pose = Pose2d(
+                current_pose.x, current_pose.y, candidate_yaw
+            )
+
+            # The area of interest based on the candidate pose
+            self.aoi_trees = self._get_area_of_interest(candidate_pose)
+
+            # Loop through all the thetas and create wedges
+            for theta in ground_thetas:
+                self.wedges.append(
+                    self._create_wedge(candidate_pose, theta)
+                )
+
+            # Debug: summarize matching inputs
+            print(
+                f"[TreeMatcher] candidate_yaw={candidate_yaw:.2f} "
+                f"pose=({candidate_pose.x:.2f}, "
+                f"{candidate_pose.y:.2f}) "
+                f"ground_thetas={len(ground_thetas)} "
+                f"aoi_trees={len(self.aoi_trees)}"
+            )
+            if self.wedges:
+                wedge_sizes = [len(w.trees) for w in self.wedges]
+                empty_wedges = sum(
+                    1 for s in wedge_sizes if s == 0
+                )
+                min_w = min(wedge_sizes)
+                max_w = max(wedge_sizes)
+                avg_w = sum(wedge_sizes) / len(wedge_sizes)
+                print(
+                    f"[TreeMatcher] wedges={len(self.wedges)} "
+                    f"empty_wedges={empty_wedges} "
+                    f"min={min_w} max={max_w} avg={avg_w:.2f}"
+                )
             else:
-                print("[TreeMatcher] No pose estimates: wedge combinations yielded no valid intersections.")
+                print(
+                    "[TreeMatcher] No wedges created "
+                    "(no ground_thetas)."
+                )
+
+            # Estimate location by matching wedges to trees
+            pose_estimates = self._wedge_matching(
+                self.wedges, candidate_pose
+            )
+
+            # Snapshot wedges & aoi for later plotting
+            wedges_snap = list(self.wedges)
+            aoi_snap = list(self.aoi_trees)
+
+            for pe in pose_estimates:
+                all_entries.append(
+                    (pe, wedges_snap, aoi_snap, candidate_pose)
+                )
+
+        # Restore original plot_wedges setting
+        self.plot_wedges = saved_plot_wedges
+
+        if not all_entries:
+            if len(ground_thetas) < 2:
+                print(
+                    "[TreeMatcher] No pose estimates: "
+                    "need at least 2 wedges for matching."
+                )
+            else:
+                print(
+                    "[TreeMatcher] No pose estimates: no valid "
+                    "intersections across all candidate headings."
+                )
             raise ValueError("No pose estimates found")
 
-        # Find the pose estimate with the highest score that matched all the wedges
+        # --- Pick best per candidate yaw & plot -------------------------
+        if sweep_active and saved_plot_wedges:
+            # Group entries by candidate yaw
+            by_yaw: dict[float, list[
+                tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]
+            ]] = collections.defaultdict(list)
+            for entry in all_entries:
+                by_yaw[entry[3].yaw].append(entry)
 
-        combo_number = 0
-        for i in range(len(pose_estimates)):
-            estimate = pose_estimates[i]
-            if estimate.score > pose_estimates[combo_number].score:
-                combo_number = i
+            for cand_yaw, entries in by_yaw.items():
+                # Find best scoring entry for this yaw
+                best = max(entries, key=lambda e: e[0].score)
+                pe, wedges_snap, aoi_snap, cand_pose = best
 
-        final_estimate = pose_estimates[combo_number]
+                # Mark matched trees on wedge snapshot
+                for w, t in pe.wedge_combinations.items():
+                    w.matched_tree = t
 
-        # Set the wedges to the pose estimate's matched trees for visualization
+                dx = pe.pose.x - cand_pose.x
+                dy = pe.pose.y - cand_pose.y
+                dist = math.hypot(dx, dy)
+                delta = cand_yaw - current_pose.yaw
+
+                DebugVisualizer.plot_wedges(
+                    wedges=wedges_snap,
+                    wedge_combination=pe.wedge_combinations,
+                    current_pose=cand_pose,
+                    aoi_trees=aoi_snap,
+                    estimated_location=Point(
+                        pe.pose.x, pe.pose.y
+                    ),
+                    save_name=(
+                        f"sweep_yaw_{cand_yaw:.1f}"
+                        f"_delta_{delta:+.1f}"
+                        f"_dist_{dist:.2f}"
+                        f"_wedges_{len(pe.wedge_combinations)}"
+                        f"_score_{pe.score:.2f}"
+                        f"_conf_{pe.confidence:.2f}"
+                    ),
+                )
+
+        # Find the best pose estimate across all candidate headings
+        best_entry = max(all_entries, key=lambda e: e[0].score)
+        final_estimate = best_entry[0]
+
+        if HEADING_SWEEP_ENABLED:
+            print(
+                f"[TreeMatcher] Heading sweep selected "
+                f"yaw={final_estimate.pose.yaw:.2f} "
+                f"(input was {current_pose.yaw:.2f}, "
+                f"delta="
+                f"{final_estimate.pose.yaw - current_pose.yaw:+.2f}"
+                f") score={final_estimate.score:.2f}"
+            )
+
+        # Set wedges for visualization
         for wedge, tree in final_estimate.wedge_combinations.items():
             wedge.matched_tree = tree
 
@@ -323,9 +437,10 @@ class TreeMatcher:
 
         area_of_interest_tree_locations: list[Tree] = []
 
+        # Computes adjusted pose offset 10m behind current heading
         adjusted_pose = Pose2d(
-            x=current_pose.x - 10 * math.cos(math.radians(current_pose.yaw)),
-            y=current_pose.y - 10 * math.sin(math.radians(current_pose.yaw)),
+            x=current_pose.x - 5 * math.cos(math.radians(current_pose.yaw)),
+            y=current_pose.y - 5 * math.sin(math.radians(current_pose.yaw)),
             yaw=current_pose.yaw,
         )
 

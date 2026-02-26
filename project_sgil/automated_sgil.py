@@ -17,6 +17,7 @@ from project_sgil.constants import (
     AOI_RADIUS_M,
     DATA_LOGGER_PATH,
     HEADING_ERROR_DEG,
+    HEADING_SWEEP_ENABLED,
     IMAGE_FOLDER_PATH,
     OUTPUT_CSV,
     PLOT_WEDGES,
@@ -111,7 +112,15 @@ class AutomatedSGIL:
                 try:
                     # pose_for_match = Pose2d(x=rtk_pose.x, y=rtk_pose.y, yaw=self.current_pose.yaw)
                     est_xy: Point = self.tree_matcher.match_trees(pose_for_match, ground_thetas)
-                    estimated_pose = Pose2d(x=est_xy.x, y=est_xy.y, yaw=self.current_pose.yaw)
+                    # When heading sweep is on, est_xy is a Pose2d whose yaw
+                    # reflects the best-scoring heading; use it.
+                    if HEADING_SWEEP_ENABLED and isinstance(est_xy, Pose2d):
+                        est_yaw = est_xy.yaw
+                    else:
+                        est_yaw = self.current_pose.yaw
+                    estimated_pose = Pose2d(
+                        x=est_xy.x, y=est_xy.y, yaw=est_yaw
+                    )
                 except Exception:
                     # Fallback: no change beyond RTK ΔXY
                     estimated_pose = Pose2d(x=predicted_x, y=predicted_y, yaw=self.current_pose.yaw)
@@ -123,7 +132,7 @@ class AutomatedSGIL:
 
             # Advance state with the chosen estimate and update RTK anchor
             self.current_pose = Pose2d(
-                x=estimated_pose.x, y=estimated_pose.y, yaw=self.current_pose.yaw
+                x=estimated_pose.x, y=estimated_pose.y, yaw=estimated_pose.yaw
             )
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
 

@@ -37,6 +37,11 @@ RANDOM = False
 # The error from the heading on the GPS
 HEADING_ERROR_DEG = 6
 
+# Heading sweep: try multiple candidate headings around the given yaw
+HEADING_SWEEP_ENABLED = True
+HEADING_SWEEP_RANGE_DEG = 5  # search yaw ± this many degrees
+HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
+
 # Vertical and Horizontal FOV
 H_FOV_DEG = 110  # [degrees]
 V_FOV_DEG = 70  # [degrees]
