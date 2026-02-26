@@ -16,7 +16,6 @@ import cv2
 
 # Import custom classes
 from project_sgil.constants import (
-    CAMERA_HEIGHT_M,
     DATA_LOGGER_PATH,
     IMAGE_FOLDER_PATH,
     IMAGE_SHAPE,
@@ -65,7 +64,6 @@ class ManualSGIL:
         self.image_folder = image_folder
         self.randomize = randomize
         self.image_shape = IMAGE_SHAPE
-        self.camera_height_m = CAMERA_HEIGHT_M
 
         # Load robot log into a frame lookup once
         self.data_log_path = self._resolve_json_path(data_log_path)
@@ -76,8 +74,11 @@ class ManualSGIL:
         self.gps_pose: tuple[float, float] | None = None
 
         # Prepare image list state
+        self._image_exts = (".jpg", ".jpeg", ".png")
         self._image_list: list[str] = sorted(
-            f for f in os.listdir(self.image_folder) if f.lower().endswith(".jpg")
+            f
+            for f in os.listdir(self.image_folder)
+            if f.lower().endswith(self._image_exts)
         )
         self._current_index: int = 0
 
@@ -103,20 +104,43 @@ class ManualSGIL:
             name = str(frame.get("frame_name", "")).strip()
             if name:
                 lookup[name] = frame
+                # Also store by basename to handle paths like "images/foo.png"
+                lookup[os.path.basename(name)] = frame
 
         return lookup
 
     def get_current_pose(self, image_name: str) -> Pose2d | None:
         """Lookup the RTK/GPS pose for a given image filename.
 
-        :param image_name: Name of the .jpg image.
+        :param image_name: Name of the image.
         :return: Pose2d if RTK heading is valid; otherwise None.
         """
-        frame = self.frame_lookup.get(image_name)
+        frame = self._get_frame_for_image(image_name)
         if frame is None or frame.get("rtk_heading") is None:
             return None
 
         return self.get_gps_pose(frame)
+
+    def _get_frame_for_image(self, image_name: str) -> dict[str, Any] | None:
+        frame = self.frame_lookup.get(image_name)
+        if frame is not None:
+            return frame
+
+        # Try basename match if image_name includes a path
+        base_name = os.path.basename(image_name)
+        frame = self.frame_lookup.get(base_name)
+        if frame is not None:
+            return frame
+
+        # Try matching by basename if extensions differ (.jpg vs .png)
+        base, _ = os.path.splitext(base_name)
+        for ext in self._image_exts:
+            candidate = f"{base}{ext}"
+            frame = self.frame_lookup.get(candidate)
+            if frame is not None:
+                return frame
+
+        return None
 
     def get_gps_pose(self, frame: dict[str, Any]) -> Pose2d:
         """Convert a log frame into a Pose2d using RTK for yaw.
@@ -172,32 +196,39 @@ class ManualSGIL:
             print(f"Error loading image: {image_name}")
             return self.get_next_image()
 
-        # Define the mouse callback function
-        def click_event(event: int, x: int, y: int, flags: int, param: Any | None) -> None:
-            """Handle mouse click events for point selection."""
-            # Check if left mouse button was clicked
-            if event == cv2.EVENT_LBUTTONDOWN:
-                # Add point to list
-                selected_points.append(Point(x, y))
-                # Draw circle at clicked position
-                cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
-                # Update the display
-                cv2.imshow(window_name, displayed_image)
-
-        # Close any existing matplotlib figures and OpenCV windows
-        plt.close("all")
-        cv2.destroyAllWindows()
-        cv2.waitKey(1)
+        # Get image dimensions
+        img_h, img_w = image.shape[:2]
 
         # Create a copy to display and modify
-        displayed_image = image.copy()
+        display_max_w = 1280
+        display_max_h = 720
+        scale = min(1.0, display_max_w / img_w, display_max_h / img_h)
+        if scale < 1.0:
+            display_w = int(round(img_w * scale))
+            display_h = int(round(img_h * scale))
+            displayed_image = cv2.resize(image, (display_w, display_h), interpolation=cv2.INTER_AREA)
+        else:
+            display_w = img_w
+            display_h = img_h
+            displayed_image = image.copy()
 
         # Create a window name with image info for uniqueness
         window_name = f"Select Points - {image_name}"
 
-        # Create window and set it to autosize first, then resize
-        cv2.namedWindow(window_name, cv2.WINDOW_AUTOSIZE)
+        # Create window and set it to a fixed size
+        cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+        cv2.resizeWindow(window_name, display_w, display_h)
         cv2.imshow(window_name, displayed_image)
+
+        # Define the mouse callback function
+        def click_event(event: int, x: int, y: int, flags: int, param: Any | None) -> None:
+            """Handle mouse click events for point selection."""
+            if event == cv2.EVENT_LBUTTONDOWN:
+                full_x = int(round(x / scale)) if scale != 1.0 else x
+                full_y = int(round(y / scale)) if scale != 1.0 else y
+                selected_points.append(Point(full_x, full_y))
+                cv2.circle(displayed_image, (x, y), 5, (0, 255, 0), -1)
+                cv2.imshow(window_name, displayed_image)
 
         # Set the mouse callback function
         cv2.setMouseCallback(window_name, click_event)  # type: ignore[arg-type]
@@ -208,11 +239,13 @@ class ManualSGIL:
         # Wait for keypress - Enter key will finish selection
         while True:
             key = cv2.waitKey(1) & 0xFF
-            # If Enter key is pressed, break the loop
-            if key == 13:  # 13 is the ASCII code for Enter
+            if key == 13:  # Enter
+                if not selected_points:
+                    cv2.destroyWindow(window_name)
+                    cv2.waitKey(1)
+                    return image_name, [], None
                 break
-            # If ESC key is pressed, skip this image
-            elif key == 27:  # 27 is the ASCII code for ESC
+            if key == 27:  # ESC
                 selected_points = []
                 break
 
@@ -222,7 +255,6 @@ class ManualSGIL:
 
         return image_name, selected_points, pose
 
-        # return None, None, None
 
     def run(self) -> None:
         """

@@ -13,7 +13,6 @@ import statistics
 
 import pandas as pd
 from constants import (
-    CAMERA_HEIGHT_M,
     DATA_LOGGER_PATH,
     IMAGE_FOLDER_PATH,
     IMAGE_SHAPE,
@@ -41,7 +40,6 @@ class AutomatedSGIL:
         self.tree_matcher: TreeMatcher = TreeMatcher()
         self.image_folder: str = image_folder
         self.image_shape = IMAGE_SHAPE
-        self.camera_height_m = CAMERA_HEIGHT_M
 
         # Data
         self.robot_data_log: pd.DataFrame = pd.read_csv(data_log_path)

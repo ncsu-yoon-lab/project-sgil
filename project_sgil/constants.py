@@ -36,7 +36,6 @@ H_FOV_DEG = 110  # [degrees]
 V_FOV_DEG = 70  # [degrees]
 
 # Camera specs
-CAMERA_HEIGHT_M = 2.57  # [m]
 IMAGE_SHAPE = (720, 1280, 3)
 
 # Radius of area of interest (AOI)
