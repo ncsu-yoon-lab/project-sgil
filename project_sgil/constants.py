@@ -10,13 +10,13 @@ ORIGIN = ((IMAGE_TOP_LEFT.x + IMAGE_BOTTOM_RIGHT.x) / 2.0, (IMAGE_TOP_LEFT.y + I
 EARTH_RADIUS_M = 6378137  # [m]
 
 # Path to the CSV of tree locations in lat, lon
-TREE_LOCATIONS_PATH = "dataset/tables/TreeLocations-Manual.csv"
+TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_manual_trees.csv"
 
 # Path to the data logged while traveling
-DATA_LOGGER_PATH = "dataset/tables/GroundPositionLogger.csv"
+DATA_LOGGER_PATH = "dataset/tables/results.json"
 # DATA_LOGGER_PATH = "../dataset/tables/Calibration.csv"
 # Path to the folder with all the images
-IMAGE_FOLDER_PATH = "dataset/images"
+IMAGE_FOLDER_PATH = "dataset/raleigh_images"
 # IMAGE_FOLDER_PATH = "../dataset/images-calibration"
 
 OUTPUT_CSV = "annotated_image_data.csv"

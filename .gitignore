@@ -163,3 +163,5 @@ debug_plots/
 cache
 
 lightning_logs/
+
+project_sgil/scripts/download_images.py
