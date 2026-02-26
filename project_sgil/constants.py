@@ -22,8 +22,14 @@ IMAGE_FOLDER_PATH = "dataset/raleigh_images"
 OUTPUT_CSV = "annotated_image_data.csv"
 
 # Boolean to plot points of trees
-# PLOT = True
-PLOT = False
+PLOT = True
+# PLOT = False
+
+# Boolean to plot wedge debug visuals
+PLOT_WEDGES = True
+
+# If True, allow wedge debug plots even when not all wedges are matched
+PLOT_WEDGES_PARTIAL = True
 
 # Random
 RANDOM = False

@@ -10,8 +10,10 @@ import os
 
 import matplotlib
 
-from project_sgil.constants import AOI_ANGLE_DEG, AOI_RADIUS_M
+from project_sgil.constants import AOI_ANGLE_DEG, AOI_RADIUS_M, ORIGIN
 from project_sgil.data_structs import Point, Pose2d, Tree, Wedge
+from project_sgil.utils.converter import Converter
+from project_sgil.utils.utils import get_relative_angle
 
 matplotlib.use("Agg")  # Use non-interactive backend that won't interfere with OpenCV
 import matplotlib.pyplot as plt
@@ -65,6 +67,9 @@ class DebugVisualizer:
         """
         fig, ax = plt.subplots(figsize=(10, 8))
 
+        converter = Converter(ORIGIN[0], ORIGIN[1])
+        pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
+
         # Plot all satellite trees in blue
         all_x = [tree.x for tree in all_sat_tree_loc]
         all_y = [tree.y for tree in all_sat_tree_loc]
@@ -83,6 +88,13 @@ class DebugVisualizer:
             s=100,
             marker="*",
             label="Current Position",
+        )
+        ax.text(
+            current_pose.x + 0.5,
+            current_pose.y + 0.5,
+            f"({pose_lat:.6f}, {pose_lon:.6f})",
+            fontsize=7,
+            alpha=0.8,
         )
 
         # Draw heading arrow
@@ -124,6 +136,11 @@ class DebugVisualizer:
         )
         ax.add_patch(wedge_patch)
 
+        # Zoom in around the AOI with a small margin
+        margin = AOI_RADIUS_M * 1.2
+        ax.set_xlim(current_pose.x - margin, current_pose.x + margin)
+        ax.set_ylim(current_pose.y - margin, current_pose.y + margin)
+
         ax.set_aspect("equal")
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
@@ -134,7 +151,8 @@ class DebugVisualizer:
             f"Total trees: {len(all_sat_tree_loc)}\n"
             f"AOI trees: {len(aoi_sat_trees)}\n"
             f"Position: ({current_pose.x:.1f}, {current_pose.y:.1f})\n"
-            f"Heading: {current_pose.yaw:.1f}°"
+            f"Heading: {current_pose.yaw:.1f}°\n"
+            f"LatLon: ({pose_lat:.6f}, {pose_lon:.6f})"
         )
         plt.figtext(
             0.02,
@@ -166,6 +184,25 @@ class DebugVisualizer:
         """Visualize AOI trees, wedge directions, and chosen tree per wedge."""
         fig, ax = plt.subplots(figsize=(10, 8))
 
+        converter = Converter(ORIGIN[0], ORIGIN[1])
+        pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
+        labeled_ids: set[int] = set()
+
+        def _label_tree(tree: Tree) -> None:
+            tree_id = getattr(tree, "id", None)
+            if tree_id is not None and tree_id in labeled_ids:
+                return
+            lat, lon = converter.xy_to_latlon(Point(tree.x, tree.y))
+            ax.text(
+                tree.x + 0.5,
+                tree.y + 0.5,
+                f"({lat:.6f}, {lon:.6f})",
+                fontsize=6,
+                alpha=0.7,
+            )
+            if tree_id is not None:
+                labeled_ids.add(tree_id)
+
         # --- AOI: faint background points for context ---
         if aoi_trees:
             ax.scatter(
@@ -176,10 +213,19 @@ class DebugVisualizer:
                 c="#777777",
                 label="AOI Trees",
             )
+            for t in aoi_trees:
+                _label_tree(t)
 
         # --- Pose + heading arrow ---
         ax.scatter(
             current_pose.x, current_pose.y, s=90, marker="*", label="Current Pose", c="#1f77b4"
+        )
+        ax.text(
+            current_pose.x + 0.5,
+            current_pose.y + 0.5,
+            f"({pose_lat:.6f}, {pose_lon:.6f})",
+            fontsize=7,
+            alpha=0.8,
         )
         heading_rad = math.radians(current_pose.yaw)
         head_len = 6.0
@@ -230,6 +276,8 @@ class DebugVisualizer:
                     alpha=0.6,
                     c=color,
                 )
+                for t in wedge.trees:
+                    _label_tree(t)
 
             # (3) If this wedge is in the selected combination, highlight that pick
             if wedge in wedge_combination:
@@ -283,6 +331,132 @@ class DebugVisualizer:
         )
         path = DebugVisualizer._save_figure(fig, filename)
         print(f"Wedges plot saved to: {path}")
+
+    @staticmethod
+    def plot_thetas(
+        ground_thetas: list[float],
+        current_pose: Pose2d,
+        aoi_trees: list[Tree],
+        save_name: str | None = None,
+    ) -> None:
+        """Plot pose, AOI trees, and theta lines for ground-view angles.
+
+        :param ground_thetas: Relative angles to trees (positive left, negative right).
+        :param current_pose: RTK pose used as the ray origin.
+        :param aoi_trees: AOI background trees for context.
+        :param save_name: Optional custom filename stem.
+        """
+        fig, ax = plt.subplots(figsize=(10, 8))
+
+        converter = Converter(ORIGIN[0], ORIGIN[1])
+        pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
+        labeled_ids: set[int] = set()
+
+        def _label_tree(tree: Tree) -> None:
+            tree_id = getattr(tree, "id", None)
+            if tree_id is not None and tree_id in labeled_ids:
+                return
+            lat, lon = converter.xy_to_latlon(Point(tree.x, tree.y))
+            ax.text(
+                tree.x + 0.5,
+                tree.y + 0.5,
+                f"({lat:.6f}, {lon:.6f})",
+                fontsize=6,
+                alpha=0.7,
+            )
+            if tree_id is not None:
+                labeled_ids.add(tree_id)
+
+        # AOI background trees
+        if aoi_trees:
+            ax.scatter(
+                [t.x for t in aoi_trees],
+                [t.y for t in aoi_trees],
+                s=18,
+                alpha=0.25,
+                c="#777777",
+                label="AOI Trees",
+            )
+            for t in aoi_trees:
+                _label_tree(t)
+
+        # Pose + heading
+        ax.scatter(
+            current_pose.x,
+            current_pose.y,
+            s=90,
+            marker="*",
+            label="Current Pose",
+            c="#1f77b4",
+        )
+        ax.text(
+            current_pose.x + 0.5,
+            current_pose.y + 0.5,
+            f"({pose_lat:.6f}, {pose_lon:.6f})",
+            fontsize=7,
+            alpha=0.8,
+        )
+        heading_rad = math.radians(current_pose.yaw)
+        head_len = 6.0
+        ax.plot(
+            [current_pose.x, current_pose.x + head_len * math.cos(heading_rad)],
+            [current_pose.y, current_pose.y + head_len * math.sin(heading_rad)],
+            linestyle="-",
+            linewidth=2,
+            alpha=0.9,
+            c="#1f77b4",
+            label="RTK Heading",
+        )
+
+        # Theta rays (relative to heading)
+        if ground_thetas:
+            ray_len = 28.0
+            for idx, theta in enumerate(ground_thetas):
+                dir_from_pose = heading_rad - math.radians(-theta)
+                end_x = current_pose.x + ray_len * math.cos(dir_from_pose)
+                end_y = current_pose.y + ray_len * math.sin(dir_from_pose)
+                ax.plot(
+                    [current_pose.x, end_x],
+                    [current_pose.y, end_y],
+                    linestyle="--",
+                    linewidth=1.6,
+                    alpha=0.8,
+                    c="#2ca02c",
+                    label=("Ground Thetas" if idx == 0 else None),
+                )
+                mid_x = current_pose.x + 0.5 * ray_len * math.cos(dir_from_pose)
+                mid_y = current_pose.y + 0.5 * ray_len * math.sin(dir_from_pose)
+                ax.text(
+                    mid_x + 0.4 * math.cos(dir_from_pose),
+                    mid_y + 0.4 * math.sin(dir_from_pose),
+                    f"θ={theta:+.1f}°",
+                    fontsize=7,
+                    alpha=0.85,
+                )
+
+        # Zoom to content with a small margin
+        all_x = [current_pose.x] + [t.x for t in aoi_trees]
+        all_y = [current_pose.y] + [t.y for t in aoi_trees]
+        if all_x and all_y:
+            min_x, max_x = min(all_x), max(all_x)
+            min_y, max_y = min(all_y), max(all_y)
+            margin = max(5.0, 0.1 * max(max_x - min_x, max_y - min_y))
+            ax.set_xlim(min_x - margin, max_x + margin)
+            ax.set_ylim(min_y - margin, max_y + margin)
+
+        ax.set_aspect("equal")
+        ax.set_xlabel("X")
+        ax.set_ylabel("Y")
+        ax.set_title("Theta Lines (Pre-Match)")
+        ax.legend()
+        ax.grid(True, alpha=0.3)
+        plt.tight_layout()
+
+        filename = (
+            f"{save_name}.png" if save_name else DebugVisualizer._next_name("theta_plot", ".png")
+        )
+        path = DebugVisualizer._save_figure(fig, filename)
+        print(f"Theta plot saved to: {path}")
 
     @staticmethod
     def clear_plots(output_dir: str = "debug_plots") -> None:

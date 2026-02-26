@@ -85,7 +85,7 @@ class Converter:
         return (lat, lon)
 
     @staticmethod
-    def image_x_to_theta(x: float, image_width: int = 1280) -> float:
+    def image_x_to_theta(x: float, image_width: int) -> float:
         """Map an image pixel x-coordinate to a viewing angle theta.
 
         Converts horizontal pixel offset to an angle using half the

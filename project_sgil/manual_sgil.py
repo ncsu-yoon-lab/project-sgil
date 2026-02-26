@@ -21,6 +21,7 @@ from project_sgil.constants import (
     IMAGE_SHAPE,
     ORIGIN,
     PLOT,
+    PLOT_WEDGES,
     RANDOM,
 )
 from project_sgil.data_structs import Point, Pose2d
@@ -60,7 +61,7 @@ class ManualSGIL:
         :param randomize: Whether to pick the next image at random.
         """
         self.converter = Converter(origin[0], origin[1])
-        self.tree_matcher = TreeMatcher(True)
+        self.tree_matcher = TreeMatcher(PLOT_WEDGES)
         self.image_folder = image_folder
         self.randomize = randomize
         self.image_shape = IMAGE_SHAPE
@@ -152,7 +153,7 @@ class ManualSGIL:
         """
         # Convert lat/lon to XY
         x, y = self.converter.latlon_to_xy((frame["rtk_lat"], frame["rtk_lon"]))
-        yaw = self.converter.heading_to_yaw(frame["rtk_heading"])
+        yaw = self.converter.heading_to_yaw(frame["rtk_heading"]) + 90.0 - 15.0 # The RTK heading is 90 degrees off
 
         # Store lat/lon for later error computation
         self.correct_pose = (frame["rtk_lat"], frame["rtk_lon"])
@@ -293,7 +294,19 @@ class ManualSGIL:
 
             # Gets the ground thetas from the image and matches the corresponding trees with the
             # satellite data
-            ground_thetas = [self.converter.image_x_to_theta(pt.x) for pt in points]
+            img_h, img_w = image.shape[:2]
+            ground_thetas = [self.converter.image_x_to_theta(pt.x, img_w) for pt in points]
+
+            if PLOT:
+                save_name = os.path.splitext(name)[0]
+                aoi_trees = self.tree_matcher._get_area_of_interest(pose)
+                DebugVisualizer.plot_thetas(
+                    ground_thetas,
+                    pose,
+                    aoi_trees,
+                    f"{save_name}_thetas",
+                )
+
             est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
 
             print("Estimated location xy: ", est_xy)

@@ -21,6 +21,7 @@ from project_sgil.constants import (
     THETA_MATCHING_TOLERANCE,
     TREE_LOCATIONS_PATH,
     TREE_RADIUS_M,
+    PLOT_WEDGES_PARTIAL,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
@@ -264,10 +265,35 @@ class TreeMatcher:
         for theta in ground_thetas:
             self.wedges.append(self._create_wedge(current_pose, theta))
 
+        # Debug: summarize matching inputs
+        print(
+            f"[TreeMatcher] pose=({current_pose.x:.2f}, {current_pose.y:.2f}, yaw={current_pose.yaw:.2f}) "
+            f"ground_thetas={len(ground_thetas)} aoi_trees={len(self.aoi_trees)}"
+        )
+        if self.wedges:
+            wedge_sizes = [len(w.trees) for w in self.wedges]
+            empty_wedges = sum(1 for s in wedge_sizes if s == 0)
+            min_w = min(wedge_sizes)
+            max_w = max(wedge_sizes)
+            avg_w = sum(wedge_sizes) / len(wedge_sizes)
+            print(
+                f"[TreeMatcher] wedges={len(self.wedges)} empty_wedges={empty_wedges} "
+                f"min={min_w} max={max_w} avg={avg_w:.2f}"
+            )
+        else:
+            print("[TreeMatcher] No wedges created (no ground_thetas).")
+
         # Estimate the location by matching the wedges to the identified trees
         pose_estimates = self._wedge_matching(self.wedges, current_pose)
 
         if not pose_estimates:
+            # Extra debug to hint why no estimates were found
+            if len(self.wedges) < 2:
+                print("[TreeMatcher] No pose estimates: need at least 2 wedges for matching.")
+            elif len(self.aoi_trees) == 0:
+                print("[TreeMatcher] No pose estimates: AOI contains 0 trees.")
+            else:
+                print("[TreeMatcher] No pose estimates: wedge combinations yielded no valid intersections.")
             raise ValueError("No pose estimates found")
 
         # Find the pose estimate with the highest score that matched all the wedges
@@ -388,15 +414,21 @@ class TreeMatcher:
                 self.aoi_trees,
             )
 
-            # Debug visualization (only if all wedges were used)
-            if self.plot_wedges and len(wedge_map) == len(wedges):
+            # Debug visualization
+            if self.plot_wedges and (
+                (PLOT_WEDGES_PARTIAL and len(wedge_map) >= 2)
+                or (len(wedge_map) == len(wedges))
+            ):
                 DebugVisualizer.plot_wedges(
                     wedges=wedges,
                     wedge_combination=wedge_map,
                     current_pose=current_pose,
                     aoi_trees=self.aoi_trees,
                     estimated_location=Point(x_hat, y_hat),
-                    save_name=f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}",
+                    save_name=(
+                        f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_"
+                        f"score_{score:.2f}_conf_{confidence:.2f}"
+                    ),
                 )
 
             pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))

@@ -12,12 +12,16 @@ import os
 import statistics
 
 import pandas as pd
-from constants import (
+from project_sgil.constants import (
+    AOI_ANGLE_DEG,
+    AOI_RADIUS_M,
     DATA_LOGGER_PATH,
+    HEADING_ERROR_DEG,
     IMAGE_FOLDER_PATH,
-    IMAGE_SHAPE,
-    ORIGIN,
-    PLOT,
+    OUTPUT_CSV,
+    PLOT_WEDGES,
+    RANDOM,
+    TREE_LOCATIONS_PATH,
 )
 from data_structs import LocalizationResult, Point, Pose2d
 
@@ -37,7 +41,7 @@ class AutomatedSGIL:
         origin: tuple[float, float] = ORIGIN,
     ) -> None:
         self.converter: Converter = Converter(origin[0], origin[1])
-        self.tree_matcher: TreeMatcher = TreeMatcher()
+        self.tree_matcher: TreeMatcher = TreeMatcher(PLOT_WEDGES)
         self.image_folder: str = image_folder
         self.image_shape = IMAGE_SHAPE
 
@@ -58,7 +62,7 @@ class AutomatedSGIL:
             DebugVisualizer.clear_plots()
 
         for _, row in self.labeled_data.iterrows():
-            self.tree_matcher = TreeMatcher(False)
+            self.tree_matcher = TreeMatcher(PLOT_WEDGES)
 
             image_name: str = str(row.get("image_filename", "")).strip()
             if not image_name:
