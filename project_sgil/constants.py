@@ -16,7 +16,7 @@ EARTH_RADIUS_M = 6378137  # [m]
 TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_manual_trees.csv"
 
 # Path to the data logged while traveling
-DATA_LOGGER_PATH = "dataset/tables/results.json"
+DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
 # DATA_LOGGER_PATH = "../dataset/tables/Calibration.csv"
 # Path to the folder with all the images
 IMAGE_FOLDER_PATH = "dataset/raleigh_images"
@@ -41,7 +41,7 @@ RANDOM = False
 HEADING_ERROR_DEG = 6
 
 # Heading sweep: try multiple candidate headings around the given yaw
-HEADING_SWEEP_ENABLED = False
+HEADING_SWEEP_ENABLED = True
 HEADING_SWEEP_RANGE_DEG = 5  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
@@ -100,3 +100,18 @@ RTK_TO_CAMERA_OFFSET_Y_LEFT_M = -(1.06 / 2.0 - 0.06)
 # Backwards-compatible aliases (deprecated)
 RTK_TO_CAMERA_OFFSET_X_M = RTK_TO_CAMERA_OFFSET_X_FWD_M
 RTK_TO_CAMERA_OFFSET_Y_M = RTK_TO_CAMERA_OFFSET_Y_LEFT_M
+
+# --- Heading sweep ranking (post pose-score heuristic) ---
+# Used by TreeMatcher._calculate_heading_score()
+HEADING_SCORE_W_DELTA_YAW = 1.0
+HEADING_SCORE_W_POSE_SCORE = 1.0
+HEADING_SCORE_W_THETA_ERROR = 1.0
+
+# Scale (deg) for closeness-to-zero-delta-yaw component: score = 1/(1 + |Δyaw|/scale)
+HEADING_SCORE_DELTA_YAW_SCALE_DEG = 2.0
+
+# Scale (deg) for theta RMS error component: score = 1/(1 + theta_rms/scale)
+HEADING_SCORE_THETA_RMS_SCALE_DEG = 2.0
+
+# Scale for pose-score component: score = scale * (pose_score/(1+pose_score))
+HEADING_SCORE_POSE_SCORE_SCALE = 5.0

@@ -160,8 +160,8 @@ class ManualSGIL:
         # Convert lat/lon to XY (RTK antenna position)
         x, y = self.converter.latlon_to_xy((frame["rtk_lat"], frame["rtk_lon"]))
 
-        # RTK yaw
-        yaw = self.converter.heading_to_yaw(frame["rtk_heading"]) + 90.0 - 15.0  # RTK heading is offset
+        # RTK yaw (rtk_heading is already in the project yaw convention: 0=E, 90=N)
+        yaw = self.converter.rtk_heading_to_yaw(frame["rtk_heading"])
 
         # Apply extrinsic: RTK -> camera. Offsets are given in robot/body frame
         # and must be rotated into world frame using yaw.

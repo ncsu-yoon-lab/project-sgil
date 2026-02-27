@@ -26,6 +26,12 @@ from project_sgil.constants import (
     TREE_LOCATIONS_PATH,
     TREE_RADIUS_M,
     PLOT_WEDGES_PARTIAL,
+    HEADING_SCORE_DELTA_YAW_SCALE_DEG,
+    HEADING_SCORE_THETA_RMS_SCALE_DEG,
+    HEADING_SCORE_W_DELTA_YAW,
+    HEADING_SCORE_W_POSE_SCORE,
+    HEADING_SCORE_W_THETA_ERROR,
+    HEADING_SCORE_POSE_SCORE_SCALE,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
@@ -366,8 +372,10 @@ class TreeMatcher:
             raise ValueError("No pose estimates found")
 
         # --- Pick best per candidate yaw & plot -------------------------
-        if sweep_active and saved_plot_wedges:
-            # Group entries by candidate yaw
+        best_per_yaw: dict[float, tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]] = {}
+
+        if sweep_active:
+            # Group entries by candidate yaw and keep only the best pose-score entry per yaw
             by_yaw: dict[float, list[
                 tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]
             ]] = collections.defaultdict(list)
@@ -375,50 +383,68 @@ class TreeMatcher:
                 by_yaw[entry[3].yaw].append(entry)
 
             for cand_yaw, entries in by_yaw.items():
-                # Find best scoring entry for this yaw
-                best = max(entries, key=lambda e: e[0].score)
+                best_per_yaw[cand_yaw] = max(entries, key=lambda e: e[0].score)
+
+        # Plot wedges for best scored combo for each yaw, including heading score
+        if sweep_active and saved_plot_wedges and best_per_yaw:
+            for cand_yaw, best in best_per_yaw.items():
                 pe, wedges_snap, aoi_snap, cand_pose = best
 
-                # Mark matched trees on wedge snapshot
+                heading_score, theta_rms = self._calculate_heading_score(
+                    candidate_yaw=cand_yaw,
+                    base_yaw=current_pose.yaw,
+                    pose_estimate=pe,
+                )
+
                 for w, t in pe.wedge_combinations.items():
                     w.matched_tree = t
 
                 dx = pe.pose.x - cand_pose.x
                 dy = pe.pose.y - cand_pose.y
                 dist = math.hypot(dx, dy)
-                delta = cand_yaw - current_pose.yaw
+                delta = normalize_deg(cand_yaw - current_pose.yaw)
 
                 DebugVisualizer.plot_wedges(
                     wedges=wedges_snap,
                     wedge_combination=pe.wedge_combinations,
                     current_pose=cand_pose,
                     aoi_trees=aoi_snap,
-                    estimated_location=Point(
-                        pe.pose.x, pe.pose.y
-                    ),
+                    estimated_location=Point(pe.pose.x, pe.pose.y),
                     save_name=(
                         f"sweep_yaw_{cand_yaw:.1f}"
                         f"_delta_{delta:+.1f}"
                         f"_dist_{dist:.2f}"
                         f"_wedges_{len(pe.wedge_combinations)}"
                         f"_score_{pe.score:.2f}"
+                        f"_thetaRMS_{theta_rms:.2f}"
+                        f"_hscore_{heading_score:.2f}"
                         f"_conf_{pe.confidence:.2f}"
                     ),
                 )
 
-        # Find the best pose estimate across all candidate headings
-        best_entry = max(all_entries, key=lambda e: e[0].score)
-        final_estimate = best_entry[0]
+        # --- Final selection -------------------------------------------
+        if sweep_active and best_per_yaw:
+            scored: list[tuple[float, float, PoseEstimate]] = []
+            for cand_yaw, (pe, _w, _a, _cpose) in best_per_yaw.items():
+                heading_score, theta_rms = self._calculate_heading_score(
+                    candidate_yaw=cand_yaw,
+                    base_yaw=current_pose.yaw,
+                    pose_estimate=pe,
+                )
+                scored.append((heading_score, theta_rms, pe))
 
-        if HEADING_SWEEP_ENABLED:
+            # highest heading_score wins
+            heading_score, theta_rms, final_estimate = max(scored, key=lambda x: x[0])
+
             print(
-                f"[TreeMatcher] Heading sweep selected "
-                f"yaw={final_estimate.pose.yaw:.2f} "
-                f"(input was {current_pose.yaw:.2f}, "
-                f"delta="
-                f"{final_estimate.pose.yaw - current_pose.yaw:+.2f}"
-                f") score={final_estimate.score:.2f}"
+                f"[TreeMatcher] Heading sweep selected yaw={final_estimate.pose.yaw:.2f} "
+                f"(input was {current_pose.yaw:.2f}, delta={normalize_deg(final_estimate.pose.yaw - current_pose.yaw):+.2f}) "
+                f"pose_score={final_estimate.score:.2f} theta_rms={theta_rms:.2f} heading_score={heading_score:.2f}"
             )
+        else:
+            # Find the best pose estimate across all candidate headings
+            best_entry = max(all_entries, key=lambda e: e[0].score)
+            final_estimate = best_entry[0]
 
         # Set wedges for visualization
         for wedge, tree in final_estimate.wedge_combinations.items():
@@ -654,3 +680,59 @@ class TreeMatcher:
 
         # Clamp to [0.0, 1.0]
         return max(0.0, min(1.0, confidence))
+
+    def _calculate_heading_score(
+        self,
+        *,
+        candidate_yaw: float,
+        base_yaw: float,
+        pose_estimate: PoseEstimate,
+    ) -> tuple[float, float]:
+        """Post-score heuristic used to select the best yaw during heading sweep.
+
+        This runs *after* `_calculate_pose_estimate_score` has produced a
+        best-per-yaw PoseEstimate.
+
+        Components:
+          1) Prefer smaller |Δyaw| from the input yaw (closer to 0 deg off).
+          2) Prefer higher pose_estimate.score (existing combo score).
+          3) Prefer lower total theta error of the matched wedges (RMS in degrees).
+
+        Returns:
+          (heading_score, theta_rms_deg)
+        """
+        # (1) closeness to 0 delta-yaw
+        delta = normalize_deg(candidate_yaw - base_yaw)
+        delta_score = (1.0 / (1.0 + abs(delta))) * float(
+            HEADING_SCORE_DELTA_YAW_SCALE_DEG
+        )
+
+        # (3) theta error RMS (lower is better)
+        errs: list[float] = []
+        for wedge, selected_tree in pose_estimate.wedge_combinations.items():
+            observed_deg = get_relative_angle(selected_tree, pose_estimate.pose)
+            diff = normalize_deg(observed_deg - wedge.theta_degrees)
+            errs.append(diff)
+
+        if errs:
+            theta_rms = math.sqrt(sum(e * e for e in errs) / len(errs))
+        else:
+            theta_rms = float("inf")
+
+        theta_score = (1.0 / (1.0 + theta_rms)) * float(
+            HEADING_SCORE_THETA_RMS_SCALE_DEG
+        )
+
+        # (2) existing pose estimate score (higher is better)
+        # Use the same scale/(1+error) form by treating "error" as inverse score.
+        pose_score = float(pose_estimate.score)
+        pose_component = float(HEADING_SCORE_POSE_SCORE_SCALE) * (pose_score / (1.0 + pose_score))
+
+        heading_score = (
+            float(HEADING_SCORE_W_DELTA_YAW) * delta_score
+            + float(HEADING_SCORE_W_POSE_SCORE) * pose_component
+            + float(HEADING_SCORE_W_THETA_ERROR) * theta_score
+        )
+
+        return float(heading_score), float(theta_rms)
+

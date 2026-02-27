@@ -102,13 +102,17 @@ class Converter:
         return -half_fov * offset_x / center_x
 
     @staticmethod
-    def heading_to_yaw(heading: float) -> float:
-        """Convert a compass heading to a yaw angle.
+    def rtk_heading_to_yaw(rtk_heading: float) -> float:
+        """Convert RTK heading to yaw.
 
-        Yaw is measured by finding heading pointing the x direction
-        (parallel to vector from EB1 to EB3).
+        Project convention for RTK heading (as logged):
+          - 0° = East
+          - 90° = North
 
-        :param heading: Compass heading in degrees (0=N, 90=E).
-        :return: Yaw angle in degrees where 0 is +x axis.
+        This matches the yaw convention used throughout the project where
+        yaw=0 points along +x (East) and yaw=90 points along +y (North).
+
+        :param rtk_heading: RTK heading in degrees.
+        :return: yaw in degrees normalized to [-180, 180).
         """
-        return normalize_deg(450 - heading)
+        return normalize_deg(float(rtk_heading))

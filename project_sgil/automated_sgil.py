@@ -149,8 +149,8 @@ class AutomatedSGIL:
         # RTK antenna position in XY
         x, y = self.converter.latlon_to_xy(self._rtk_pose_latlon)
 
-        # RTK yaw
-        yaw = self.converter.heading_to_yaw(frame["rtk_heading"]) + 90.0 - 15.0
+        # RTK yaw (rtk_heading is already in the project yaw convention: 0=E, 90=N)
+        yaw = self.converter.rtk_heading_to_yaw(frame["rtk_heading"])
 
         # Apply extrinsic: RTK -> camera (body frame offsets rotated by yaw)
         dx_b = float(RTK_TO_CAMERA_OFFSET_X_FWD_M)
