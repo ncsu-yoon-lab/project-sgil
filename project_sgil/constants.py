@@ -67,8 +67,7 @@ THETA_MATCHING_TOLERANCE = 0.8  # degrees
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
 AUTOMATED_FRAME_START = 140
-AUTOMATED_FRAME_END = 240
-AUTOMATED_FRAME_STEP = 10
+AUTOMATED_FRAME_END = 1000
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0

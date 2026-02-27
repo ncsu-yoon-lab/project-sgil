@@ -22,7 +22,6 @@ import pandas as pd
 from project_sgil.constants import (
     AUTOMATED_FRAME_END,
     AUTOMATED_FRAME_START,
-    AUTOMATED_FRAME_STEP,
     AUTOMATED_MIN_SEGMENT_CONFIDENCE,
     AUTOMATED_SKIP_IF_NO_TREES,
     AUTOMATED_USE_RTK_POSE_EACH_FRAME,
@@ -39,7 +38,6 @@ from project_sgil.constants import (
 from project_sgil.data_structs import LocalizationResult, Point, Pose2d
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.localization.tree_matcher import TreeMatcher
-from project_sgil.scripts.download_images import SPECIFIC_INDICES
 from project_sgil.utils.converter import Converter
 
 
@@ -52,6 +50,9 @@ class AutomatedSGIL:
         data_log_path: str = DATA_LOGGER_PATH,
         origin: tuple[float, float] = ORIGIN,
         specific_indices: list[int] | None = None,
+        start_index: int = AUTOMATED_FRAME_START,
+        only_on_new_gps: bool = True,
+        latlon_epsilon: float = 1e-9,
     ) -> None:
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher(PLOT_WEDGES)
@@ -64,6 +65,14 @@ class AutomatedSGIL:
             {int(i) for i in specific_indices} if specific_indices else None
         )
 
+        # Automatic selection: start at start_index, then (optionally) only
+        # process frames when GPS/RTK lat/lon changes (skips intermediate images
+        # between pose updates).
+        self.start_index = int(start_index)
+        self.only_on_new_gps = bool(only_on_new_gps)
+        self.latlon_epsilon = float(latlon_epsilon)
+        self._last_selected_latlon: tuple[float, float] | None = None
+
         # Load JSON frames once
         self.data_log_path = self._resolve_json_path(data_log_path)
         self.frame_lookup = self._load_frame_lookup(self.data_log_path)
@@ -75,6 +84,49 @@ class AutomatedSGIL:
         self._correct_pose_latlon: tuple[float, float] | None = None
         self._rtk_pose_latlon: tuple[float, float] | None = None
         self._gps_pose_latlon: tuple[float, float] | None = None
+
+    @staticmethod
+    def _frame_latlon(frame: dict[str, Any]) -> tuple[float, float] | None:
+        """Return the best available (lat, lon) tuple for detecting new pose updates."""
+        try:
+            # IMPORTANT: use GPS first. RTK often changes every frame, but GPS updates
+            # slower (e.g., ~2 Hz). We want to skip images between GPS updates.
+            lat = frame.get("gps_lat", None)
+            lon = frame.get("gps_lon", None)
+            if lat is None or lon is None:
+                lat = frame.get("rtk_lat", None)
+                lon = frame.get("rtk_lon", None)
+            if lat is None or lon is None:
+                return None
+            return (float(lat), float(lon))
+        except (TypeError, ValueError):
+            return None
+
+    def _latlon_changed(
+        self,
+        a: tuple[float, float],
+        b: tuple[float, float],
+    ) -> bool:
+        """Return True if (lat, lon) pairs differ by more than epsilon."""
+        return (
+            abs(a[0] - b[0]) > self.latlon_epsilon
+            or abs(a[1] - b[1]) > self.latlon_epsilon
+        )
+
+    def _passes_new_gps_gate(self, frame: dict[str, Any]) -> bool:
+        if not self.only_on_new_gps:
+            return True
+        latlon = self._frame_latlon(frame)
+        if latlon is None:
+            # If we can't read a pose, don't gate on it.
+            return True
+        if self._last_selected_latlon is None:
+            self._last_selected_latlon = latlon
+            return True
+        if self._latlon_changed(latlon, self._last_selected_latlon):
+            self._last_selected_latlon = latlon
+            return True
+        return False
 
     # ---------------- JSON helpers (mirrors manual_sgil) ----------------
 
@@ -142,11 +194,15 @@ class AutomatedSGIL:
         if self.specific_indices is not None:
             return idx in self.specific_indices
 
-        if idx < AUTOMATED_FRAME_START or idx > AUTOMATED_FRAME_END:
+        # New default: start at start_index, then let GPS gating decide.
+        if idx < self.start_index:
             return False
-        if AUTOMATED_FRAME_STEP <= 1:
-            return True
-        return (idx - AUTOMATED_FRAME_START) % AUTOMATED_FRAME_STEP == 0
+
+        # Keep end bound if configured
+        if AUTOMATED_FRAME_END is not None and idx > AUTOMATED_FRAME_END:
+            return False
+
+        return True
 
     # ---------------- Pose + trees ----------------
 
@@ -238,6 +294,10 @@ class AutomatedSGIL:
             if idx is None or not self._frame_selected(idx):
                 continue
 
+            # Skip if this frame doesn't correspond to a new GPS/RTK update.
+            if not self._passes_new_gps_gate(frame):
+                continue
+
             rtk_pose = self._frame_to_pose(frame)
             if rtk_pose is None:
                 continue
@@ -264,8 +324,10 @@ class AutomatedSGIL:
 
             print(
                 f"\n[AutomatedSGIL] frame={idx} {frame_name}\n"
-                f"  RTK cam XY: ({rtk_pose.x:.2f}, {rtk_pose.y:.2f})  ΔRTK: ({dx_rtk:+.2f}, {dy_rtk:+.2f})\n"
-                f"  GPS cam XY: ({(float(curr_gps_xy[0]) if curr_gps_xy else float('nan')):.2f}, "
+                f"  RTK cam XY: ({rtk_pose.x:.2f}, {rtk_pose.y:.2f})  "
+                f"ΔRTK: ({dx_rtk:+.2f}, {dy_rtk:+.2f})\n"
+                f"  GPS cam XY: "
+                f"({(float(curr_gps_xy[0]) if curr_gps_xy else float('nan')):.2f}, "
                 f"{(float(curr_gps_xy[1]) if curr_gps_xy else float('nan')):.2f})  "
                 f"ΔGPS: ({dx_gps_dbg:+.2f}, {dy_gps_dbg:+.2f})"
             )
@@ -386,4 +448,4 @@ class AutomatedSGIL:
 
 
 if __name__ == "__main__":
-    AutomatedSGIL(specific_indices=SPECIFIC_INDICES).run()
+    AutomatedSGIL().run()
