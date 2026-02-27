@@ -11,6 +11,7 @@ import logging
 import os
 import random
 from typing import Any
+import math
 
 import cv2
 
@@ -23,6 +24,8 @@ from project_sgil.constants import (
     PLOT,
     PLOT_WEDGES,
     RANDOM,
+    RTK_TO_CAMERA_OFFSET_X_FWD_M,
+    RTK_TO_CAMERA_OFFSET_Y_LEFT_M,
 )
 from project_sgil.data_structs import Point, Pose2d
 
@@ -71,8 +74,11 @@ class ManualSGIL:
         self.frame_lookup = self._load_frame_lookup(self.data_log_path)
 
         # Will be set on each call to get_gps_pose
-        self.correct_pose: tuple[float, float] | None = None
-        self.gps_pose: tuple[float, float] | None = None
+        self.correct_pose_latlon: tuple[float, float] | None = None
+        self.gps_pose_latlon: tuple[float, float] | None = None
+
+        # Cached RTK yaw + offset rotation for error calculations
+        self._last_rtk_yaw_deg: float | None = None
 
         # Prepare image list state
         self._image_exts = (".jpg", ".jpeg", ".png")
@@ -151,13 +157,29 @@ class ManualSGIL:
             gps_lat, gps_lon.
         :return: Pose2d in local XY + yaw degrees.
         """
-        # Convert lat/lon to XY
+        # Convert lat/lon to XY (RTK antenna position)
         x, y = self.converter.latlon_to_xy((frame["rtk_lat"], frame["rtk_lon"]))
-        yaw = self.converter.heading_to_yaw(frame["rtk_heading"]) + 90.0 - 15.0 # The RTK heading is 90 degrees off
+
+        # RTK yaw
+        yaw = self.converter.heading_to_yaw(frame["rtk_heading"]) + 90.0 - 15.0  # RTK heading is offset
+
+        # Apply extrinsic: RTK -> camera. Offsets are given in robot/body frame
+        # and must be rotated into world frame using yaw.
+        dx_b = float(RTK_TO_CAMERA_OFFSET_X_FWD_M)
+        dy_b = float(RTK_TO_CAMERA_OFFSET_Y_LEFT_M)
+        c = math.cos(math.radians(yaw))
+        s = math.sin(math.radians(yaw))
+        dx_w = c * dx_b - s * dy_b
+        dy_w = s * dx_b + c * dy_b
+
+        # Convert RTK position to camera position
+        x = x - dx_w
+        y = y - dy_w
 
         # Store lat/lon for later error computation
-        self.correct_pose = (frame["rtk_lat"], frame["rtk_lon"])
-        self.gps_pose = (frame["gps_lat"], frame["gps_lon"])
+        self.correct_pose_latlon = (float(frame["rtk_lat"]), float(frame["rtk_lon"]))
+        self.gps_pose_latlon = (float(frame["gps_lat"]), float(frame["gps_lon"]))
+        self._last_rtk_yaw_deg = float(yaw)
 
         return Pose2d(x=x, y=y, yaw=yaw)
 
@@ -322,29 +344,39 @@ class ManualSGIL:
                     save_name,
                 )
 
-            # Convert back to lat/lon
-            est_latlon = self.converter.xy_to_latlon(est_xy)
+            # Print out GPS vs SGIL errors (in local XY meters)
+            assert self.correct_pose_latlon and self.gps_pose_latlon, "Pose info missing!"
 
-            # Print out GPS vs SGIL errors
-            assert self.correct_pose and self.gps_pose, "Pose info missing!"
-            gps_err = self.converter.haversine(
-                self.gps_pose[0],
-                self.gps_pose[1],
-                self.correct_pose[0],
-                self.correct_pose[1],
-            )
-            sgil_err = self.converter.haversine(
-                est_latlon[0],
-                est_latlon[1],
-                self.correct_pose[0],
-                self.correct_pose[1],
-            )
+            # RTK (camera) XY is `pose.x, pose.y` already.
+            rtk_cam_xy = Point(pose.x, pose.y)
+
+            # Convert GPS lat/lon to XY (GPS antenna), then apply the same RTK->camera offset
+            gps_x, gps_y = self.converter.latlon_to_xy(self.gps_pose_latlon)
+
+            # Rotate the body offset into world frame using RTK yaw
+            dx_b = float(RTK_TO_CAMERA_OFFSET_X_FWD_M)
+            dy_b = float(RTK_TO_CAMERA_OFFSET_Y_LEFT_M)
+            c = math.cos(math.radians(pose.yaw))
+            s = math.sin(math.radians(pose.yaw))
+            dx_w = c * dx_b - s * dy_b
+            dy_w = s * dx_b + c * dy_b
+
+            gps_cam_xy = Point(gps_x - dx_w, gps_y - dy_w)
+
+            # Euclidean errors in meters
+            gps_err = math.hypot(gps_cam_xy.x - rtk_cam_xy.x, gps_cam_xy.y - rtk_cam_xy.y)
+            sgil_err = math.hypot(est_xy.x - rtk_cam_xy.x, est_xy.y - rtk_cam_xy.y)
 
             logging.info(f"Image: {name}")
-            logging.info(f"  Estimated LatLon: {est_latlon}")
+            logging.info(f"  Estimated XY:      ({est_xy.x:.2f}, {est_xy.y:.2f})")
             logging.info(f"  GPS error (m):     {gps_err:.2f}")
             logging.info(f"  SGIL error (m):    {sgil_err:.2f}")
             logging.info(f"  RTK Yaw (deg):     {pose.yaw:.2f}")
+
+            # If you still want lat/lon for display:
+            # est_latlon = self.converter.xy_to_latlon(est_xy)
+
+            # Done with this image
 
 
 if __name__ == "__main__":
