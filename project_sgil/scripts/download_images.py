@@ -24,12 +24,28 @@ REMOTE_IMAGES_DIR = "/mnt/sdb/DowntownRaleigh/images"
 # If relative, it's relative to where you run this script.
 LOCAL_DEST_DIR = "../dataset/raleigh_images"
 
+
+# ==========================================
+# --- DOWNLOAD SELECTION MODE ---
+# ==========================================
+
+# Set to True to download exactly the indices in SPECIFIC_INDICES.
+# Set to False to use START_INDEX, END_INDEX, and STEP.
+USE_SPECIFIC_INDICES = True
+
+# Explicit list of image indices to download.
+# (Used only if USE_SPECIFIC_INDICES is True)
+SPECIFIC_INDICES: list[int] = [140, 152, 167, 182, 198]
+
 # Inclusive index range to download.
+# (Used only if USE_SPECIFIC_INDICES is False)
 START_INDEX = 140
 END_INDEX = 240
 
 # Download every Nth image (10 = every 10th image).
+# (Used only if USE_SPECIFIC_INDICES is False)
 STEP = 10
+
 
 # Image naming scheme.
 FILENAME_TEMPLATE = "image_{index:08d}.png"
@@ -83,15 +99,21 @@ def _local_image_path(dest_dir: Path, index: int) -> Path:
 
 
 def main() -> int:
-    if START_INDEX < 0:
-       print("START_INDEX must be >= 0", file=sys.stderr)
-       return 2
-    if END_INDEX < START_INDEX:
-       print("END_INDEX must be >= START_INDEX", file=sys.stderr)
-       return 2
-    if STEP <= 0:
-       print("STEP must be >= 1", file=sys.stderr)
-       return 2
+    # Validate based on the selected mode
+    if USE_SPECIFIC_INDICES:
+        if not SPECIFIC_INDICES:
+            print("SPECIFIC_INDICES cannot be empty when USE_SPECIFIC_INDICES is True.", file=sys.stderr)
+            return 2
+    else:
+        if START_INDEX < 0:
+           print("START_INDEX must be >= 0", file=sys.stderr)
+           return 2
+        if END_INDEX < START_INDEX:
+           print("END_INDEX must be >= START_INDEX", file=sys.stderr)
+           return 2
+        if STEP <= 0:
+           print("STEP must be >= 1", file=sys.stderr)
+           return 2
 
     if REMOTE == "you@your-remote-host":
        print(
@@ -106,7 +128,12 @@ def main() -> int:
     scp_base = _scp_base_args()
     failures: list[int] = []
 
-    indices = list(range(START_INDEX, END_INDEX + 1, STEP))
+    # Generate the target indices based on mode
+    if USE_SPECIFIC_INDICES:
+        indices = SPECIFIC_INDICES
+    else:
+        indices = list(range(START_INDEX, END_INDEX + 1, STEP))
+
     total = len(indices)
     print(f"Downloading {total} images to {dest_dir} ...")
 

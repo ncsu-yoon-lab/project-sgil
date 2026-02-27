@@ -1,8 +1,5 @@
 from project_sgil.data_structs import Point
 
-# Gaussian sigma for continuous theta scoring
-THETA_MATCH_SIGMA_DEG = 2.0
-
 IMAGE_TOP_LEFT = Point(35.776006, -78.644325)
 IMAGE_BOTTOM_RIGHT = Point(35.772600, -78.637597)
 
@@ -25,14 +22,14 @@ IMAGE_FOLDER_PATH = "dataset/raleigh_images"
 OUTPUT_CSV = "annotated_image_data.csv"
 
 # Boolean to plot points of trees
-PLOT = True
-# PLOT = False
+# PLOT = True
+PLOT = False
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = True
+PLOT_WEDGES = False #True
 
 # If True, allow wedge debug plots even when not all wedges are matched
-PLOT_WEDGES_PARTIAL = True
+PLOT_WEDGES_PARTIAL = False # True
 
 # Random
 RANDOM = False
@@ -82,7 +79,7 @@ AUTOMATED_SKIP_IF_NO_TREES = True
 # If True, AutomatedSGIL uses the RTK pose (x,y,yaw) for each frame as the
 # pose passed into TreeMatcher (no dead-reckoning / carryover).
 # If False, it uses the previous estimated pose + RTK delta XY (current behavior).
-AUTOMATED_USE_RTK_POSE_EACH_FRAME = True
+AUTOMATED_USE_RTK_POSE_EACH_FRAME = False #True
 
 # World frame:
 #   +x = East, +y = North   (see Converter.latlon_to_xy)
@@ -102,16 +99,8 @@ RTK_TO_CAMERA_OFFSET_X_M = RTK_TO_CAMERA_OFFSET_X_FWD_M
 RTK_TO_CAMERA_OFFSET_Y_M = RTK_TO_CAMERA_OFFSET_Y_LEFT_M
 
 # --- Heading sweep ranking (post pose-score heuristic) ---
-# Used by TreeMatcher._calculate_heading_score()
+# Used by TreeMatcher._calculate_heading_score().
+# These are the ONLY tuning knobs for heading sweep selection.
 HEADING_SCORE_W_DELTA_YAW = 1.0
-HEADING_SCORE_W_POSE_SCORE = 1.0
-HEADING_SCORE_W_THETA_ERROR = 1.0
-
-# Scale (deg) for closeness-to-zero-delta-yaw component: score = 1/(1 + |Δyaw|/scale)
-HEADING_SCORE_DELTA_YAW_SCALE_DEG = 2.0
-
-# Scale (deg) for theta RMS error component: score = 1/(1 + theta_rms/scale)
-HEADING_SCORE_THETA_RMS_SCALE_DEG = 2.0
-
-# Scale for pose-score component: score = scale * (pose_score/(1+pose_score))
-HEADING_SCORE_POSE_SCORE_SCALE = 5.0
+HEADING_SCORE_W_NUM_WEDGES = 10.0
+HEADING_SCORE_W_THETA_ERROR = 3.0

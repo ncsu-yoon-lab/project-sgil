@@ -39,6 +39,7 @@ from project_sgil.constants import (
 from project_sgil.data_structs import LocalizationResult, Point, Pose2d
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.localization.tree_matcher import TreeMatcher
+from project_sgil.scripts.download_images import SPECIFIC_INDICES
 from project_sgil.utils.converter import Converter
 
 
@@ -50,11 +51,18 @@ class AutomatedSGIL:
         image_folder: str = IMAGE_FOLDER_PATH,
         data_log_path: str = DATA_LOGGER_PATH,
         origin: tuple[float, float] = ORIGIN,
+        specific_indices: list[int] | None = None,
     ) -> None:
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher(PLOT_WEDGES)
         self.image_folder = image_folder
         self.image_shape = IMAGE_SHAPE
+
+        # If provided, process exactly these numeric frame indices (e.g. [140, 152, ...]).
+        # Otherwise fall back to AUTOMATED_FRAME_START/END/STEP filtering.
+        self.specific_indices: set[int] | None = (
+            {int(i) for i in specific_indices} if specific_indices else None
+        )
 
         # Load JSON frames once
         self.data_log_path = self._resolve_json_path(data_log_path)
@@ -63,6 +71,7 @@ class AutomatedSGIL:
         # Runtime state
         self.current_pose: Pose2d | None = None
         self._last_rtk_xy: tuple[float, float] | None = None
+        self._last_gps_xy: tuple[float, float] | None = None
         self._correct_pose_latlon: tuple[float, float] | None = None
         self._rtk_pose_latlon: tuple[float, float] | None = None
         self._gps_pose_latlon: tuple[float, float] | None = None
@@ -128,8 +137,11 @@ class AutomatedSGIL:
         except ValueError:
             return None
 
-    @staticmethod
-    def _frame_selected(idx: int) -> bool:
+    def _frame_selected(self, idx: int) -> bool:
+        """Return True if this numeric frame index should be processed."""
+        if self.specific_indices is not None:
+            return idx in self.specific_indices
+
         if idx < AUTOMATED_FRAME_START or idx > AUTOMATED_FRAME_END:
             return False
         if AUTOMATED_FRAME_STEP <= 1:
@@ -139,7 +151,7 @@ class AutomatedSGIL:
     # ---------------- Pose + trees ----------------
 
     def _frame_to_pose(self, frame: dict[str, Any]) -> Pose2d | None:
-        if frame.get("rtk_heading") is None:
+        if frame.get("rtk_heading_filtered") is None:
             return None
 
         # Store lat/lon (raw antenna locations)
@@ -160,8 +172,15 @@ class AutomatedSGIL:
         dx_w = c * dx_b - s * dy_b
         dy_w = s * dx_b + c * dy_b
 
+        # RTK camera position
         x = x - dx_w
         y = y - dy_w
+
+        # Also compute GPS camera-position XY for delta propagation when desired
+        gps_x, gps_y = self.converter.latlon_to_xy(self._gps_pose_latlon)
+        gps_x = gps_x - dx_w
+        gps_y = gps_y - dy_w
+        self._gps_xy = (gps_x, gps_y)
 
         self._correct_pose_latlon = self._rtk_pose_latlon
         return Pose2d(x=x, y=y, yaw=yaw)
@@ -186,7 +205,12 @@ class AutomatedSGIL:
 
     def _sgil_error_meters(self, estimated_pose: Pose2d, rtk_pose: Pose2d) -> float:
         """Euclidean error in the local XY frame (meters)."""
-        return float(math.hypot(estimated_pose.x - rtk_pose.x, estimated_pose.y - rtk_pose.y))
+        return float(
+            math.hypot(
+                estimated_pose.x - rtk_pose.x,
+                estimated_pose.y - rtk_pose.y,
+            )
+        )
 
     def run(self) -> list[LocalizationResult]:
         results: list[LocalizationResult] = []
@@ -218,6 +242,34 @@ class AutomatedSGIL:
             if rtk_pose is None:
                 continue
 
+            # Compute current GPS camera XY (set in _frame_to_pose)
+            curr_gps_xy = getattr(self, "_gps_xy", None)
+
+            # Debug: print RTK/GPS positions and deltas each processed step
+            if self._last_rtk_xy is None:
+                dx_rtk = dy_rtk = 0.0
+            else:
+                (
+                    last_rtk_x,
+                    last_rtk_y,
+                ) = self._last_rtk_xy
+                dx_rtk = rtk_pose.x - last_rtk_x
+                dy_rtk = rtk_pose.y - last_rtk_y
+
+            if curr_gps_xy is None or self._last_gps_xy is None:
+                dx_gps_dbg = dy_gps_dbg = 0.0
+            else:
+                dx_gps_dbg = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
+                dy_gps_dbg = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
+
+            print(
+                f"\n[AutomatedSGIL] frame={idx} {frame_name}\n"
+                f"  RTK cam XY: ({rtk_pose.x:.2f}, {rtk_pose.y:.2f})  ΔRTK: ({dx_rtk:+.2f}, {dy_rtk:+.2f})\n"
+                f"  GPS cam XY: ({(float(curr_gps_xy[0]) if curr_gps_xy else float('nan')):.2f}, "
+                f"{(float(curr_gps_xy[1]) if curr_gps_xy else float('nan')):.2f})  "
+                f"ΔGPS: ({dx_gps_dbg:+.2f}, {dy_gps_dbg:+.2f})"
+            )
+
             pixel_points = self._pixel_points_from_segmentations(frame)
             if AUTOMATED_SKIP_IF_NO_TREES and not pixel_points:
                 continue
@@ -226,6 +278,8 @@ class AutomatedSGIL:
             if self.current_pose is None:
                 self.current_pose = Pose2d(rtk_pose.x, rtk_pose.y, rtk_pose.yaw)
                 self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
+                if hasattr(self, "_gps_xy") and self._gps_xy is not None:
+                    self._last_gps_xy = (float(self._gps_xy[0]), float(self._gps_xy[1]))
 
             assert self.current_pose is not None
 
@@ -234,15 +288,16 @@ class AutomatedSGIL:
                 predicted_x = rtk_pose.x
                 predicted_y = rtk_pose.y
             else:
-                # RTK delta since last processed
-                if self._last_rtk_xy is None:
-                    dx_rtk = dy_rtk = 0.0
+                # GPS delta since last processed (camera-frame XY)
+                curr_gps_xy = getattr(self, "_gps_xy", None)
+                if curr_gps_xy is None or self._last_gps_xy is None:
+                    dx_gps = dy_gps = 0.0
                 else:
-                    dx_rtk = rtk_pose.x - self._last_rtk_xy[0]
-                    dy_rtk = rtk_pose.y - self._last_rtk_xy[1]
+                    dx_gps = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
+                    dy_gps = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
 
-                predicted_x = self.current_pose.x + dx_rtk
-                predicted_y = self.current_pose.y + dy_rtk
+                predicted_x = self.current_pose.x + dx_gps
+                predicted_y = self.current_pose.y + dy_gps
 
             # Convert pixel points -> ground thetas
             img_w = int(self.image_shape[1])
@@ -268,8 +323,11 @@ class AutomatedSGIL:
                 # Keep the internal state in sync with RTK if we're in pure-RTK mode.
                 self.current_pose = Pose2d(rtk_pose.x, rtk_pose.y, rtk_pose.yaw)
             else:
-                self.current_pose = Pose2d(est_pose.x, est_pose.y, est_pose.yaw)
+                self.current_pose = Pose2d(est_pose.x, est_pose.y, rtk_pose.yaw)
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
+            curr_gps_xy = getattr(self, "_gps_xy", None)
+            if curr_gps_xy is not None:
+                self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
 
             sgil_err_m = self._sgil_error_meters(est_pose, rtk_pose)
 
@@ -328,4 +386,4 @@ class AutomatedSGIL:
 
 
 if __name__ == "__main__":
-    AutomatedSGIL().run()
+    AutomatedSGIL(specific_indices=SPECIFIC_INDICES).run()

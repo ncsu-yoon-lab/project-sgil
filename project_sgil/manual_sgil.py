@@ -123,7 +123,7 @@ class ManualSGIL:
         :return: Pose2d if RTK heading is valid; otherwise None.
         """
         frame = self._get_frame_for_image(image_name)
-        if frame is None or frame.get("rtk_heading") is None:
+        if frame is None or frame.get("rtk_heading_filtered") is None:
             return None
 
         return self.get_gps_pose(frame)
@@ -161,7 +161,7 @@ class ManualSGIL:
         x, y = self.converter.latlon_to_xy((frame["rtk_lat"], frame["rtk_lon"]))
 
         # RTK yaw (rtk_heading is already in the project yaw convention: 0=E, 90=N)
-        yaw = self.converter.rtk_heading_to_yaw(frame["rtk_heading"])
+        yaw = self.converter.rtk_heading_to_yaw(frame["rtk_heading_filtered"])
 
         # Apply extrinsic: RTK -> camera. Offsets are given in robot/body frame
         # and must be rotated into world frame using yaw.

@@ -310,7 +310,7 @@ class AutomatedSGILTuner:
 
         lat_rtk = float(row["rtk_lat"])
         lon_rtk = float(row["rtk_lon"])
-        yaw_deg = self.converter.rtk_heading_to_yaw(float(row["rtk_heading"]))
+        yaw_deg = self.converter.rtk_heading_to_yaw(float(row["rtk_heading_filtered"]))
         x, y = self.converter.latlon_to_xy((lat_rtk, lon_rtk))
 
         self._correct_pose_latlon = (lat_rtk, lon_rtk)

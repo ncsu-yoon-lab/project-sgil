@@ -26,12 +26,9 @@ from project_sgil.constants import (
     TREE_LOCATIONS_PATH,
     TREE_RADIUS_M,
     PLOT_WEDGES_PARTIAL,
-    HEADING_SCORE_DELTA_YAW_SCALE_DEG,
-    HEADING_SCORE_THETA_RMS_SCALE_DEG,
     HEADING_SCORE_W_DELTA_YAW,
-    HEADING_SCORE_W_POSE_SCORE,
+    HEADING_SCORE_W_NUM_WEDGES,
     HEADING_SCORE_W_THETA_ERROR,
-    HEADING_SCORE_POSE_SCORE_SCALE,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
@@ -312,33 +309,6 @@ class TreeMatcher:
             for theta in ground_thetas:
                 self.wedges.append(
                     self._create_wedge(candidate_pose, theta)
-                )
-
-            # Debug: summarize matching inputs
-            print(
-                f"[TreeMatcher] candidate_yaw={candidate_yaw:.2f} "
-                f"pose=({candidate_pose.x:.2f}, "
-                f"{candidate_pose.y:.2f}) "
-                f"ground_thetas={len(ground_thetas)} "
-                f"aoi_trees={len(self.aoi_trees)}"
-            )
-            if self.wedges:
-                wedge_sizes = [len(w.trees) for w in self.wedges]
-                empty_wedges = sum(
-                    1 for s in wedge_sizes if s == 0
-                )
-                min_w = min(wedge_sizes)
-                max_w = max(wedge_sizes)
-                avg_w = sum(wedge_sizes) / len(wedge_sizes)
-                print(
-                    f"[TreeMatcher] wedges={len(self.wedges)} "
-                    f"empty_wedges={empty_wedges} "
-                    f"min={min_w} max={max_w} avg={avg_w:.2f}"
-                )
-            else:
-                print(
-                    "[TreeMatcher] No wedges created "
-                    "(no ground_thetas)."
                 )
 
             # Estimate location by matching wedges to trees
@@ -703,9 +673,7 @@ class TreeMatcher:
         """
         # (1) closeness to 0 delta-yaw
         delta = normalize_deg(candidate_yaw - base_yaw)
-        delta_score = (1.0 / (1.0 + abs(delta))) * float(
-            HEADING_SCORE_DELTA_YAW_SCALE_DEG
-        )
+        delta_score = 1.0 / (1.0 + abs(delta))
 
         # (3) theta error RMS (lower is better)
         errs: list[float] = []
@@ -719,18 +687,16 @@ class TreeMatcher:
         else:
             theta_rms = float("inf")
 
-        theta_score = (1.0 / (1.0 + theta_rms)) * float(
-            HEADING_SCORE_THETA_RMS_SCALE_DEG
-        )
+        theta_score = 1.0 / (1.0 + theta_rms)
 
-        # (2) existing pose estimate score (higher is better)
-        # Use the same scale/(1+error) form by treating "error" as inverse score.
-        pose_score = float(pose_estimate.score)
-        pose_component = float(HEADING_SCORE_POSE_SCORE_SCALE) * (pose_score / (1.0 + pose_score))
+        # (2) number of matched wedges (higher is better) normalized to (0, 1)
+        # Use the number of wedges in the *best combo for this yaw*.
+        n = float(len(pose_estimate.wedge_combinations))
+        num_wedges_score = n / (1.0 + n)
 
         heading_score = (
             float(HEADING_SCORE_W_DELTA_YAW) * delta_score
-            + float(HEADING_SCORE_W_POSE_SCORE) * pose_component
+            + float(HEADING_SCORE_W_NUM_WEDGES) * num_wedges_score
             + float(HEADING_SCORE_W_THETA_ERROR) * theta_score
         )
 
