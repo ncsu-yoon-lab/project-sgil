@@ -10,13 +10,15 @@ import os
 
 import matplotlib
 
-from project_sgil.constants import AOI_ANGLE_DEG, AOI_RADIUS_M, ORIGIN
+from project_sgil.constants import AOI_ANGLE_DEG, AOI_RADIUS_M, ORIGIN, SATELLITE_IMAGE_PATH, PLOT_RANGE
 from project_sgil.data_structs import Point, Pose2d, Tree, Wedge
 from project_sgil.utils.converter import Converter
 from project_sgil.utils.utils import get_relative_angle
 
 matplotlib.use("Agg")  # Use non-interactive backend that won't interfere with OpenCV
 import matplotlib.pyplot as plt
+import matplotlib.image as mpimg
+import numpy as np
 
 
 class DebugVisualizer:
@@ -28,6 +30,44 @@ class DebugVisualizer:
     _PLOT_COUNTER: int = 0
 
     @staticmethod
+    def draw_sat_background(
+        ax: plt.Axes,
+        img: np.ndarray,
+        cx: float,
+        cy: float,
+        view_w_px: int,
+        view_h_px: int,
+        zoom: float = 1.0,
+        alpha: float = 0.18,
+    ) -> None:
+
+        # Build a throw-away converter just to read the image's world bounds.
+        converter = Converter(ORIGIN[0], ORIGIN[1])
+
+        # extent = [left, right, bottom, top] in axes (world) coordinates.
+        # y_min is the southernmost edge, y_max the northernmost — matching
+        # the conventional image orientation where row 0 is the top of the
+        # geographic area.
+        extent = [converter.x_min, converter.x_max, converter.y_min, converter.y_max]
+
+        ax.imshow(
+            img,
+            extent=extent,
+            origin="upper",   # row 0 of the array = top of the geographic area
+            aspect="equal",
+            alpha=alpha,
+            interpolation="bilinear",
+            zorder=0,         # keep the image behind every other artist
+        )
+
+        # Set the visible window centred on (cx, cy).
+        # zoom=1 → the window is exactly view_w_px × view_h_px satellite pixels wide/tall.
+        half_w = (view_w_px / 2.0) / zoom
+        half_h = (view_h_px / 2.0) / zoom
+        ax.set_xlim(cx - 20, cx + 20)
+        ax.set_ylim(cy - 20, cy + 30)
+
+    @staticmethod
     def _ensure_output_dir() -> None:
         """Create output directory for plots if it doesn't exist."""
         if not os.path.exists(DebugVisualizer.OUTPUT_DIR):
@@ -36,10 +76,12 @@ class DebugVisualizer:
     @classmethod
     def _save_figure(cls, fig: plt.Figure, filename: str) -> str:
         """Save figure to the output directory with bookkeeping."""
+        
         cls._ensure_output_dir()
         filepath = os.path.join(cls.OUTPUT_DIR, filename)
         plt.savefig(filepath, dpi=150, bbox_inches="tight")
         plt.close(fig)
+        
         return filepath
 
     @classmethod
@@ -177,14 +219,42 @@ class DebugVisualizer:
         wedges: list[Wedge],
         wedge_combination: dict[Wedge, Tree],
         current_pose: Pose2d,
+        rtk_pose: Pose2d,
         aoi_trees: list[Tree],
         estimated_location: Point,
         save_name: str | None = None,
     ) -> None:
         """Visualize AOI trees, wedge directions, and chosen tree per wedge."""
+        
         fig, ax = plt.subplots(figsize=(10, 8))
 
+        if SATELLITE_IMAGE_PATH is not None:
+            
+            img = mpimg.imread(SATELLITE_IMAGE_PATH)
+
+            VIEW_W_PX = 1600
+            VIEW_H_PX = 1200
+            DPI = 200
+            fig = plt.figure(figsize=(VIEW_W_PX / DPI, VIEW_H_PX / DPI), dpi=DPI)
+            ax = fig.add_subplot(111)
+
+            # Example: put current_pose centered in x, and 15 m "up" in world y
+            cx = current_pose.x
+            cy = current_pose.y + 15.0
+            
+            DebugVisualizer.draw_sat_background(
+                ax,
+                img,
+                cx=cx,
+                cy=cy,
+                view_w_px=VIEW_W_PX,
+                view_h_px=VIEW_H_PX,
+                zoom=1.0,       # 1.0 => ~1 plot pixel = 1 sat pixel
+                alpha=0.18,
+            )
+
         converter = Converter(ORIGIN[0], ORIGIN[1])
+        
         pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
         labeled_ids: set[int] = set()
 
@@ -237,6 +307,25 @@ class DebugVisualizer:
             alpha=0.9,
             c="#1f77b4",
         )
+        
+        if rtk_pose is not None:
+            ax.scatter(
+                rtk_pose.x,
+                rtk_pose.y,
+                s=70,
+                marker="o",
+                label="RTK Pose",
+                c="#ff7f0e",
+                zorder=5,
+            )
+            # optional: tiny label so you can see the numeric point quickly
+            ax.text(
+                rtk_pose.x + 0.5,
+                rtk_pose.y + 0.5,
+                f"RTK ({rtk_pose.x:.1f}, {rtk_pose.y:.1f})",
+                fontsize=7,
+                alpha=0.8,
+            )
 
         # --- Color palette per-wedge (cycles) ---
         colors = [
@@ -325,11 +414,13 @@ class DebugVisualizer:
         ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
-
+        
         filename = (
             f"{save_name}.png" if save_name else DebugVisualizer._next_name("wedges_plot", ".png")
         )
+        
         path = DebugVisualizer._save_figure(fig, filename)
+        
         print(f"Wedges plot saved to: {path}")
 
     @staticmethod

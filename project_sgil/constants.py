@@ -13,13 +13,17 @@ EARTH_RADIUS_M = 6378137  # [m]
 TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_manual_trees.csv"
 
 # Path to the data logged while traveling
-DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
-# DATA_LOGGER_PATH = "../dataset/tables/Calibration.csv"
+# DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
+DATA_LOGGER_PATH = "dataset/tables/manual_json_data.json"
 # Path to the folder with all the images
 IMAGE_FOLDER_PATH = "dataset/raleigh_images"
+
 # IMAGE_FOLDER_PATH = "../dataset/images-calibration"
 
 OUTPUT_CSV = "annotated_image_data.csv"
+
+SATELLITE_IMAGE_PATH = "dataset/satellite_trees/RaleighSatellite.png"
+BACKGROUND_EXTENT = ()
 
 # Boolean to plot points of trees
 # PLOT = True
@@ -30,6 +34,8 @@ PLOT_WEDGES = False #True
 
 # If True, allow wedge debug plots even when not all wedges are matched
 PLOT_WEDGES_PARTIAL = False # True
+
+PLOT_RANGE = (300, 700)
 
 # Random
 RANDOM = False
@@ -55,6 +61,9 @@ AOI_RADIUS_M = 50  # [m]
 # Angle of area of interest (AOI)
 AOI_ANGLE_DEG = (H_FOV_DEG + HEADING_ERROR_DEG) / 2
 
+# Min change in dx and dy for the gps
+MIN_DX = MIN_DY = 1.0
+
 SCORE_WEIGHT_OCCLUSION = 0.8
 SCORE_WEIGHT_RMS = 0.6
 SCORE_WEIGHT_THETA_MATCH = 0.2
@@ -67,7 +76,7 @@ THETA_MATCHING_TOLERANCE = 0.8  # degrees
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
 AUTOMATED_FRAME_START = 140
-AUTOMATED_FRAME_END = 1000
+AUTOMATED_FRAME_END = 6500
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
@@ -101,5 +110,5 @@ RTK_TO_CAMERA_OFFSET_Y_M = RTK_TO_CAMERA_OFFSET_Y_LEFT_M
 # Used by TreeMatcher._calculate_heading_score().
 # These are the ONLY tuning knobs for heading sweep selection.
 HEADING_SCORE_W_DELTA_YAW = 1.0
-HEADING_SCORE_W_NUM_WEDGES = 10.0
-HEADING_SCORE_W_THETA_ERROR = 3.0
+HEADING_SCORE_W_NUM_WEDGES = 100.0
+HEADING_SCORE_W_THETA_ERROR = 30.0

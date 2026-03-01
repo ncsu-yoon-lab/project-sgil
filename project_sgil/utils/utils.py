@@ -101,9 +101,12 @@ class LocalizationResult:
 
     image_name: str
     sgil_err_m: float
+    gps_err_m: float
     rtk_pose: Pose2d
+    gps_pose: Pose2d | None
     current_pose: Pose2d
     estimated_pose: Pose2d
+    matched: bool
 
 
 def normalize_deg(angle: float) -> float:

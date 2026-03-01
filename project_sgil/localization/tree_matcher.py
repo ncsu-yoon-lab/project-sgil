@@ -26,6 +26,7 @@ from project_sgil.constants import (
     TREE_LOCATIONS_PATH,
     TREE_RADIUS_M,
     PLOT_WEDGES_PARTIAL,
+    PLOT_RANGE,
     HEADING_SCORE_W_DELTA_YAW,
     HEADING_SCORE_W_NUM_WEDGES,
     HEADING_SCORE_W_THETA_ERROR,
@@ -95,6 +96,7 @@ class TreeMatcher:
             results=results,
             seen_maps=seen_maps,
         )
+        
         return results
 
     @staticmethod
@@ -128,7 +130,7 @@ class TreeMatcher:
         # Do not exceed the maximum selection length.
         if len(chosen_pairs) > max_length:
             return
-
+        
         # Record any partial solution whose size is within [min_length, max_length].
         if min_length <= len(chosen_pairs) <= max_length:
             uniqueness_key = frozenset((idx, t.id) for idx, t in chosen_pairs)
@@ -252,8 +254,38 @@ class TreeMatcher:
         rms = math.sqrt(sq_sum / m) if m > 0 else float("inf")
 
         return x, y, rms
+    
+    def _plot_no_pose_debug(
+        self,
+        *,
+        wedges: list[Wedge],
+        aoi_trees: list[Tree],
+        candidate_pose: Pose2d,
+        image_name: str | None,
+        reason: str,
+        rtk_pose: Pose2d
+    ) -> None:
+        """Plot wedges even when no pose estimate exists (debugging)."""
+        try:
+            DebugVisualizer.plot_wedges(
+                wedges=wedges,
+                wedge_combination={},  # nothing matched
+                current_pose=candidate_pose,
+                rtk_pose=rtk_pose,
+                aoi_trees=aoi_trees,
+                estimated_location=Point(candidate_pose.x, candidate_pose.y),
+                save_name=(
+                    f"NOPOSE_{reason}_"
+                    f"img_{image_name[7:-4] if image_name else 'unknown'}_"
+                    f"yaw_{candidate_pose.yaw:.1f}_"
+                    f"aoi_{len(aoi_trees)}_wedges_{len(wedges)}"
+                ),
+            )
+        except Exception as e:
+            print(f"[TreeMatcher] Failed to plot NO_POSE debug: {e}")
 
-    def match_trees(self, current_pose: Pose2d, ground_thetas: list[float]) -> Point:
+
+    def match_trees(self, current_pose: Pose2d, ground_thetas: list[float], rtk_pose: Pose2d, image_name: str = None) -> Point:
         """Match trees based on current position and ground view angles.
 
         When HEADING_SWEEP_ENABLED is True the method tries multiple candidate
@@ -265,9 +297,10 @@ class TreeMatcher:
         :param current_pose: Current position and heading as Pose2d.
         :param ground_thetas: List of camera angles to trees in ground
             view (positive = left, negative = right).
+        :param image_name: Name of the image for debugging purposes
         :return: Estimated location of the vehicle as Point.
         """
-
+        
         # Build the list of candidate yaw values to evaluate
         if HEADING_SWEEP_ENABLED:
             candidate_yaws: list[float] = []
@@ -287,11 +320,23 @@ class TreeMatcher:
         if sweep_active:
             self.plot_wedges = False
 
+        within_range = True
+
+        # Check if the plot is within a range
+        if PLOT_RANGE is not None and image_name is not None:
+            img_num = int(image_name[13:-4])  # Extract number from "img_XXX.jpg"
+            if not (PLOT_RANGE[0] <= img_num <= PLOT_RANGE[1]):
+                print(f"[TreeMatcher] Skipping plotting for {image_name} outside of range {PLOT_RANGE}")
+                within_range = False
+        
+
         # Each entry: (PoseEstimate, wedges_snapshot, aoi_snapshot,
         #              candidate_pose)
         all_entries: list[
             tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]
         ] = []
+
+        last_fail_snapshot = None  # (wedges_snap, aoi_snap, candidate_pose)
 
         for candidate_yaw in candidate_yaws:
             # Clear previous state for this candidate heading
@@ -313,12 +358,13 @@ class TreeMatcher:
 
             # Estimate location by matching wedges to trees
             pose_estimates = self._wedge_matching(
-                self.wedges, candidate_pose
+                self.wedges, candidate_pose, rtk_pose
             )
 
             # Snapshot wedges & aoi for later plotting
             wedges_snap = list(self.wedges)
             aoi_snap = list(self.aoi_trees)
+            last_fail_snapshot = (wedges_snap, aoi_snap, candidate_pose)
 
             for pe in pose_estimates:
                 all_entries.append(
@@ -327,23 +373,36 @@ class TreeMatcher:
 
         # Restore original plot_wedges setting
         self.plot_wedges = saved_plot_wedges
-
+        
         if not all_entries:
-            if len(ground_thetas) < 2:
-                print(
-                    "[TreeMatcher] No pose estimates: "
-                    "need at least 2 wedges for matching."
-                )
-            else:
-                print(
-                    "[TreeMatcher] No pose estimates: no valid "
-                    "intersections across all candidate headings."
-                )
-            raise ValueError("No pose estimates found")
+            # Only plot if user enabled plotting AND within range gate passed
+            if saved_plot_wedges and within_range and last_fail_snapshot is not None:
+                wedges_snap, aoi_snap, cand_pose = last_fail_snapshot
 
+                # Pick a reason string that's useful
+                if len(ground_thetas) < 2:
+                    reason = "LT2THETA"
+                else:
+                    reason = "NOINTERSECTION"
+
+                self._plot_no_pose_debug(
+                    wedges=wedges_snap,
+                    aoi_trees=aoi_snap,
+                    candidate_pose=cand_pose,
+                    image_name=image_name,
+                    reason=reason,
+                    rtk_pose=rtk_pose
+                )
+
+            if len(ground_thetas) < 2:
+                print("[TreeMatcher] No pose estimates: need at least 2 wedges for matching.")
+            else:
+                print("[TreeMatcher] No pose estimates: no valid intersections across all candidate headings.")
+            raise ValueError("No pose estimates found")
+        
         # --- Pick best per candidate yaw & plot -------------------------
         best_per_yaw: dict[float, tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]] = {}
-
+        
         if sweep_active:
             # Group entries by candidate yaw and keep only the best pose-score entry per yaw
             by_yaw: dict[float, list[
@@ -356,10 +415,10 @@ class TreeMatcher:
                 best_per_yaw[cand_yaw] = max(entries, key=lambda e: e[0].score)
 
         # Plot wedges for best scored combo for each yaw, including heading score
-        if sweep_active and saved_plot_wedges and best_per_yaw:
+        if sweep_active and saved_plot_wedges and best_per_yaw and within_range:
             for cand_yaw, best in best_per_yaw.items():
                 pe, wedges_snap, aoi_snap, cand_pose = best
-
+                
                 heading_score, theta_rms = self._calculate_heading_score(
                     candidate_yaw=cand_yaw,
                     base_yaw=current_pose.yaw,
@@ -373,15 +432,17 @@ class TreeMatcher:
                 dy = pe.pose.y - cand_pose.y
                 dist = math.hypot(dx, dy)
                 delta = normalize_deg(cand_yaw - current_pose.yaw)
-
+                
                 DebugVisualizer.plot_wedges(
                     wedges=wedges_snap,
                     wedge_combination=pe.wedge_combinations,
                     current_pose=cand_pose,
+                    rtk_pose=rtk_pose,
                     aoi_trees=aoi_snap,
                     estimated_location=Point(pe.pose.x, pe.pose.y),
                     save_name=(
-                        f"sweep_yaw_{cand_yaw:.1f}"
+                        f"img_name_{image_name[7:-4] if image_name else 'unknown'}"
+                        f"_sweep_yaw_{cand_yaw:.1f}"
                         f"_delta_{delta:+.1f}"
                         f"_dist_{dist:.2f}"
                         f"_wedges_{len(pe.wedge_combinations)}"
@@ -468,7 +529,7 @@ class TreeMatcher:
 
         return wedge
 
-    def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d) -> list[PoseEstimate]:
+    def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d, rtk_pose: Pose2d) -> list[PoseEstimate]:
         """Estimate poses by evaluating all skip-allowed wedge→tree maps
         (length ≥ 2).
 
@@ -534,6 +595,7 @@ class TreeMatcher:
                     wedges=wedges,
                     wedge_combination=wedge_map,
                     current_pose=current_pose,
+                    rtk_pose=rtk_pose,
                     aoi_trees=self.aoi_trees,
                     estimated_location=Point(x_hat, y_hat),
                     save_name=(

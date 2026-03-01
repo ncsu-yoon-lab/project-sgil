@@ -27,11 +27,12 @@ from project_sgil.constants import (
     AUTOMATED_USE_RTK_POSE_EACH_FRAME,
     DATA_LOGGER_PATH,
     HEADING_SWEEP_ENABLED,
-    IMAGE_FOLDER_PATH,
     IMAGE_SHAPE,
     ORIGIN,
     PLOT,
     PLOT_WEDGES,
+    MIN_DX,
+    MIN_DY,
     RTK_TO_CAMERA_OFFSET_X_FWD_M,
     RTK_TO_CAMERA_OFFSET_Y_LEFT_M,
 )
@@ -46,7 +47,6 @@ class AutomatedSGIL:
 
     def __init__(
         self,
-        image_folder: str = IMAGE_FOLDER_PATH,
         data_log_path: str = DATA_LOGGER_PATH,
         origin: tuple[float, float] = ORIGIN,
         specific_indices: list[int] | None = None,
@@ -56,7 +56,6 @@ class AutomatedSGIL:
     ) -> None:
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher(PLOT_WEDGES)
-        self.image_folder = image_folder
         self.image_shape = IMAGE_SHAPE
 
         # If provided, process exactly these numeric frame indices (e.g. [140, 152, ...]).
@@ -207,7 +206,7 @@ class AutomatedSGIL:
     # ---------------- Pose + trees ----------------
 
     def _frame_to_pose(self, frame: dict[str, Any]) -> Pose2d | None:
-        if frame.get("rtk_heading_filtered") is None:
+        if frame.get("rtk_heading") is None:
             return None
 
         # Store lat/lon (raw antenna locations)
@@ -361,6 +360,7 @@ class AutomatedSGIL:
                 predicted_x = self.current_pose.x + dx_gps
                 predicted_y = self.current_pose.y + dy_gps
 
+        
             # Convert pixel points -> ground thetas
             img_w = int(self.image_shape[1])
             ground_thetas = [
@@ -368,13 +368,20 @@ class AutomatedSGIL:
             ]
 
             pose_for_match = Pose2d(predicted_x, predicted_y, rtk_pose.yaw)
-
-            try:
-                est_pose = self.tree_matcher.match_trees(pose_for_match, ground_thetas)
-                if not isinstance(est_pose, Pose2d):
-                    est_pose = Pose2d(est_pose.x, est_pose.y, pose_for_match.yaw)
-            except Exception:
-                est_pose = Pose2d(predicted_x, predicted_y, pose_for_match.yaw)
+            
+            if dx_gps > MIN_DX or dy_gps > MIN_DY:
+                try:
+                    est_pose = self.tree_matcher.match_trees(pose_for_match, ground_thetas, rtk_pose, image_name=frame_name)
+                    matched = True
+                    if not isinstance(est_pose, Pose2d):
+                        est_pose = Pose2d(est_pose.x, est_pose.y, pose_for_match.yaw)
+                        
+                except Exception:
+                    matched = False
+                    est_pose = pose_for_match
+            else:
+                est_pose = pose_for_match
+                matched = False
 
             # If heading sweep is disabled, keep using RTK yaw
             if not HEADING_SWEEP_ENABLED:
@@ -393,7 +400,7 @@ class AutomatedSGIL:
 
             sgil_err_m = self._sgil_error_meters(est_pose, rtk_pose)
 
-            if PLOT:
+            if PLOT and idx :
                 save_stub = f"frame_{idx:06d}"
                 DebugVisualizer.plot_aoi(
                     self.tree_matcher.satellite_tree_locations,
@@ -406,18 +413,27 @@ class AutomatedSGIL:
                 LocalizationResult(
                     image_name=frame_name,
                     sgil_err_m=sgil_err_m,
+                    gps_err_m=float(
+                        math.hypot(
+                            curr_gps_xy[0] - rtk_pose.x,
+                            curr_gps_xy[1] - rtk_pose.y,
+                        )
+                    ),
                     rtk_pose=rtk_pose,
                     current_pose=pose_for_match,
+                    gps_pose=Pose2d(curr_gps_xy[0], curr_gps_xy[1], yaw=rtk_pose.yaw) if curr_gps_xy is not None else None,
                     estimated_pose=est_pose,
+                    matched=matched
                 )
             )
 
         if results:
             valid_errors = [r.sgil_err_m for r in results if pd.notna(r.sgil_err_m)]
+
             if valid_errors:
                 mean_err = sum(valid_errors) / len(valid_errors)
                 median_err = statistics.median(valid_errors)
-                print(f"\nMean SGIL error   over {len(valid_errors)} frames: {mean_err:.3f} m")
+                print(f"\nMean SGIL error  over {len(valid_errors)} frames: {mean_err:.3f} m")
                 print(f"Median SGIL error over {len(valid_errors)} frames: {median_err:.3f} m")
 
         self._print_summary_table(results)
@@ -432,15 +448,18 @@ class AutomatedSGIL:
             return f"(x={p.x:.2f}, y={p.y:.2f}, yaw={p.yaw:.2f}°)"
 
         print(
-            f"\n{'frame':40s} | {'sgil_err_m':10s} | {'rtk_pose':32s} | "
-            f"{'current_pose':32s} | {'estimated_pose':32s}"
+            f"\n{'frame':40s} | {'matched':10s} | {'sgil_err_m':10s} | {'gps_err_m':10s} | {'gps_pose':32s} | "
+            f"{'rtk_pose':32s} | {'current_pose':32s} | {'estimated_pose':32s}"
         )
-        print("-" * 40 + "-+-" + "-" * 10 + "-+-" + "-" * 32 + "-+-" + "-" * 32 + "-+-" + "-" * 32)
+        print("-" * 40 + "-+-" + "-" * 10 + "-+-" + "-" * 10 + "-+-" + "-" * 10 + "-+-" + "-" *32 + "-+-" + "-" *32 + "-+-" + "-" * 32 + "-+-" + "-" * 32)
 
         for r in results:
             print(
                 f"{r.image_name:40s} | "
+                f"{r.matched!s:10s} | "
                 f"{r.sgil_err_m:10.2f} | "
+                f"{r.gps_err_m:10.2f} | "
+                f"{fmt_pose(r.gps_pose) if r.gps_pose else 'None':32s} | "
                 f"{fmt_pose(r.rtk_pose):32s} | "
                 f"{fmt_pose(r.current_pose):32s} | "
                 f"{fmt_pose(r.estimated_pose):32s}"
