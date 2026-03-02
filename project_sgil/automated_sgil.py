@@ -48,7 +48,7 @@ class AutomatedSGIL:
     """Runs SGIL matching using segmentation centroids from results.json."""
 # Example: {605: -5.0} means "use the normal yaw - 5 degrees".
     HEADING_OFFSET_DEG: dict[int, float] = {
-        605: -7.0,
+        605: 0.0,
     }
 
     # Backwards-compatible alias (deprecated): absolute yaw override.

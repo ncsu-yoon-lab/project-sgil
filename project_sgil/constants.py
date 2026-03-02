@@ -27,27 +27,27 @@ BACKGROUND_EXTENT = ()
 
 # Boolean to plot points of trees
 # PLOT = True
-PLOT = True
+PLOT = False
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = True #True
+PLOT_WEDGES = False #True
 
-PLOT_THETAS = True
+PLOT_THETAS = False
 
 # If True, overlay the satellite image as a faint background on wedge debug plots.
 # Kept separate from PLOT_WEDGES so you can generate wedge plots without the heavy background.
 PLOT_WEDGES_SAT_BACKGROUND = False
 
 # If True, allow wedge debug plots even when not all wedges are matched
-PLOT_WEDGES_PARTIAL = False # True
+PLOT_WEDGES_PARTIAL = True # True
 
-PLOT_RANGE = (300, 700)
+PLOT_RANGE = (300, 1000)
 
 # Random
 RANDOM = False
 
 # The error from the heading on the GPS
-HEADING_ERROR_DEG = 4
+HEADING_ERROR_DEG = 20
 
 # Heading sweep: try multiple candidate headings around the given yaw
 HEADING_SWEEP_ENABLED = False
@@ -86,8 +86,8 @@ IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), 
 
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
-AUTOMATED_FRAME_START = 288 #140
-AUTOMATED_FRAME_END = 620
+AUTOMATED_FRAME_START = 140 # 288
+AUTOMATED_FRAME_END = 1000
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
@@ -127,3 +127,21 @@ HEADING_SCORE_W_THETA_ERROR = 30.0
 # If set, only generate wedge debug plots for this specific frame index.
 # Set to None to allow wedge plots for all frames.
 WEDGE_PLOT_ONLY_IMAGE = 605
+
+# If True, only generate the wedge plot for the final chosen combo (best estimate).
+# If False, TreeMatcher may generate many 'combo_*.png' plots for each candidate combination.
+PLOT_ONLY_CHOSEN_COMBO = True
+
+# --- Wedge plot performance knobs ---
+# These debug plots can be expensive. Turn these on to speed them up.
+WEDGE_PLOT_LABEL_TREES = False  # if True, annotate each tree with lat/lon text
+WEDGE_PLOT_DPI = 110  # lower DPI saves faster; 100-120 is usually plenty
+WEDGE_PLOT_TIGHT_BBOX = False  # bbox_inches='tight' is slow; False is faster
+
+# More wedge plot performance knobs
+WEDGE_PLOT_SHOW_CANDIDATE_TREES = False  # per-wedge candidate scatters are expensive
+WEDGE_PLOT_SHOW_RAYS = True  # draw matched-tree rays (can disable for speed)
+WEDGE_PLOT_SHOW_LEGEND = False  # legend layout can be slow
+WEDGE_PLOT_SHOW_GRID = False
+DEBUG_WEDGE_COMBOS_MAX_PRINT = 25
+DEBUG_WEDGE_COMBOS_FILTER_TREE_IDS: list[int] | None = None

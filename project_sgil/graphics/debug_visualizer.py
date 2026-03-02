@@ -10,7 +10,20 @@ import os
 
 import matplotlib
 
-from project_sgil.constants import AOI_ANGLE_DEG, AOI_RADIUS_M, ORIGIN, SATELLITE_IMAGE_PATH, PLOT_RANGE
+from project_sgil.constants import (
+    AOI_ANGLE_DEG,
+    AOI_RADIUS_M,
+    ORIGIN,
+    SATELLITE_IMAGE_PATH,
+    PLOT_RANGE,
+    WEDGE_PLOT_DPI,
+    WEDGE_PLOT_LABEL_TREES,
+    WEDGE_PLOT_TIGHT_BBOX,
+    WEDGE_PLOT_SHOW_CANDIDATE_TREES,
+    WEDGE_PLOT_SHOW_RAYS,
+    WEDGE_PLOT_SHOW_LEGEND,
+    WEDGE_PLOT_SHOW_GRID,
+)
 from project_sgil.data_structs import Point, Pose2d, Tree, Wedge
 from project_sgil.utils.converter import Converter
 from project_sgil.utils.utils import get_relative_angle
@@ -76,12 +89,17 @@ class DebugVisualizer:
     @classmethod
     def _save_figure(cls, fig: plt.Figure, filename: str) -> str:
         """Save figure to the output directory with bookkeeping."""
-        
+
         cls._ensure_output_dir()
         filepath = os.path.join(cls.OUTPUT_DIR, filename)
-        plt.savefig(filepath, dpi=150, bbox_inches="tight")
+
+        # bbox_inches='tight' is expensive because Matplotlib has to compute
+        # exact artist extents. For debug plots, disabling it is much faster.
+        bbox = "tight" if WEDGE_PLOT_TIGHT_BBOX else None
+
+        fig.savefig(filepath, dpi=int(WEDGE_PLOT_DPI), bbox_inches=bbox)
         plt.close(fig)
-        
+
         return filepath
 
     @classmethod
@@ -291,11 +309,18 @@ class DebugVisualizer:
             )
 
         converter = Converter(ORIGIN[0], ORIGIN[1])
-        
-        pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
+
+        # Lat/lon conversion is also non-trivial; only compute it if we're going to render text.
+        if WEDGE_PLOT_LABEL_TREES:
+            pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
+        else:
+            pose_lat = pose_lon = None
+
         labeled_ids: set[int] = set()
 
         def _label_tree(tree: Tree) -> None:
+            if not WEDGE_PLOT_LABEL_TREES:
+                return
             tree_id = getattr(tree, "id", None)
             if tree_id is not None and tree_id in labeled_ids:
                 return
@@ -327,13 +352,14 @@ class DebugVisualizer:
         ax.scatter(
             current_pose.x, current_pose.y, s=90, marker="*", label="Current Pose", c="#1f77b4"
         )
-        ax.text(
-            current_pose.x + 0.5,
-            current_pose.y + 0.5,
-            f"({pose_lat:.6f}, {pose_lon:.6f})",
-            fontsize=7,
-            alpha=0.8,
-        )
+        if pose_lat is not None and pose_lon is not None:
+            ax.text(
+                current_pose.x + 0.5,
+                current_pose.y + 0.5,
+                f"({pose_lat:.6f}, {pose_lon:.6f})",
+                fontsize=7,
+                alpha=0.8,
+            )
         heading_rad = math.radians(current_pose.yaw)
         head_len = 6.0
         ax.plot(
@@ -400,23 +426,30 @@ class DebugVisualizer:
                 [wedge_origin_x, wedge_origin_x + guide_len * math.cos(dir_from_pose)],
                 [wedge_origin_y, wedge_origin_y + guide_len * math.sin(dir_from_pose)],
                 linestyle="--",
-                linewidth=1.8,
+                linewidth=1.6,
                 alpha=0.8,
                 c=color,
-                label=(f"Wedge {idx + 1} Δθ={wedge.theta_degrees:+.1f}°" if idx == 0 else None),
+                antialiased=False,
+                label=(
+                    f"Wedge {idx + 1} Δθ={wedge.theta_degrees:+.1f}°"
+                    if (idx == 0 and WEDGE_PLOT_SHOW_LEGEND)
+                    else None
+                ),
             )
 
             # (2) All candidate trees for this wedge (small dots in wedge color)
-            if wedge.trees:
+            if wedge.trees and WEDGE_PLOT_SHOW_CANDIDATE_TREES:
                 ax.scatter(
                     [t.x for t in wedge.trees],
                     [t.y for t in wedge.trees],
-                    s=28,
+                    s=22,
                     alpha=0.6,
                     c=color,
+                    linewidths=0,
                 )
-                for t in wedge.trees:
-                    _label_tree(t)
+                if WEDGE_PLOT_LABEL_TREES:
+                    for t in wedge.trees:
+                        _label_tree(t)
 
             # (3) If this wedge is in the selected combination, highlight that pick
             if wedge in wedge_combination:
@@ -424,27 +457,29 @@ class DebugVisualizer:
                 ax.scatter(
                     sel.x,
                     sel.y,
-                    s=80,
+                    s=70,
                     marker="s",
                     edgecolor="k",
-                    linewidths=1.0,
+                    linewidths=0.8,
                     alpha=0.95,
                     c=color,
-                    label=(f"Pick for Wedge {idx + 1}" if idx == 0 else None),
+                    label=(f"Pick for Wedge {idx + 1}" if (idx == 0 and WEDGE_PLOT_SHOW_LEGEND) else None),
                 )
 
-                # Draw a ray through the selected tree along the relative line-of-bearing
-                theta_rel = math.radians(-wedge.theta_degrees)
-                ray_dir = (heading_rad - theta_rel - math.radians(180.0)) % (2 * math.pi)
-                ray_len = 28.0
-                ax.plot(
-                    [sel.x, sel.x + ray_len * math.cos(ray_dir)],
-                    [sel.y, sel.y + ray_len * math.sin(ray_dir)],
-                    linestyle="-",
-                    linewidth=2.0,
-                    alpha=0.9,
-                    c=color,
-                )
+                if WEDGE_PLOT_SHOW_RAYS:
+                    # Draw a ray through the selected tree along the relative line-of-bearing
+                    theta_rel = math.radians(-wedge.theta_degrees)
+                    ray_dir = (heading_rad - theta_rel - math.radians(180.0)) % (2 * math.pi)
+                    ray_len = 28.0
+                    ax.plot(
+                        [sel.x, sel.x + ray_len * math.cos(ray_dir)],
+                        [sel.y, sel.y + ray_len * math.sin(ray_dir)],
+                        linestyle="-",
+                        linewidth=1.6,
+                        alpha=0.9,
+                        c=color,
+                        antialiased=False,
+                    )
 
                 # Annotate the observed relative angle from the RTK position (XY)
                 # using the current heading-sweep yaw.
@@ -484,10 +519,15 @@ class DebugVisualizer:
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_title("Wedge Selection & Geometry")
-        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
-        ax.grid(True, alpha=0.3)
-        plt.tight_layout()
-        
+        if WEDGE_PLOT_SHOW_LEGEND:
+            ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        if WEDGE_PLOT_SHOW_GRID:
+            ax.grid(True, alpha=0.3)
+
+        # tight_layout() is also expensive; with bbox tight disabled, it's not critical.
+        if WEDGE_PLOT_TIGHT_BBOX:
+            plt.tight_layout()
+
         filename = (
             f"{save_name}.png" if save_name else DebugVisualizer._next_name("wedges_plot", ".png")
         )

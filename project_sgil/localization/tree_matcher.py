@@ -29,6 +29,7 @@ from project_sgil.constants import (
     PLOT_WEDGES_PARTIAL,
     PLOT_RANGE,
     WEDGE_PLOT_ONLY_IMAGE,
+    PLOT_ONLY_CHOSEN_COMBO,
     HEADING_SCORE_W_DELTA_YAW,
     HEADING_SCORE_W_NUM_WEDGES,
     HEADING_SCORE_W_THETA_ERROR,
@@ -482,10 +483,63 @@ class TreeMatcher:
                 f"(input was {current_pose.yaw:.2f}, delta={normalize_deg(final_estimate.pose.yaw - current_pose.yaw):+.2f}) "
                 f"pose_score={final_estimate.score:.2f} theta_rms={theta_rms:.2f} heading_score={heading_score:.2f}"
             )
+
+            if PLOT_ONLY_CHOSEN_COMBO and saved_plot_wedges and within_range:
+                try:
+                    for w, t in final_estimate.wedge_combinations.items():
+                        w.matched_tree = t
+                    dx = final_estimate.pose.x - rtk_pose.x
+                    dy = final_estimate.pose.y - rtk_pose.y
+                    dist = math.hypot(dx, dy)
+                    DebugVisualizer.plot_wedges(
+                        wedges=wedges_snap,
+                        wedge_combination=final_estimate.wedge_combinations,
+                        current_pose=Pose2d(current_pose.x, current_pose.y, final_estimate.pose.yaw),
+                        rtk_pose=rtk_pose,
+                        aoi_trees=aoi_snap,
+                        estimated_location=Point(final_estimate.pose.x, final_estimate.pose.y),
+                        save_name=(
+                            f"CHOSEN_combo_{getattr(final_estimate,'combo_index',None)}"
+                            f"_img_{image_name[7:-4] if image_name else 'unknown'}"
+                            f"_dist_{dist:.2f}"
+                            f"_wedges_{len(final_estimate.wedge_combinations)}"
+                            f"_score_{final_estimate.score:.2f}"
+                            f"_conf_{final_estimate.confidence:.2f}"
+                        ),
+                    )
+                except Exception as e:
+                    print(f"[TreeMatcher] Failed to plot chosen combo: {e}")
         else:
             # Find the best pose estimate across all candidate headings
             best_entry = max(all_entries, key=lambda e: e[0].score)
             final_estimate = best_entry[0]
+
+            if PLOT_ONLY_CHOSEN_COMBO and saved_plot_wedges and within_range:
+                try:
+                    pe, wedges_snap, aoi_snap, cand_pose = best_entry
+                    for w, t in final_estimate.wedge_combinations.items():
+                        w.matched_tree = t
+                    dx = final_estimate.pose.x - rtk_pose.x
+                    dy = final_estimate.pose.y - rtk_pose.y
+                    dist = math.hypot(dx, dy)
+                    DebugVisualizer.plot_wedges(
+                        wedges=wedges_snap,
+                        wedge_combination=final_estimate.wedge_combinations,
+                        current_pose=cand_pose,
+                        rtk_pose=rtk_pose,
+                        aoi_trees=aoi_snap,
+                        estimated_location=Point(final_estimate.pose.x, final_estimate.pose.y),
+                        save_name=(
+                            f"CHOSEN_combo_{getattr(final_estimate,'combo_index',None)}"
+                            f"_img_{image_name[7:-4] if image_name else 'unknown'}"
+                            f"_dist_{dist:.2f}"
+                            f"_wedges_{len(final_estimate.wedge_combinations)}"
+                            f"_score_{final_estimate.score:.2f}"
+                            f"_conf_{final_estimate.confidence:.2f}"
+                        ),
+                    )
+                except Exception as e:
+                    print(f"[TreeMatcher] Failed to plot chosen combo: {e}")
 
         # --- Print chosen combo (wedge -> tree) -------------------------
         try:
@@ -631,9 +685,13 @@ class TreeMatcher:
             )
 
             # Debug visualization
-            if self.plot_wedges and (
-                (PLOT_WEDGES_PARTIAL and len(wedge_map) >= 2)
-                or (len(wedge_map) == len(wedges))
+            if (
+                self.plot_wedges
+                and not PLOT_ONLY_CHOSEN_COMBO
+                and (
+                    (PLOT_WEDGES_PARTIAL and len(wedge_map) >= 2)
+                    or (len(wedge_map) == len(wedges))
+                )
             ):
                 # Respect global "only plot this image" gate.
                 if WEDGE_PLOT_ONLY_IMAGE is not None and image_name is not None:
