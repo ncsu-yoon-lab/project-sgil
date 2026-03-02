@@ -10,7 +10,7 @@ ORIGIN = ((IMAGE_TOP_LEFT.x + IMAGE_BOTTOM_RIGHT.x) / 2.0, (IMAGE_TOP_LEFT.y + I
 EARTH_RADIUS_M = 6378137  # [m]
 
 # Path to the CSV of tree locations in lat, lon
-TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_manual_trees.csv"
+TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_deepforest_trees_latlon.csv"
 
 # Path to the data logged while traveling
 # DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
@@ -30,7 +30,7 @@ BACKGROUND_EXTENT = ()
 PLOT = False
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = False #True
+PLOT_WEDGES = True #True
 
 PLOT_THETAS = False
 
@@ -47,11 +47,11 @@ PLOT_RANGE = (300, 1000)
 RANDOM = False
 
 # The error from the heading on the GPS
-HEADING_ERROR_DEG = 20
+HEADING_ERROR_DEG = 6
 
 # Heading sweep: try multiple candidate headings around the given yaw
-HEADING_SWEEP_ENABLED = False
-HEADING_SWEEP_RANGE_DEG = 7  # search yaw ± this many degrees
+HEADING_SWEEP_ENABLED = True
+HEADING_SWEEP_RANGE_DEG = 5  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
 # Vertical and Horizontal FOV

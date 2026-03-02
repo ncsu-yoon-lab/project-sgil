@@ -352,6 +352,7 @@ class AutomatedSGIL:
             # simulating snapping back to the road after a skip (like how your car does with gps)
             if idx == 605:
                 self.current_pose.x = 141.91757704678744
+                self.current_pose.y = curr_gps_xy[1]
 
             # Debug: print RTK/GPS positions and deltas each processed step
             if self._last_rtk_xy is None:

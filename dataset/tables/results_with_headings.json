@@ -40821,68 +40821,60 @@
             "rtk_heading": 88.4721219786346,
             "segmentations": [
                 {
-                    "id": 1,
-                    "bbox_x1": 288,
-                    "bbox_y1": 0,
-                    "bbox_x2": 730,
-                    "bbox_y2": 646,
-                    "centroid_x": 531.2792358398438,
-                    "centroid_y": 204.968505859375,
-                    "confidence": 0.49854227900505066
+                    "bbox_x1": 978,
+                    "bbox_y1": 525,
+                    "bbox_x2": 998,
+                    "bbox_y2": 545,
+                    "centroid_x": 988,
+                    "centroid_y": 535,
+                    "confidence": 1.0
                 },
                 {
-                    "id": 2,
-                    "bbox_x1": 1176,
-                    "bbox_y1": 348,
-                    "bbox_x2": 1324,
-                    "bbox_y2": 569,
-                    "centroid_x": 1248.5302734375,
-                    "centroid_y": 457.4871520996094,
-                    "confidence": 0.3738754391670227
-                },
-                {
-                    "id": 3,
-                    "bbox_x1": 893,
-                    "bbox_y1": 276,
-                    "bbox_x2": 1067,
+                    "bbox_x1": 1256,
+                    "bbox_y1": 532,
+                    "bbox_x2": 1276,
                     "bbox_y2": 552,
-                    "centroid_x": 970.358642578125,
-                    "centroid_y": 413.8226013183594,
-                    "confidence": 0.25091254711151123
+                    "centroid_x": 1266,
+                    "centroid_y": 542,
+                    "confidence": 1.0
                 },
                 {
-                    "id": 4,
-                    "bbox_x1": 786,
-                    "bbox_y1": 241,
-                    "bbox_x2": 935,
-                    "bbox_y2": 565,
-                    "centroid_x": 866.1458740234375,
-                    "centroid_y": 359.2803039550781,
-                    "confidence": 0.24798721075057983
+                    "bbox_x1": 914,
+                    "bbox_y1": 444,
+                    "bbox_x2": 934,
+                    "bbox_y2": 464,
+                    "centroid_x": 924,
+                    "centroid_y": 454,
+                    "confidence": 1.0
                 },
                 {
-                    "id": 5,
-                    "bbox_x1": 1041,
-                    "bbox_y1": 475,
-                    "bbox_x2": 1116,
-                    "bbox_y2": 551,
-                    "centroid_x": 1073.27001953125,
-                    "centroid_y": 515.8717651367188,
-                    "confidence": 0.23792965710163116
+                    "bbox_x1": 851,
+                    "bbox_y1": 457,
+                    "bbox_x2": 871,
+                    "bbox_y2": 477,
+                    "centroid_x": 861,
+                    "centroid_y": 467,
+                    "confidence": 1.0
                 },
                 {
-                    "id": 6,
-                    "bbox_x1": 1141,
+                    "bbox_x1": 553,
+                    "bbox_y1": 432,
+                    "bbox_x2": 573,
+                    "bbox_y2": 452,
+                    "centroid_x": 563,
+                    "centroid_y": 442,
+                    "confidence": 1.0
+                },
+                {
+                    "bbox_x1": 939,
                     "bbox_y1": 476,
-                    "bbox_x2": 1195,
-                    "bbox_y2": 556,
-                    "centroid_x": 1166.8553466796875,
-                    "centroid_y": 516.9179077148438,
-                    "confidence": 0.21469122171401978
+                    "bbox_x2": 959,
+                    "bbox_y2": 496,
+                    "centroid_x": 949,
+                    "centroid_y": 486,
+                    "confidence": 1.0
                 }
-            ],
-            "gps_heading_filtered": 90.86999604908485,
-            "rtk_heading_filtered": 88.4721219786346
+            ]
         },
         {
             "frame_name": "images/image_00000606.png",
