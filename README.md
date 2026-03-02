@@ -48,4 +48,8 @@ If you have an older pixel-based CSV, run:
 uv run python scripts\convert_tree_csv_to_latlon.py
 ```
 
+```
+uv run python -m project_sgil.automated_sgil | Out-File -FilePath "dataset\tables\automated_sgil_table.txt" -Encoding utf8
+```
+
 This overwrites `RaleighSatellite_manual_trees.csv` with lat/lon values and writes a backup at `RaleighSatellite_manual_trees.csv.bak`.

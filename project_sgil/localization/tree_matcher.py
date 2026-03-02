@@ -8,6 +8,7 @@ author: Cole Malinchock and Jack Elia
 import collections
 import csv
 import math
+import os
 
 from project_sgil.constants import (
     AOI_ANGLE_DEG,
@@ -27,6 +28,7 @@ from project_sgil.constants import (
     TREE_RADIUS_M,
     PLOT_WEDGES_PARTIAL,
     PLOT_RANGE,
+    WEDGE_PLOT_ONLY_IMAGE,
     HEADING_SCORE_W_DELTA_YAW,
     HEADING_SCORE_W_NUM_WEDGES,
     HEADING_SCORE_W_THETA_ERROR,
@@ -326,9 +328,16 @@ class TreeMatcher:
         if PLOT_RANGE is not None and image_name is not None:
             img_num = int(image_name[13:-4])  # Extract number from "img_XXX.jpg"
             if not (PLOT_RANGE[0] <= img_num <= PLOT_RANGE[1]):
-                print(f"[TreeMatcher] Skipping plotting for {image_name} outside of range {PLOT_RANGE}")
                 within_range = False
-        
+
+        # If set, only plot wedges for a specific frame index.
+        if within_range and WEDGE_PLOT_ONLY_IMAGE is not None and image_name is not None:
+            try:
+                img_num = int(image_name[13:-4])
+                if img_num != int(WEDGE_PLOT_ONLY_IMAGE):
+                    within_range = False
+            except Exception:
+                within_range = False
 
         # Each entry: (PoseEstimate, wedges_snapshot, aoi_snapshot,
         #              candidate_pose)
@@ -358,7 +367,7 @@ class TreeMatcher:
 
             # Estimate location by matching wedges to trees
             pose_estimates = self._wedge_matching(
-                self.wedges, candidate_pose, rtk_pose
+                self.wedges, candidate_pose, rtk_pose, image_name=image_name
             )
 
             # Snapshot wedges & aoi for later plotting
@@ -428,8 +437,9 @@ class TreeMatcher:
                 for w, t in pe.wedge_combinations.items():
                     w.matched_tree = t
 
-                dx = pe.pose.x - cand_pose.x
-                dy = pe.pose.y - cand_pose.y
+                # Distance used for debug naming should be error vs RTK (camera) pose
+                dx = pe.pose.x - rtk_pose.x
+                dy = pe.pose.y - rtk_pose.y
                 dist = math.hypot(dx, dy)
                 delta = normalize_deg(cand_yaw - current_pose.yaw)
                 
@@ -476,6 +486,26 @@ class TreeMatcher:
             # Find the best pose estimate across all candidate headings
             best_entry = max(all_entries, key=lambda e: e[0].score)
             final_estimate = best_entry[0]
+
+        # --- Print chosen combo (wedge -> tree) -------------------------
+        try:
+            if getattr(final_estimate, "combo_index", None) is not None:
+                print(
+                    f"[TreeMatcher] Chosen combo_index={final_estimate.combo_index} for {image_name if image_name else 'image'}"
+                )
+            combo_items = sorted(
+                final_estimate.wedge_combinations.items(),
+                key=lambda wt: wt[0].theta_degrees,
+            )
+            combo_str = ", ".join(
+                f"(θ={w.theta_degrees:+.1f}° -> tree_id={getattr(t,'id',None)} @ ({t.x:.2f},{t.y:.2f}))"
+                for w, t in combo_items
+            )
+            print(
+                f"[TreeMatcher] Picked combo for {image_name if image_name else 'image'}: {combo_str}"
+            )
+        except Exception as e:
+            print(f"[TreeMatcher] Failed to print picked combo: {e}")
 
         # Set wedges for visualization
         for wedge, tree in final_estimate.wedge_combinations.items():
@@ -529,12 +559,20 @@ class TreeMatcher:
 
         return wedge
 
-    def _wedge_matching(self, wedges: list[Wedge], current_pose: Pose2d, rtk_pose: Pose2d) -> list[PoseEstimate]:
+    def _wedge_matching(
+        self,
+        wedges: list[Wedge],
+        current_pose: Pose2d,
+        rtk_pose: Pose2d,
+        *,
+        image_name: str | None = None,
+    ) -> list[PoseEstimate]:
         """Estimate poses by evaluating all skip-allowed wedge→tree maps
         (length ≥ 2).
 
         :param wedges: List of candidate Wedge objects.
         :param current_pose: Current estimated pose of the vehicle.
+        :param image_name: Frame name used for debug plot gating.
         :return: List of PoseEstimate objects (pose + confidence).
         """
         # Generate maps: {Wedge -> Tree}, allowing skips, with length >= 2
@@ -562,9 +600,9 @@ class TreeMatcher:
 
             estimated_pose = Pose2d(x_hat, y_hat, current_pose.yaw)
 
-            # Compute distance to actual pose
-            dx = x_hat - current_pose.x
-            dy = y_hat - current_pose.y
+            # Compute distance to RTK pose (used for debug naming)
+            dx = x_hat - rtk_pose.x
+            dy = y_hat - rtk_pose.y
             dist = math.hypot(dx, dy)
 
             combo_index += 1
@@ -581,7 +619,13 @@ class TreeMatcher:
             )
 
             confidence = self.calculate_pose_estimate_confidence(
-                PoseEstimate(Pose2d(x_hat, y_hat, current_pose.yaw), score, 1, wedge_map),
+                PoseEstimate(
+                    Pose2d(x_hat, y_hat, current_pose.yaw),
+                    score,
+                    1,
+                    wedge_map,
+                    combo_index=combo_index,
+                ),
                 list(wedge_map.values()),
                 self.aoi_trees,
             )
@@ -591,20 +635,50 @@ class TreeMatcher:
                 (PLOT_WEDGES_PARTIAL and len(wedge_map) >= 2)
                 or (len(wedge_map) == len(wedges))
             ):
-                DebugVisualizer.plot_wedges(
-                    wedges=wedges,
-                    wedge_combination=wedge_map,
-                    current_pose=current_pose,
-                    rtk_pose=rtk_pose,
-                    aoi_trees=self.aoi_trees,
-                    estimated_location=Point(x_hat, y_hat),
-                    save_name=(
-                        f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_"
-                        f"score_{score:.2f}_conf_{confidence:.2f}"
-                    ),
-                )
+                # Respect global "only plot this image" gate.
+                if WEDGE_PLOT_ONLY_IMAGE is not None and image_name is not None:
+                    try:
+                        img_num = int(os.path.basename(image_name).split("_")[-1].split(".")[0])
+                    except Exception:
+                        img_num = None
+                    if img_num is None or img_num != int(WEDGE_PLOT_ONLY_IMAGE):
+                        pass
+                    else:
+                        DebugVisualizer.plot_wedges(
+                            wedges=wedges,
+                            wedge_combination=wedge_map,
+                            current_pose=current_pose,
+                            rtk_pose=rtk_pose,
+                            aoi_trees=self.aoi_trees,
+                            estimated_location=Point(x_hat, y_hat),
+                            save_name=(
+                                f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_"
+                                f"score_{score:.2f}_conf_{confidence:.2f}"
+                            ),
+                        )
+                else:
+                    DebugVisualizer.plot_wedges(
+                        wedges=wedges,
+                        wedge_combination=wedge_map,
+                        current_pose=current_pose,
+                        rtk_pose=rtk_pose,
+                        aoi_trees=self.aoi_trees,
+                        estimated_location=Point(x_hat, y_hat),
+                        save_name=(
+                            f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_"
+                            f"score_{score:.2f}_conf_{confidence:.2f}"
+                        ),
+                    )
 
-            pose_estimates.append(PoseEstimate(estimated_pose, score, confidence, wedge_map))
+            pose_estimates.append(
+                PoseEstimate(
+                    estimated_pose,
+                    score,
+                    confidence,
+                    wedge_map,
+                    combo_index=combo_index,
+                )
+            )
 
         return pose_estimates
 
@@ -704,7 +778,7 @@ class TreeMatcher:
         # Example heuristic: fraction of trees matched
         match_ratio = len(matched_trees) / len(all_trees)
 
-        # Example heuristic: normalize score contribution (optional)
+        # Example heuristic: normalize score component (optional)
         score_component = min(1.0, pose_estimate.score / 100.0)
 
         # Blend heuristics (weights can be tuned)
@@ -763,4 +837,5 @@ class TreeMatcher:
         )
 
         return float(heading_score), float(theta_rms)
+
 

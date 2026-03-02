@@ -73,16 +73,21 @@ class PoseEstimate:
     :param confidence: A float between 0.0 and 1.0 representing the
         confidence in the pose estimate. This is independent of the
         score and indicative of the reliability of the estimate.
+    :param combo_index: The 1-based index of the wedge/tree combination that
+        produced this estimate (matches the 'combo_{N}_...' used in debug plot names).
     """
 
     pose: Pose2d
     score: float
     confidence: float
     wedge_combinations: dict[Wedge, Tree]
+    combo_index: int | None = None
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.confidence <= 1.0):
-            raise ValueError(f"Confidence must be between 0.0 and 1.0, got {self.confidence}")
+            raise ValueError(
+                f"Confidence must be between 0.0 and 1.0, got {self.confidence}"
+            )
 
 
 @dataclass
@@ -96,7 +101,7 @@ class LocalizationResult:
     :param current_pose: Pose passed into the tree matcher for this
         image.
     :param estimated_pose: Pose using estimated XY (from tree matcher)
-        and current yaw.
+        and current yaw. Can be None when no estimate was produced.
     """
 
     image_name: str
@@ -105,7 +110,7 @@ class LocalizationResult:
     rtk_pose: Pose2d
     gps_pose: Pose2d | None
     current_pose: Pose2d
-    estimated_pose: Pose2d
+    estimated_pose: Pose2d | None
     matched: bool
 
 

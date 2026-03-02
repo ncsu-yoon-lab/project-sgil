@@ -27,10 +27,16 @@ BACKGROUND_EXTENT = ()
 
 # Boolean to plot points of trees
 # PLOT = True
-PLOT = False
+PLOT = True
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = False #True
+PLOT_WEDGES = True #True
+
+PLOT_THETAS = True
+
+# If True, overlay the satellite image as a faint background on wedge debug plots.
+# Kept separate from PLOT_WEDGES so you can generate wedge plots without the heavy background.
+PLOT_WEDGES_SAT_BACKGROUND = False
 
 # If True, allow wedge debug plots even when not all wedges are matched
 PLOT_WEDGES_PARTIAL = False # True
@@ -41,11 +47,11 @@ PLOT_RANGE = (300, 700)
 RANDOM = False
 
 # The error from the heading on the GPS
-HEADING_ERROR_DEG = 6
+HEADING_ERROR_DEG = 4
 
 # Heading sweep: try multiple candidate headings around the given yaw
-HEADING_SWEEP_ENABLED = True
-HEADING_SWEEP_RANGE_DEG = 5  # search yaw ± this many degrees
+HEADING_SWEEP_ENABLED = False
+HEADING_SWEEP_RANGE_DEG = 7  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
 # Vertical and Horizontal FOV
@@ -56,7 +62,7 @@ V_FOV_DEG = 70  # [degrees]
 IMAGE_SHAPE = (1242, 2208, 3)
 
 # Radius of area of interest (AOI)
-AOI_RADIUS_M = 50  # [m]
+AOI_RADIUS_M = 70  # [m]
 
 # Angle of area of interest (AOI)
 AOI_ANGLE_DEG = (H_FOV_DEG + HEADING_ERROR_DEG) / 2
@@ -73,10 +79,15 @@ SCORE_RMS_SCALE = 1.0  # meters
 TREE_RADIUS_M = 1.1  # meters
 THETA_MATCHING_TOLERANCE = 0.8  # degrees
 
+# --- Automated SGIL image skipping ---
+# List of (start_inclusive, end_exclusive) frame index ranges to skip.
+# Example: IMAGES_TO_SKIP = [(200, 250), (1200, 1400)]
+IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), (5036, 6500)]
+
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
-AUTOMATED_FRAME_START = 140
-AUTOMATED_FRAME_END = 6500
+AUTOMATED_FRAME_START = 288 #140
+AUTOMATED_FRAME_END = 620
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
@@ -87,7 +98,7 @@ AUTOMATED_SKIP_IF_NO_TREES = True
 # If True, AutomatedSGIL uses the RTK pose (x,y,yaw) for each frame as the
 # pose passed into TreeMatcher (no dead-reckoning / carryover).
 # If False, it uses the previous estimated pose + RTK delta XY (current behavior).
-AUTOMATED_USE_RTK_POSE_EACH_FRAME = False #True
+AUTOMATED_USE_RTK_POSE_EACH_FRAME = False
 
 # World frame:
 #   +x = East, +y = North   (see Converter.latlon_to_xy)
@@ -112,3 +123,7 @@ RTK_TO_CAMERA_OFFSET_Y_M = RTK_TO_CAMERA_OFFSET_Y_LEFT_M
 HEADING_SCORE_W_DELTA_YAW = 1.0
 HEADING_SCORE_W_NUM_WEDGES = 100.0
 HEADING_SCORE_W_THETA_ERROR = 30.0
+
+# If set, only generate wedge debug plots for this specific frame index.
+# Set to None to allow wedge plots for all frames.
+WEDGE_PLOT_ONLY_IMAGE = 605

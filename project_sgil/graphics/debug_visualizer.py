@@ -121,7 +121,7 @@ class DebugVisualizer:
         if aoi_sat_trees:
             aoi_x = [tree.x for tree in aoi_sat_trees]
             aoi_y = [tree.y for tree in aoi_sat_trees]
-            ax.scatter(aoi_x, aoi_y, s=50, alpha=0.8, label="AOI Trees")
+            ax.scatter(aoi_x, aoi_y, s=50, alpha=0.8, label="AOI Trees", zorder=4)
 
         # Plot current position in red
         ax.scatter(
@@ -153,37 +153,68 @@ class DebugVisualizer:
             head_length=2,
         )
 
-        # Add AOI radius circle
+        # The AOI selection in TreeMatcher is centered at an adjusted pose
+        # (5m behind the current pose along heading). Mirror that here so
+        # the drawn circle matches which trees are classified as AOI.
+        aoi_center = Pose2d(
+            x=current_pose.x - 5 * math.cos(math.radians(current_pose.yaw)),
+            y=current_pose.y - 5 * math.sin(math.radians(current_pose.yaw)),
+            yaw=current_pose.yaw,
+        )
+
+        # Add AOI radius circle (centered on AOI center)
         circle = plt.Circle(
-            (current_pose.x, current_pose.y),
+            (aoi_center.x, aoi_center.y),
             AOI_RADIUS_M,
             fill=False,
             linestyle="--",
-            alpha=0.7,
+            alpha=0.9,
+            linewidth=2.0,
+            zorder=6,
         )
         ax.add_patch(circle)
 
-        # Add field of view indicator
+        # Add field of view indicator (same center & radius)
         half_fov = math.radians(AOI_ANGLE_DEG)
+        heading_rad = math.radians(aoi_center.yaw)
         start_angle = math.degrees(heading_rad - half_fov)
         end_angle = math.degrees(heading_rad + half_fov)
         wedge_patch = plt.matplotlib.patches.Wedge(
-            (current_pose.x, current_pose.y),
+            (aoi_center.x, aoi_center.y),
             AOI_RADIUS_M,
             start_angle,
             end_angle,
             fill=False,
             linestyle=":",
-            alpha=0.7,
+            alpha=0.9,
+            linewidth=2.0,
+            zorder=6,
         )
         ax.add_patch(wedge_patch)
 
-        # Zoom in around the AOI with a small margin
-        margin = AOI_RADIUS_M * 1.2
-        ax.set_xlim(current_pose.x - margin, current_pose.x + margin)
-        ax.set_ylim(current_pose.y - margin, current_pose.y + margin)
+        # --- Auto-zoom so the AOI circle + AOI points are always visible ---
+        # The bounds should at least include the full circle.
+        min_x = aoi_center.x - AOI_RADIUS_M
+        max_x = aoi_center.x + AOI_RADIUS_M
+        min_y = aoi_center.y - AOI_RADIUS_M
+        max_y = aoi_center.y + AOI_RADIUS_M
 
-        ax.set_aspect("equal")
+        # Expand bounds to include any AOI points (if provided).
+        if aoi_sat_trees:
+            aoi_x = [tree.x for tree in aoi_sat_trees]
+            aoi_y = [tree.y for tree in aoi_sat_trees]
+            min_x = min(min_x, min(aoi_x))
+            max_x = max(max_x, max(aoi_x))
+            min_y = min(min_y, min(aoi_y))
+            max_y = max(max_y, max(aoi_y))
+
+        # Add padding to avoid clipping the circle/labels.
+        span = max(max_x - min_x, max_y - min_y)
+        pad = max(5.0, 0.08 * span)
+        ax.set_xlim(min_x - pad, max_x + pad)
+        ax.set_ylim(min_y - pad, max_y + pad)
+
+        ax.set_aspect("equal", adjustable="box")
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
         ax.set_title("Area of Interest Debug Plot")
@@ -223,13 +254,19 @@ class DebugVisualizer:
         aoi_trees: list[Tree],
         estimated_location: Point,
         save_name: str | None = None,
+        *,
+        show_sat_background: bool = False,
     ) -> None:
-        """Visualize AOI trees, wedge directions, and chosen tree per wedge."""
-        
+        """Visualize AOI trees, wedge directions, and chosen tree per wedge.
+
+        :param show_sat_background: If True, overlay the satellite image under the plot.
+            Defaults to False to keep plots lightweight/clean.
+        """
+
         fig, ax = plt.subplots(figsize=(10, 8))
 
-        if SATELLITE_IMAGE_PATH is not None:
-            
+        if show_sat_background and SATELLITE_IMAGE_PATH is not None:
+
             img = mpimg.imread(SATELLITE_IMAGE_PATH)
 
             VIEW_W_PX = 1600
@@ -307,7 +344,19 @@ class DebugVisualizer:
             alpha=0.9,
             c="#1f77b4",
         )
-        
+
+        # Compute observed angles from RTK XY but using the heading-sweep yaw.
+        # (RTK provides the position; current_pose provides the candidate yaw.)
+        if rtk_pose is not None:
+            angle_origin = Pose2d(rtk_pose.x, rtk_pose.y, current_pose.yaw)
+        else:
+            angle_origin = Pose2d(current_pose.x, current_pose.y, current_pose.yaw)
+
+        # Use the estimated position as the origin for the dashed wedge guidelines.
+        # (Yaw still comes from current_pose; estimated_location is XY-only.)
+        wedge_origin_x = float(estimated_location.x)
+        wedge_origin_y = float(estimated_location.y)
+
         if rtk_pose is not None:
             ax.scatter(
                 rtk_pose.x,
@@ -340,15 +389,16 @@ class DebugVisualizer:
         ]
 
         # --- For each wedge: draw guideline, candidates, and selected tree ---
+        matched_label_idx = 0
         for idx, wedge in enumerate(wedges):
             color = colors[idx % len(colors)]
 
-            # (1) Guideline (dashed) for wedge direction from the current pose
+            # (1) Guideline (dashed) for wedge direction from the estimated position
             dir_from_pose = heading_rad - math.radians(-wedge.theta_degrees)
             guide_len = 22.0
             ax.plot(
-                [current_pose.x, current_pose.x + guide_len * math.cos(dir_from_pose)],
-                [current_pose.y, current_pose.y + guide_len * math.sin(dir_from_pose)],
+                [wedge_origin_x, wedge_origin_x + guide_len * math.cos(dir_from_pose)],
+                [wedge_origin_y, wedge_origin_y + guide_len * math.sin(dir_from_pose)],
                 linestyle="--",
                 linewidth=1.8,
                 alpha=0.8,
@@ -396,6 +446,29 @@ class DebugVisualizer:
                     c=color,
                 )
 
+                # Annotate the observed relative angle from the RTK position (XY)
+                # using the current heading-sweep yaw.
+                try:
+                    observed = get_relative_angle(sel, angle_origin)
+                    # Stagger labels so multiple wedges don't overlap.
+                    dy_px = 15 * matched_label_idx
+                    matched_label_idx += 1
+                    ax.annotate(
+                        f"{observed:+.1f}°",
+                        xy=(sel.x, sel.y),
+                        xytext=(0, dy_px),
+                        textcoords="offset pixels",
+                        ha="center",
+                        va="bottom",
+                        fontsize=7,
+                        alpha=0.9,
+                        color="black",
+                        bbox={"boxstyle": "round,pad=0.2", "fc": "white", "ec": "none", "alpha": 0.6},
+                        zorder=10,
+                    )
+                except Exception:
+                    pass
+
         # --- Estimated location (solution) ---
         ax.scatter(
             estimated_location.x,
@@ -418,7 +491,7 @@ class DebugVisualizer:
         filename = (
             f"{save_name}.png" if save_name else DebugVisualizer._next_name("wedges_plot", ".png")
         )
-        
+
         path = DebugVisualizer._save_figure(fig, filename)
         
         print(f"Wedges plot saved to: {path}")
@@ -429,18 +502,23 @@ class DebugVisualizer:
         current_pose: Pose2d,
         aoi_trees: list[Tree],
         save_name: str | None = None,
+        *,
+        rtk_pose: Pose2d | None = None,
     ) -> None:
         """Plot pose, AOI trees, and theta lines for ground-view angles.
 
         :param ground_thetas: Relative angles to trees (positive left, negative right).
-        :param current_pose: RTK pose used as the ray origin.
+        :param current_pose: Predicted/working pose (used when rtk_pose is not provided).
+        :param rtk_pose: If provided, use this pose as the ray origin for theta lines.
         :param aoi_trees: AOI background trees for context.
         :param save_name: Optional custom filename stem.
         """
         fig, ax = plt.subplots(figsize=(10, 8))
 
         converter = Converter(ORIGIN[0], ORIGIN[1])
-        pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
+
+        origin_pose = rtk_pose if rtk_pose is not None else current_pose
+        pose_lat, pose_lon = converter.xy_to_latlon(Point(origin_pose.x, origin_pose.y))
         labeled_ids: set[int] = set()
 
         def _label_tree(tree: Tree) -> None:
@@ -471,32 +549,32 @@ class DebugVisualizer:
             for t in aoi_trees:
                 _label_tree(t)
 
-        # Pose + heading
+        # Pose + heading (origin pose)
         ax.scatter(
-            current_pose.x,
-            current_pose.y,
+            origin_pose.x,
+            origin_pose.y,
             s=90,
             marker="*",
-            label="Current Pose",
+            label=("RTK Pose" if rtk_pose is not None else "Current Pose"),
             c="#1f77b4",
         )
         ax.text(
-            current_pose.x + 0.5,
-            current_pose.y + 0.5,
+            origin_pose.x + 0.5,
+            origin_pose.y + 0.5,
             f"({pose_lat:.6f}, {pose_lon:.6f})",
             fontsize=7,
             alpha=0.8,
         )
-        heading_rad = math.radians(current_pose.yaw)
+        heading_rad = math.radians(origin_pose.yaw)
         head_len = 6.0
         ax.plot(
-            [current_pose.x, current_pose.x + head_len * math.cos(heading_rad)],
-            [current_pose.y, current_pose.y + head_len * math.sin(heading_rad)],
+            [origin_pose.x, origin_pose.x + head_len * math.cos(heading_rad)],
+            [origin_pose.y, origin_pose.y + head_len * math.sin(heading_rad)],
             linestyle="-",
             linewidth=2,
             alpha=0.9,
             c="#1f77b4",
-            label="RTK Heading",
+            label="Heading",
         )
 
         # Theta rays (relative to heading)
@@ -504,30 +582,38 @@ class DebugVisualizer:
             ray_len = 28.0
             for idx, theta in enumerate(ground_thetas):
                 dir_from_pose = heading_rad - math.radians(-theta)
-                end_x = current_pose.x + ray_len * math.cos(dir_from_pose)
-                end_y = current_pose.y + ray_len * math.sin(dir_from_pose)
+                end_x = origin_pose.x + ray_len * math.cos(dir_from_pose)
+                end_y = origin_pose.y + ray_len * math.sin(dir_from_pose)
                 ax.plot(
-                    [current_pose.x, end_x],
-                    [current_pose.y, end_y],
+                    [origin_pose.x, end_x],
+                    [origin_pose.y, end_y],
                     linestyle="--",
                     linewidth=1.6,
                     alpha=0.8,
                     c="#2ca02c",
                     label=("Ground Thetas" if idx == 0 else None),
                 )
-                mid_x = current_pose.x + 0.5 * ray_len * math.cos(dir_from_pose)
-                mid_y = current_pose.y + 0.5 * ray_len * math.sin(dir_from_pose)
-                ax.text(
-                    mid_x + 0.4 * math.cos(dir_from_pose),
-                    mid_y + 0.4 * math.sin(dir_from_pose),
-                    f"θ={theta:+.1f}°",
+
+                mid_x = origin_pose.x + 0.5 * ray_len * math.cos(dir_from_pose)
+                mid_y = origin_pose.y + 0.5 * ray_len * math.sin(dir_from_pose)
+
+                display_theta = -float(theta)
+                dy_px = 15 * idx
+
+                ax.annotate(
+                    f"{display_theta:+.1f}°",
+                    xy=(mid_x, mid_y),
+                    xytext=(0, dy_px),
+                    textcoords="offset pixels",
+                    ha="center",
+                    va="bottom",
                     fontsize=7,
                     alpha=0.85,
                 )
 
         # Zoom to content with a small margin
-        all_x = [current_pose.x] + [t.x for t in aoi_trees]
-        all_y = [current_pose.y] + [t.y for t in aoi_trees]
+        all_x = [origin_pose.x] + [t.x for t in aoi_trees]
+        all_y = [origin_pose.y] + [t.y for t in aoi_trees]
         if all_x and all_y:
             min_x, max_x = min(all_x), max(all_x)
             min_y, max_y = min(all_y), max(all_y)

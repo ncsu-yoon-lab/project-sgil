@@ -5,6 +5,7 @@ from typing import List, Tuple
 
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
+import numpy as np  # Added for safe Matplotlib array handling
 
 # ============================================================
 # Manual tree center labeling on the satellite image
@@ -15,11 +16,8 @@ REPO_ROOT = os.path.normpath(os.path.join(SCRIPT_DIR, "..", ".."))
 if REPO_ROOT not in sys.path:
     sys.path.insert(0, REPO_ROOT)
 
+# Assuming these exist in your project_sgil.constants
 from project_sgil.constants import IMAGE_BOTTOM_RIGHT, IMAGE_TOP_LEFT
-
-# ============================================================
-# Manual tree center labeling on the satellite image
-# ============================================================
 
 IMAGE_PATH = os.path.normpath(
     os.path.join(SCRIPT_DIR, "../..", "dataset", "satellite_trees", "RaleighSatellite.png")
@@ -44,6 +42,7 @@ def _load_points(csv_path: str) -> List[Tuple[float, float]]:
             if len(row) < 2:
                 continue
             try:
+                # First line is a coord, no header skipping required
                 lat = float(row[0])
                 lon = float(row[1])
             except ValueError:
@@ -68,6 +67,10 @@ class TreeClicker:
         self.img_path = img_path
         self.csv_path = csv_path
 
+        # --- NEW: Print the absolute path to the console ---
+        abs_csv = os.path.abspath(self.csv_path)
+        print(f"Logging tree coordinates to: {abs_csv}")
+
         self.img = mpimg.imread(img_path)
         self.image_height = int(self.img.shape[0])
         self.image_width = int(self.img.shape[1])
@@ -85,9 +88,10 @@ class TreeClicker:
         self.ax.imshow(self.img, interpolation="nearest")
         self._set_title()
 
+        initial_pixels = self._points_pixel()
         self.scatter = self.ax.scatter(
-            [p[0] for p in self._points_pixel()],
-            [p[1] for p in self._points_pixel()],
+            [p[0] for p in initial_pixels],
+            [p[1] for p in initial_pixels],
             s=POINT_SIZE,
             c=POINT_COLOR,
             marker="o",
@@ -99,9 +103,7 @@ class TreeClicker:
 
     def _set_title(self, *, lat: float | None = None, lon: float | None = None) -> None:
         if lat is None or lon is None:
-            title = (
-                "Click tree centers (left-click). Right-click to remove. Scroll to zoom."
-            )
+            title = "Click tree centers (left-click). Right-click to remove. Scroll to zoom."
         else:
             title = (
                 "Click tree centers (left-click). Right-click to remove. Scroll to zoom. "
@@ -140,37 +142,47 @@ class TreeClicker:
     def _save_if_needed(self, *, force: bool = False) -> None:
         if force or (self._dirty and self._ops_since_save >= SAVE_EVERY_N):
             _save_points(self.csv_path, self.points)
+            print(f"Saved {len(self.points)} trees to {os.path.abspath(self.csv_path)}")
             self._dirty = False
             self._ops_since_save = 0
+
+    def _update_scatter(self) -> None:
+        """Safely updates the scatter plot, avoiding crashes if the list is empty."""
+        pixels = self._points_pixel()
+        if pixels:
+            self.scatter.set_offsets(np.array(pixels))
+        else:
+            self.scatter.set_offsets(np.empty((0, 2)))
+        self.fig.canvas.draw_idle()
 
     def _on_click(self, event) -> None:
         if event.inaxes != self.ax or event.xdata is None or event.ydata is None:
             return
 
+        # Left-click to add
         if event.button == 1:
             x = int(round(event.xdata))
             y = int(round(event.ydata))
             if not (0 <= x < self.image_width and 0 <= y < self.image_height):
                 return
+
             lat, lon = self._pixel_to_latlon(x, y)
             self.points.append((lat, lon))
             self._dirty = True
             self._ops_since_save += 1
             self._set_title(lat=lat, lon=lon)
-            pixels = self._points_pixel()
-            self.scatter.set_offsets(pixels)
+
+            self._update_scatter()
             self._save_if_needed()
-            self.fig.canvas.draw_idle()
             return
 
+        # Right-click to remove
         if event.button == 3:
             if self._remove_nearest_point(event.xdata, event.ydata):
                 self._dirty = True
                 self._ops_since_save += 1
-                pixels = self._points_pixel()
-                self.scatter.set_offsets(pixels)
+                self._update_scatter()
                 self._save_if_needed()
-                self.fig.canvas.draw_idle()
 
     def _remove_nearest_point(self, x: float, y: float) -> bool:
         if not self.points:
@@ -236,4 +248,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

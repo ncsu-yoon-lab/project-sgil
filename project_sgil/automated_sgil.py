@@ -28,9 +28,11 @@ from project_sgil.constants import (
     DATA_LOGGER_PATH,
     HEADING_SWEEP_ENABLED,
     IMAGE_SHAPE,
+    IMAGES_TO_SKIP,
     ORIGIN,
     PLOT,
     PLOT_WEDGES,
+    PLOT_THETAS,
     MIN_DX,
     MIN_DY,
     RTK_TO_CAMERA_OFFSET_X_FWD_M,
@@ -44,6 +46,14 @@ from project_sgil.utils.converter import Converter
 
 class AutomatedSGIL:
     """Runs SGIL matching using segmentation centroids from results.json."""
+# Example: {605: -5.0} means "use the normal yaw - 5 degrees".
+    HEADING_OFFSET_DEG: dict[int, float] = {
+        605: -7.0,
+    }
+
+    # Backwards-compatible alias (deprecated): absolute yaw override.
+    # Prefer HEADING_OFFSET_DEG.
+    HEADING_OVERRIDE_DEG: dict[int, float] = {}
 
     def __init__(
         self,
@@ -267,6 +277,13 @@ class AutomatedSGIL:
             )
         )
 
+    @staticmethod
+    def _in_skip_range(idx: int) -> bool:
+        for a, b in IMAGES_TO_SKIP:
+            if a <= idx < b:
+                return True
+        return False
+
     def run(self) -> list[LocalizationResult]:
         results: list[LocalizationResult] = []
         if PLOT:
@@ -287,6 +304,9 @@ class AutomatedSGIL:
             or 10**18,
         )
 
+        # When using carryover mode (not RTK-each-frame), we need to continue
+        # updating the last GPS anchor across skipped frames so the next processed
+        # frame's dx_gps/dy_gps includes the skipped motion.
         for frame in ordered:
             frame_name = str(frame.get("frame_name", "")).strip()
             idx = self._frame_index_from_name(frame_name)
@@ -297,12 +317,37 @@ class AutomatedSGIL:
             if not self._passes_new_gps_gate(frame):
                 continue
 
+            # Parse pose (this also computes current GPS camera XY as self._gps_xy)
             rtk_pose = self._frame_to_pose(frame)
             if rtk_pose is None:
                 continue
 
             # Compute current GPS camera XY (set in _frame_to_pose)
             curr_gps_xy = getattr(self, "_gps_xy", None)
+
+            # If this index is inside a user-configured skip range, don't create
+            # a result row (and don't run the matcher). But in carryover mode,
+            # keep accumulating GPS deltas by advancing the anchor.
+            if idx is not None and self._in_skip_range(idx):
+                if not AUTOMATED_USE_RTK_POSE_EACH_FRAME and curr_gps_xy is not None:
+                    # Initialize anchors/state so we can accumulate deltas across the skipped range
+                    if self.current_pose is None:
+                        self.current_pose = Pose2d(rtk_pose.x, rtk_pose.y, rtk_pose.yaw)
+                    if self._last_gps_xy is None:
+                        self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
+                    else:
+                        dx_skip = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
+                        dy_skip = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
+                        # Advance the predicted pose by the skipped motion so the
+                        # next processed frame starts at the correct location.
+                        self.current_pose = Pose2d(
+                            self.current_pose.x + dx_skip,
+                            self.current_pose.y + dy_skip,
+                            self.current_pose.yaw,
+                        )
+                        self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
+                self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
+                continue
 
             # Debug: print RTK/GPS positions and deltas each processed step
             if self._last_rtk_xy is None:
@@ -321,16 +366,6 @@ class AutomatedSGIL:
                 dx_gps_dbg = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
                 dy_gps_dbg = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
 
-            print(
-                f"\n[AutomatedSGIL] frame={idx} {frame_name}\n"
-                f"  RTK cam XY: ({rtk_pose.x:.2f}, {rtk_pose.y:.2f})  "
-                f"ΔRTK: ({dx_rtk:+.2f}, {dy_rtk:+.2f})\n"
-                f"  GPS cam XY: "
-                f"({(float(curr_gps_xy[0]) if curr_gps_xy else float('nan')):.2f}, "
-                f"{(float(curr_gps_xy[1]) if curr_gps_xy else float('nan')):.2f})  "
-                f"ΔGPS: ({dx_gps_dbg:+.2f}, {dy_gps_dbg:+.2f})"
-            )
-
             pixel_points = self._pixel_points_from_segmentations(frame)
             if AUTOMATED_SKIP_IF_NO_TREES and not pixel_points:
                 continue
@@ -344,47 +379,67 @@ class AutomatedSGIL:
 
             assert self.current_pose is not None
 
+            # GPS delta since last processed (camera-frame XY)
+            curr_gps_xy = getattr(self, "_gps_xy", None)
+            if curr_gps_xy is None or self._last_gps_xy is None:
+                dx_gps = dy_gps = 0.0
+            else:
+                dx_gps = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
+                dy_gps = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
+
             if AUTOMATED_USE_RTK_POSE_EACH_FRAME:
                 # No carryover: use RTK pose directly for matching.
                 predicted_x = rtk_pose.x
                 predicted_y = rtk_pose.y
             else:
-                # GPS delta since last processed (camera-frame XY)
-                curr_gps_xy = getattr(self, "_gps_xy", None)
-                if curr_gps_xy is None or self._last_gps_xy is None:
-                    dx_gps = dy_gps = 0.0
-                else:
-                    dx_gps = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
-                    dy_gps = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
-
                 predicted_x = self.current_pose.x + dx_gps
                 predicted_y = self.current_pose.y + dy_gps
 
-        
             # Convert pixel points -> ground thetas
             img_w = int(self.image_shape[1])
             ground_thetas = [
                 self.converter.image_x_to_theta(pt.x, img_w) for pt in pixel_points
             ]
 
-            pose_for_match = Pose2d(predicted_x, predicted_y, rtk_pose.yaw)
-            
+            # Allow per-frame heading override/offset (useful for debugging).
+            # Priority:
+            #   1) per-frame offset: yaw = rtk_yaw + offset
+            #   2) legacy absolute override: yaw = override
+            #   3) default: rtk_yaw
+            yaw_for_match = rtk_pose.yaw
+            if idx is not None and idx in self.HEADING_OFFSET_DEG:
+                yaw_for_match = float(rtk_pose.yaw) + float(self.HEADING_OFFSET_DEG[idx])
+            elif idx is not None and idx in self.HEADING_OVERRIDE_DEG:
+                yaw_for_match = float(self.HEADING_OVERRIDE_DEG[idx])
+
+            pose_for_match = Pose2d(predicted_x, predicted_y, yaw_for_match)
+
+            est_pose: Pose2d | None
             if dx_gps > MIN_DX or dy_gps > MIN_DY:
                 try:
-                    est_pose = self.tree_matcher.match_trees(pose_for_match, ground_thetas, rtk_pose, image_name=frame_name)
+                    est_xy = self.tree_matcher.match_trees(
+                        pose_for_match,
+                        ground_thetas,
+                        rtk_pose,
+                        image_name=frame_name,
+                    )
+                    est_pose = Pose2d(est_xy.x, est_xy.y, pose_for_match.yaw)
                     matched = True
-                    if not isinstance(est_pose, Pose2d):
-                        est_pose = Pose2d(est_pose.x, est_pose.y, pose_for_match.yaw)
-                        
+
                 except Exception:
                     matched = False
-                    est_pose = pose_for_match
+                    est_pose = None
             else:
-                est_pose = pose_for_match
+                # Not enough motion since last GPS update: we skip matching.
                 matched = False
+                est_pose = None
 
-            # If heading sweep is disabled, keep using RTK yaw
-            if not HEADING_SWEEP_ENABLED:
+            # Snapshot AOI trees immediately after matching so plotting uses
+            # the AOI computed for this exact pose.
+            aoi_trees_for_plot = list(getattr(self.tree_matcher, "aoi_trees", []))
+
+            # If heading sweep is disabled, keep using RTK yaw when we have an estimate.
+            if est_pose is not None and not HEADING_SWEEP_ENABLED:
                 est_pose.yaw = pose_for_match.yaw
 
             # Advance
@@ -392,20 +447,36 @@ class AutomatedSGIL:
                 # Keep the internal state in sync with RTK if we're in pure-RTK mode.
                 self.current_pose = Pose2d(rtk_pose.x, rtk_pose.y, rtk_pose.yaw)
             else:
-                self.current_pose = Pose2d(est_pose.x, est_pose.y, rtk_pose.yaw)
+                # Only advance with SGIL estimate if we actually got one.
+                if est_pose is not None:
+                    self.current_pose = Pose2d(est_pose.x, est_pose.y, rtk_pose.yaw)
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
             curr_gps_xy = getattr(self, "_gps_xy", None)
             if curr_gps_xy is not None:
                 self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
 
-            sgil_err_m = self._sgil_error_meters(est_pose, rtk_pose)
+            sgil_err_m = (
+                self._sgil_error_meters(est_pose, rtk_pose)
+                if est_pose is not None
+                else float("nan")
+            )
 
-            if PLOT and idx :
+            if PLOT and idx:
                 save_stub = f"frame_{idx:06d}"
+
+                if PLOT_THETAS:
+                    DebugVisualizer.plot_thetas(
+                        ground_thetas,
+                        pose_for_match,
+                        aoi_trees_for_plot,
+                        f"{save_stub}_thetas",
+                        rtk_pose=rtk_pose,
+                    )
+
                 DebugVisualizer.plot_aoi(
                     self.tree_matcher.satellite_tree_locations,
-                    self.tree_matcher.aoi_trees,
-                    rtk_pose,
+                    aoi_trees_for_plot,
+                    pose_for_match,
                     save_stub,
                 )
 
@@ -421,9 +492,13 @@ class AutomatedSGIL:
                     ),
                     rtk_pose=rtk_pose,
                     current_pose=pose_for_match,
-                    gps_pose=Pose2d(curr_gps_xy[0], curr_gps_xy[1], yaw=rtk_pose.yaw) if curr_gps_xy is not None else None,
+                    gps_pose=(
+                        Pose2d(curr_gps_xy[0], curr_gps_xy[1], yaw=rtk_pose.yaw)
+                        if curr_gps_xy is not None
+                        else None
+                    ),
                     estimated_pose=est_pose,
-                    matched=matched
+                    matched=matched,
                 )
             )
 
@@ -451,7 +526,7 @@ class AutomatedSGIL:
             f"\n{'frame':40s} | {'matched':10s} | {'sgil_err_m':10s} | {'gps_err_m':10s} | {'gps_pose':32s} | "
             f"{'rtk_pose':32s} | {'current_pose':32s} | {'estimated_pose':32s}"
         )
-        print("-" * 40 + "-+-" + "-" * 10 + "-+-" + "-" * 10 + "-+-" + "-" * 10 + "-+-" + "-" *32 + "-+-" + "-" *32 + "-+-" + "-" * 32 + "-+-" + "-" * 32)
+        print("-" * 40 + "-+-" + "-" * 10 + "-+-" + "-" * 10 + "-+-" "-" *32 + "-+-" + "-" *32 + "-+-" "-" * 32 + "-+-" + "-" * 32)
 
         for r in results:
             print(
@@ -462,7 +537,7 @@ class AutomatedSGIL:
                 f"{fmt_pose(r.gps_pose) if r.gps_pose else 'None':32s} | "
                 f"{fmt_pose(r.rtk_pose):32s} | "
                 f"{fmt_pose(r.current_pose):32s} | "
-                f"{fmt_pose(r.estimated_pose):32s}"
+                f"{fmt_pose(r.estimated_pose) if r.estimated_pose else 'None':32s}"
             )
 
 
