@@ -30,7 +30,7 @@ BACKGROUND_EXTENT = ()
 PLOT = False
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = True #True
+PLOT_WEDGES = False #True
 
 PLOT_THETAS = False
 
@@ -53,7 +53,7 @@ HEADING_ERROR_DEG = 6
 
 # When AutomatedSGIL skips frames (IMAGES_TO_SKIP) it can temporarily widen the
 # heading error tolerance to help recovery.
-HEADING_ERROR_AFTER_SKIP_DEG = 6
+HEADING_ERROR_AFTER_SKIP_DEG = 30
 HEADING_ERROR_AFTER_SUCCESS_DEG = 6
 
 # Heading sweep: try multiple candidate headings around the given yaw
@@ -70,6 +70,10 @@ IMAGE_SHAPE = (1242, 2208, 3)
 
 # Radius of area of interest (AOI)
 AOI_RADIUS_M = 70  # [m]
+
+# After a skip range, temporarily widen the AOI radius to compensate for
+# GPS-seeded current_pose inaccuracy (~12 m). Restored after a successful match.
+AOI_RADIUS_AFTER_SKIP_M = 80  # [m]
 
 # When querying the AOI, we offset the pose slightly backwards along the current
 # heading before selecting nearby trees. This helps center the AOI around the
@@ -155,7 +159,7 @@ PLOT_ALL_COMBOS_FOR_WINNING_SWEEP_YAW = False
 # wedge-combination plots (combo_*.png). This is intended for debugging one
 # sweep angle without spamming plots for the whole sweep.
 # Example: set to -1.0 to plot the sweep yaw at base_yaw - 1 degree.
-PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_DEG: float | None = -1.0
+PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_DEG: float | None = 0.0
 
 # If not None, only apply PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_DEG for this frame
 # index (parsed from image name digits). This lets you target e.g. frame 605.
@@ -178,3 +182,29 @@ WEDGE_PLOT_SHOW_LEGEND = False  # legend layout can be slow
 WEDGE_PLOT_SHOW_GRID = False
 DEBUG_WEDGE_COMBOS_MAX_PRINT = 25
 DEBUG_WEDGE_COMBOS_FILTER_TREE_IDS: list[int] | None = None
+
+# If True, for the selected WEDGE_PLOT_ONLY_IMAGE frame we will also plot the
+# best combo by: (1) most matched wedges, then (2) smallest distance to RTK.
+# This is useful for debugging cases where score-based selection behaves oddly.
+PLOT_BEST_COMBO_MOST_WEDGES_MIN_DIST = True
+
+# --- Plot gating helpers (debug) ---
+# If True, suppress plotting the best-per-yaw sweep images (img_name_*_sweep_yaw_*.png).
+PLOT_HEADING_SWEEP_BEST_PER_YAW = False
+
+# If True, suppress plotting the default CHOSEN_combo_* plot.
+# (ALT_MOSTWEDGES_MINDIST is controlled separately.)
+PLOT_CHOSEN_COMBO_PLOT = False
+
+# Targeted sweep delta plotting mode:
+# If True, for PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_DEG we will plot ONLY the single
+# best combo (by score) for that delta, instead of dumping every combo.
+PLOT_ONLY_BEST_FOR_SWEEP_DELTA = True
+
+# If True, allow using RTK distance to choose the best pose estimate within each
+# sweep yaw (debugging only). If False, selection is score-based (no RTK cheat).
+USE_RTK_DIST_FOR_BEST_PER_YAW = False
+
+# If True, disable the y_hat > max_tree_y combo filter (debugging).
+DISABLE_Y_FILTER = False
+

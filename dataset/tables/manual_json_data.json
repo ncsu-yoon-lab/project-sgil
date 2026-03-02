@@ -2011,22 +2011,22 @@
             "rtk_lon": -78.63939874837592,
             "rtk_heading": 88.4721219786346,
             "segmentations": [
-                {
-                    "bbox_x1": 978,
-                    "bbox_y1": 525,
-                    "bbox_x2": 998,
-                    "bbox_y2": 545,
-                    "centroid_x": 988,
-                    "centroid_y": 535,
+                                {
+                    "bbox_x1": 553,
+                    "bbox_y1": 432,
+                    "bbox_x2": 573,
+                    "bbox_y2": 452,
+                    "centroid_x": 563,
+                    "centroid_y": 442,
                     "confidence": 1.0
                 },
-                {
-                    "bbox_x1": 1256,
-                    "bbox_y1": 532,
-                    "bbox_x2": 1276,
-                    "bbox_y2": 552,
-                    "centroid_x": 1266,
-                    "centroid_y": 542,
+                                {
+                    "bbox_x1": 851,
+                    "bbox_y1": 457,
+                    "bbox_x2": 871,
+                    "bbox_y2": 477,
+                    "centroid_x": 861,
+                    "centroid_y": 467,
                     "confidence": 1.0
                 },
                 {
@@ -2039,30 +2039,21 @@
                     "confidence": 1.0
                 },
                 {
-                    "bbox_x1": 851,
-                    "bbox_y1": 457,
-                    "bbox_x2": 871,
-                    "bbox_y2": 477,
-                    "centroid_x": 861,
-                    "centroid_y": 467,
-                    "confidence": 1.0
-                },
-                {
-                    "bbox_x1": 553,
-                    "bbox_y1": 432,
-                    "bbox_x2": 573,
-                    "bbox_y2": 452,
-                    "centroid_x": 563,
-                    "centroid_y": 442,
-                    "confidence": 1.0
-                },
-                {
                     "bbox_x1": 939,
                     "bbox_y1": 476,
                     "bbox_x2": 959,
                     "bbox_y2": 496,
                     "centroid_x": 949,
                     "centroid_y": 486,
+                    "confidence": 1.0
+                },
+                                {
+                    "bbox_x1": 978,
+                    "bbox_y1": 525,
+                    "bbox_x2": 998,
+                    "bbox_y2": 545,
+                    "centroid_x": 988,
+                    "centroid_y": 535,
                     "confidence": 1.0
                 }
             ],

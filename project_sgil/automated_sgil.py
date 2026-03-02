@@ -25,6 +25,8 @@ from project_sgil.constants import (
     AUTOMATED_MIN_SEGMENT_CONFIDENCE,
     AUTOMATED_SKIP_IF_NO_TREES,
     AUTOMATED_USE_RTK_POSE_EACH_FRAME,
+    AOI_RADIUS_M,
+    AOI_RADIUS_AFTER_SKIP_M,
     DATA_LOGGER_PATH,
     HEADING_SWEEP_ENABLED,
     IMAGE_SHAPE,
@@ -96,6 +98,7 @@ class AutomatedSGIL:
         self._correct_pose_latlon: tuple[float, float] | None = None
         self._rtk_pose_latlon: tuple[float, float] | None = None
         self._gps_pose_latlon: tuple[float, float] | None = None
+        self._was_in_skip_range: bool = False
 
     @staticmethod
     def _frame_latlon(frame: dict[str, Any]) -> tuple[float, float] | None:
@@ -328,6 +331,15 @@ class AutomatedSGIL:
         except Exception as e:
             print(f"[AutomatedSGIL] Failed to update heading error tolerance: {e}")
 
+    def _set_aoi_radius_m(self, radius: float) -> None:
+        """Patch AOI_RADIUS_M in the tree_matcher module at runtime."""
+        try:
+            import project_sgil.localization.tree_matcher as tm
+            tm.AOI_RADIUS_M = float(radius)
+            print(f"[AutomatedSGIL] Set AOI radius to {tm.AOI_RADIUS_M:.1f} m")
+        except Exception as e:
+            print(f"[AutomatedSGIL] Failed to update AOI radius: {e}")
+
     def run(self) -> list[LocalizationResult]:
         results: list[LocalizationResult] = []
         if PLOT:
@@ -386,6 +398,8 @@ class AutomatedSGIL:
                 # We are skipping frames in this range; widen tolerance so the next
                 # processed frame after the skip is easier to match.
                 self._set_heading_error_deg(float(HEADING_ERROR_AFTER_SKIP_DEG))
+                self._set_aoi_radius_m(float(AOI_RADIUS_AFTER_SKIP_M))
+                self._was_in_skip_range = True
 
                 if not AUTOMATED_USE_RTK_POSE_EACH_FRAME and curr_gps_xy is not None:
                     # Initialize anchors/state so we can accumulate deltas across the skipped range
@@ -423,6 +437,13 @@ class AutomatedSGIL:
             else:
                 dx_gps_dbg = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
                 dy_gps_dbg = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
+
+            # --- Post-skip: the AOI radius was already widened when entering
+            # the skip range.  Clear the flag; matching will proceed normally
+            # because _last_gps_xy was kept up-to-date during the skip range,
+            # so dx_gps/dy_gps will be nonzero. ---
+            if self._was_in_skip_range:
+                self._was_in_skip_range = False
 
             pixel_points = self._pixel_points_from_segmentations(frame)
             if AUTOMATED_SKIP_IF_NO_TREES and not pixel_points:
@@ -486,6 +507,7 @@ class AutomatedSGIL:
 
                     # After a successful localization, restore the normal heading tolerance.
                     self._set_heading_error_deg(float(HEADING_ERROR_AFTER_SUCCESS_DEG))
+                    self._set_aoi_radius_m(float(AOI_RADIUS_M))
 
                 except Exception:
                     matched = False
