@@ -10,7 +10,8 @@ ORIGIN = ((IMAGE_TOP_LEFT.x + IMAGE_BOTTOM_RIGHT.x) / 2.0, (IMAGE_TOP_LEFT.y + I
 EARTH_RADIUS_M = 6378137  # [m]
 
 # Path to the CSV of tree locations in lat, lon
-TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_deepforest_trees_latlon.csv"
+TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_manual_trees.csv"
+# TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_deepforest_trees_latlon.csv"
 
 # Path to the data logged while traveling
 # DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
