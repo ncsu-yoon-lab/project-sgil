@@ -50,6 +50,7 @@ uv run python scripts\convert_tree_csv_to_latlon.py
 
 ```
 uv run python -m project_sgil.automated_sgil | Out-File -FilePath "dataset\tables\automated_sgil_table.txt" -Encoding utf8
+uv run python -m project_sgil.graphics.sgil_visualizer "dataset\tables\automated_sgil_table.txt" --out "plot.png"
 ```
 
 This overwrites `RaleighSatellite_manual_trees.csv` with lat/lon values and writes a backup at `RaleighSatellite_manual_trees.csv.bak`.

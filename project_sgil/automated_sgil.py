@@ -37,6 +37,10 @@ from project_sgil.constants import (
     MIN_DY,
     RTK_TO_CAMERA_OFFSET_X_FWD_M,
     RTK_TO_CAMERA_OFFSET_Y_LEFT_M,
+    HEADING_ERROR_DEG,
+    HEADING_ERROR_AFTER_SKIP_DEG,
+    HEADING_ERROR_AFTER_SUCCESS_DEG,
+    H_FOV_DEG,
 )
 from project_sgil.data_structs import LocalizationResult, Point, Pose2d
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
@@ -284,10 +288,31 @@ class AutomatedSGIL:
                 return True
         return False
 
+    def _set_heading_error_deg(self, deg: float) -> None:
+        """Update TreeMatcher's runtime heading tolerance.
+
+        TreeMatcher imports HEADING_ERROR_DEG and AOI_ANGLE_DEG as module-level
+        constants, so changing project_sgil.constants at runtime isn't enough.
+        We patch the values in the imported tree_matcher module.
+        """
+        try:
+            import project_sgil.localization.tree_matcher as tm
+
+            tm.HEADING_ERROR_DEG = float(deg)
+            tm.AOI_ANGLE_DEG = (float(H_FOV_DEG) + float(tm.HEADING_ERROR_DEG)) / 2.0
+            print(
+                f"[AutomatedSGIL] Set heading error tolerance to {tm.HEADING_ERROR_DEG:.1f} deg"
+            )
+        except Exception as e:
+            print(f"[AutomatedSGIL] Failed to update heading error tolerance: {e}")
+
     def run(self) -> list[LocalizationResult]:
         results: list[LocalizationResult] = []
         if PLOT:
             DebugVisualizer.clear_plots()
+
+        # Start with the 'normal' tolerance
+        self._set_heading_error_deg(float(HEADING_ERROR_AFTER_SUCCESS_DEG))
 
         # Iterate over frames sorted by index
         frames: list[dict[str, Any]] = list(self.frame_lookup.values())
@@ -329,6 +354,10 @@ class AutomatedSGIL:
             # a result row (and don't run the matcher). But in carryover mode,
             # keep accumulating GPS deltas by advancing the anchor.
             if idx is not None and self._in_skip_range(idx):
+                # We are skipping frames in this range; widen tolerance so the next
+                # processed frame after the skip is easier to match.
+                self._set_heading_error_deg(float(HEADING_ERROR_AFTER_SKIP_DEG))
+
                 if not AUTOMATED_USE_RTK_POSE_EACH_FRAME and curr_gps_xy is not None:
                     # Initialize anchors/state so we can accumulate deltas across the skipped range
                     if self.current_pose is None:
@@ -425,6 +454,9 @@ class AutomatedSGIL:
                     )
                     est_pose = Pose2d(est_xy.x, est_xy.y, pose_for_match.yaw)
                     matched = True
+
+                    # After a successful localization, restore the normal heading tolerance.
+                    self._set_heading_error_deg(float(HEADING_ERROR_AFTER_SUCCESS_DEG))
 
                 except Exception:
                     matched = False

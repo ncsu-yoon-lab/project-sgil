@@ -47,7 +47,14 @@ PLOT_RANGE = (300, 1000)
 RANDOM = False
 
 # The error from the heading on the GPS
-HEADING_ERROR_DEG = 20
+# Heading error (deg). Used in wedge creation tolerance.
+# NOTE: automated_sgil may temporarily override this at runtime.
+HEADING_ERROR_DEG = 6
+
+# When AutomatedSGIL skips frames (IMAGES_TO_SKIP) it can temporarily widen the
+# heading error tolerance to help recovery.
+HEADING_ERROR_AFTER_SKIP_DEG = 20
+HEADING_ERROR_AFTER_SUCCESS_DEG = 6
 
 # Heading sweep: try multiple candidate headings around the given yaw
 HEADING_SWEEP_ENABLED = False
@@ -80,8 +87,6 @@ TREE_RADIUS_M = 1.1  # meters
 THETA_MATCHING_TOLERANCE = 0.8  # degrees
 
 # --- Automated SGIL image skipping ---
-# List of (start_inclusive, end_exclusive) frame index ranges to skip.
-# Example: IMAGES_TO_SKIP = [(200, 250), (1200, 1400)]
 IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), (5036, 6500)]
 
 # --- Automated SGIL (results.json) filtering ---
