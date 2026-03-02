@@ -37,7 +37,6 @@ from project_sgil.constants import (
     MIN_DY,
     RTK_TO_CAMERA_OFFSET_X_FWD_M,
     RTK_TO_CAMERA_OFFSET_Y_LEFT_M,
-    HEADING_ERROR_DEG,
     HEADING_ERROR_AFTER_SKIP_DEG,
     HEADING_ERROR_AFTER_SUCCESS_DEG,
     H_FOV_DEG,
@@ -220,6 +219,7 @@ class AutomatedSGIL:
     # ---------------- Pose + trees ----------------
 
     def _frame_to_pose(self, frame: dict[str, Any]) -> Pose2d | None:
+        # Require RTK fields for position.
         if frame.get("rtk_heading") is None:
             return None
 
@@ -230,20 +230,37 @@ class AutomatedSGIL:
         # RTK antenna position in XY
         x, y = self.converter.latlon_to_xy(self._rtk_pose_latlon)
 
-        # RTK yaw (rtk_heading is already in the project yaw convention: 0=E, 90=N)
-        yaw = self.converter.rtk_heading_to_yaw(frame["rtk_heading"])
+        # --- Always compute RTK yaw for the RTK pose column ---
+        rtk_yaw = self.converter.rtk_heading_to_yaw(float(frame["rtk_heading"]))
 
-        # Apply extrinsic: RTK -> camera (body frame offsets rotated by yaw)
+        # --- Heading source for matching/current_pose (can differ from RTK yaw) ---
+        # If AUTOMATED_USE_RTK_POSE_EACH_FRAME is True, use RTK heading.
+        # If False, use gps_heading_filtered after the first processed frame (seed with RTK).
+        if AUTOMATED_USE_RTK_POSE_EACH_FRAME:
+            match_yaw = rtk_yaw
+        else:
+            if self.current_pose is None:
+                match_yaw = rtk_yaw
+            else:
+                if frame.get("gps_heading_filtered") is None:
+                    match_yaw = rtk_yaw
+                else:
+                    match_yaw = self.converter.rtk_heading_to_yaw(
+                        float(frame["gps_heading_filtered"])
+                    )
+
+        # Apply extrinsic: RTK -> camera (body frame offsets rotated by *match* yaw)
+        # so camera XY corresponds to whatever yaw you're using for matching.
         dx_b = float(RTK_TO_CAMERA_OFFSET_X_FWD_M)
         dy_b = float(RTK_TO_CAMERA_OFFSET_Y_LEFT_M)
-        c = math.cos(math.radians(yaw))
-        s = math.sin(math.radians(yaw))
+        c = math.cos(math.radians(match_yaw))
+        s = math.sin(math.radians(match_yaw))
         dx_w = c * dx_b - s * dy_b
         dy_w = s * dx_b + c * dy_b
 
-        # RTK camera position
-        x = x - dx_w
-        y = y - dy_w
+        # Camera position (using RTK lat/lon + extrinsic rotated by match_yaw)
+        x_cam = x - dx_w
+        y_cam = y - dy_w
 
         # Also compute GPS camera-position XY for delta propagation when desired
         gps_x, gps_y = self.converter.latlon_to_xy(self._gps_pose_latlon)
@@ -252,7 +269,12 @@ class AutomatedSGIL:
         self._gps_xy = (gps_x, gps_y)
 
         self._correct_pose_latlon = self._rtk_pose_latlon
-        return Pose2d(x=x, y=y, yaw=yaw)
+
+        # Store BOTH yaws so run() can populate the right columns.
+        self._rtk_yaw = float(rtk_yaw)
+        self._match_yaw = float(match_yaw)
+
+        return Pose2d(x=float(x_cam), y=float(y_cam), yaw=float(match_yaw))
 
     def _pixel_points_from_segmentations(self, frame: dict[str, Any]) -> list[Point]:
         segs = frame.get("segmentations") or []
@@ -347,6 +369,13 @@ class AutomatedSGIL:
             if rtk_pose is None:
                 continue
 
+            # rtk_pose returned above uses the yaw selected for matching; for the
+            # table we also want the RTK yaw to be preserved.
+            rtk_yaw = float(getattr(self, "_rtk_yaw", rtk_pose.yaw))
+            match_yaw = float(getattr(self, "_match_yaw", rtk_pose.yaw))
+
+            rtk_pose_for_table = Pose2d(rtk_pose.x, rtk_pose.y, rtk_yaw)
+
             # Compute current GPS camera XY (set in _frame_to_pose)
             curr_gps_xy = getattr(self, "_gps_xy", None)
 
@@ -435,9 +464,9 @@ class AutomatedSGIL:
             #   1) per-frame offset: yaw = rtk_yaw + offset
             #   2) legacy absolute override: yaw = override
             #   3) default: rtk_yaw
-            yaw_for_match = rtk_pose.yaw
+            yaw_for_match = match_yaw
             if idx is not None and idx in self.HEADING_OFFSET_DEG:
-                yaw_for_match = float(rtk_pose.yaw) + float(self.HEADING_OFFSET_DEG[idx])
+                yaw_for_match = float(match_yaw) + float(self.HEADING_OFFSET_DEG[idx])
             elif idx is not None and idx in self.HEADING_OVERRIDE_DEG:
                 yaw_for_match = float(self.HEADING_OVERRIDE_DEG[idx])
 
@@ -512,6 +541,24 @@ class AutomatedSGIL:
                     save_stub,
                 )
 
+            # Build a GPS pose record for the table. Use gps_heading_filtered when
+            # available so gps_pose doesn't misleadingly inherit RTK yaw.
+            gps_pose: Pose2d | None
+            if curr_gps_xy is None:
+                gps_pose = None
+            else:
+                gps_yaw = None
+                try:
+                    if frame.get("gps_heading_filtered") is not None:
+                        gps_yaw = self.converter.rtk_heading_to_yaw(
+                            float(frame["gps_heading_filtered"])
+                        )
+                except Exception:
+                    gps_yaw = None
+                if gps_yaw is None:
+                    gps_yaw = float(rtk_pose.yaw)
+                gps_pose = Pose2d(float(curr_gps_xy[0]), float(curr_gps_xy[1]), yaw=gps_yaw)
+
             results.append(
                 LocalizationResult(
                     image_name=frame_name,
@@ -522,13 +569,9 @@ class AutomatedSGIL:
                             curr_gps_xy[1] - rtk_pose.y,
                         )
                     ),
-                    rtk_pose=rtk_pose,
+                    rtk_pose=rtk_pose_for_table,
                     current_pose=pose_for_match,
-                    gps_pose=(
-                        Pose2d(curr_gps_xy[0], curr_gps_xy[1], yaw=rtk_pose.yaw)
-                        if curr_gps_xy is not None
-                        else None
-                    ),
+                    gps_pose=gps_pose,
                     estimated_pose=est_pose,
                     matched=matched,
                 )

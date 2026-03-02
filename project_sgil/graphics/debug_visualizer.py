@@ -15,7 +15,6 @@ from project_sgil.constants import (
     AOI_RADIUS_M,
     ORIGIN,
     SATELLITE_IMAGE_PATH,
-    PLOT_RANGE,
     WEDGE_PLOT_DPI,
     WEDGE_PLOT_LABEL_TREES,
     WEDGE_PLOT_TIGHT_BBOX,
@@ -308,10 +307,15 @@ class DebugVisualizer:
                 alpha=0.18,
             )
 
-        converter = Converter(ORIGIN[0], ORIGIN[1])
+        converter = None
+
+        # Only build the Converter (loads satellite image to get dims) when needed.
+        if WEDGE_PLOT_LABEL_TREES or show_sat_background:
+            converter = Converter(ORIGIN[0], ORIGIN[1])
 
         # Lat/lon conversion is also non-trivial; only compute it if we're going to render text.
         if WEDGE_PLOT_LABEL_TREES:
+            assert converter is not None
             pose_lat, pose_lon = converter.xy_to_latlon(Point(current_pose.x, current_pose.y))
         else:
             pose_lat = pose_lon = None
@@ -321,6 +325,7 @@ class DebugVisualizer:
         def _label_tree(tree: Tree) -> None:
             if not WEDGE_PLOT_LABEL_TREES:
                 return
+            assert converter is not None
             tree_id = getattr(tree, "id", None)
             if tree_id is not None and tree_id in labeled_ids:
                 return

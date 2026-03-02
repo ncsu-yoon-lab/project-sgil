@@ -13,8 +13,8 @@ EARTH_RADIUS_M = 6378137  # [m]
 TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_manual_trees.csv"
 
 # Path to the data logged while traveling
-# DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
-DATA_LOGGER_PATH = "dataset/tables/manual_json_data.json"
+DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
+# DATA_LOGGER_PATH = "dataset/tables/manual_json_data.json"
 # Path to the folder with all the images
 IMAGE_FOLDER_PATH = "dataset/raleigh_images"
 
@@ -30,7 +30,7 @@ BACKGROUND_EXTENT = ()
 PLOT = False
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = False #True
+PLOT_WEDGES = True #True
 
 PLOT_THETAS = False
 
@@ -53,12 +53,12 @@ HEADING_ERROR_DEG = 6
 
 # When AutomatedSGIL skips frames (IMAGES_TO_SKIP) it can temporarily widen the
 # heading error tolerance to help recovery.
-HEADING_ERROR_AFTER_SKIP_DEG = 20
+HEADING_ERROR_AFTER_SKIP_DEG = 6
 HEADING_ERROR_AFTER_SUCCESS_DEG = 6
 
 # Heading sweep: try multiple candidate headings around the given yaw
-HEADING_SWEEP_ENABLED = False
-HEADING_SWEEP_RANGE_DEG = 7  # search yaw ± this many degrees
+HEADING_SWEEP_ENABLED = True
+HEADING_SWEEP_RANGE_DEG = 25  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
 # Vertical and Horizontal FOV
@@ -70,6 +70,11 @@ IMAGE_SHAPE = (1242, 2208, 3)
 
 # Radius of area of interest (AOI)
 AOI_RADIUS_M = 70  # [m]
+
+# When querying the AOI, we offset the pose slightly backwards along the current
+# heading before selecting nearby trees. This helps center the AOI around the
+# camera rather than the forward direction.
+AOI_BACKWARD_OFFSET_M = 0.1
 
 # Angle of area of interest (AOI)
 AOI_ANGLE_DEG = (H_FOV_DEG + HEADING_ERROR_DEG) / 2
@@ -86,7 +91,7 @@ SCORE_RMS_SCALE = 1.0  # meters
 TREE_RADIUS_M = 1.1  # meters
 THETA_MATCHING_TOLERANCE = 0.8  # degrees
 
-# --- Automated SGIL image skipping ---
+# --- Skip when no trees are seen ---
 IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), (5036, 6500)]
 
 # --- Automated SGIL (results.json) filtering ---
@@ -126,7 +131,7 @@ RTK_TO_CAMERA_OFFSET_Y_M = RTK_TO_CAMERA_OFFSET_Y_LEFT_M
 # Used by TreeMatcher._calculate_heading_score().
 # These are the ONLY tuning knobs for heading sweep selection.
 HEADING_SCORE_W_DELTA_YAW = 1.0
-HEADING_SCORE_W_NUM_WEDGES = 100.0
+HEADING_SCORE_W_NUM_WEDGES = 1000.0
 HEADING_SCORE_W_THETA_ERROR = 30.0
 
 # If set, only generate wedge debug plots for this specific frame index.
@@ -136,6 +141,29 @@ WEDGE_PLOT_ONLY_IMAGE = 605
 # If True, only generate the wedge plot for the final chosen combo (best estimate).
 # If False, TreeMatcher may generate many 'combo_*.png' plots for each candidate combination.
 PLOT_ONLY_CHOSEN_COMBO = True
+
+# If True, then when heading sweep is enabled we will ALSO dump plots for *all*
+# wedge combinations, but only for the final winning sweep yaw (highest heading
+# score). This is useful for debugging why an angle won.
+#
+# Note: this can generate a lot of plots; it still respects PLOT_RANGE and
+# WEDGE_PLOT_ONLY_IMAGE gates.
+PLOT_ALL_COMBOS_FOR_WINNING_SWEEP_YAW = False
+
+# --- Targeted "plot all combos" for a specific sweep angle (debug) ---
+# If not None: for the candidate yaw at (base_yaw + this delta), dump ALL
+# wedge-combination plots (combo_*.png). This is intended for debugging one
+# sweep angle without spamming plots for the whole sweep.
+# Example: set to -1.0 to plot the sweep yaw at base_yaw - 1 degree.
+PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_DEG: float | None = -1.0
+
+# If not None, only apply PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_DEG for this frame
+# index (parsed from image name digits). This lets you target e.g. frame 605.
+PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_ONLY_IMAGE: int | None = 605
+
+# Optional cap on number of combo plots to emit for the targeted sweep delta.
+# Set to None for no cap.
+PLOT_ALL_COMBOS_FOR_SWEEP_DELTA_MAX_PLOTS: int | None = 400
 
 # --- Wedge plot performance knobs ---
 # These debug plots can be expensive. Turn these on to speed them up.
