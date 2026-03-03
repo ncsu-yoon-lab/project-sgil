@@ -26,6 +26,7 @@ from project_sgil.constants import (
     AUTOMATED_SKIP_IF_NO_TREES,
     AUTOMATED_USE_RTK_POSE_EACH_FRAME,
     DATA_LOGGER_PATH,
+    HEADING_JSON_FIELD,
     HEADING_SWEEP_ENABLED,
     IMAGE_SHAPE,
     IMAGES_TO_SKIP,
@@ -216,7 +217,7 @@ class AutomatedSGIL:
     # ---------------- Pose + trees ----------------
 
     def _frame_to_pose(self, frame: dict[str, Any]) -> Pose2d | None:
-        if frame.get("rtk_heading") is None:
+        if frame.get(HEADING_JSON_FIELD) is None:
             return None
 
         # Store lat/lon (raw antenna locations)
@@ -226,8 +227,8 @@ class AutomatedSGIL:
         # RTK antenna position in XY
         x, y = self.converter.latlon_to_xy(self._rtk_pose_latlon)
 
-        # RTK yaw (rtk_heading is already in the project yaw convention: 0=E, 90=N)
-        yaw = self.converter.rtk_heading_to_yaw(frame["rtk_heading"])
+        # Yaw from the configured heading field
+        yaw = self.converter.rtk_heading_to_yaw(frame[HEADING_JSON_FIELD])
 
         # Apply extrinsic: RTK -> camera (body frame offsets rotated by yaw)
         dx_b = float(RTK_TO_CAMERA_OFFSET_X_FWD_M)

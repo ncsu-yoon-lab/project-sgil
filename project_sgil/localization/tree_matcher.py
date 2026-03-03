@@ -17,6 +17,7 @@ from project_sgil.constants import (
     HEADING_SWEEP_ENABLED,
     HEADING_SWEEP_RANGE_DEG,
     HEADING_SWEEP_STEP_DEG,
+    MAX_WEDGE_COMBINATIONS,
     NUMBER_SELECTED_WEIGHT,
     ORIGIN,
     SCORE_RMS_SCALE,
@@ -70,16 +71,23 @@ class TreeMatcher:
         wedges: list[Wedge],
         n: int,  # max length
         min_len: int = 1,  # minimum length to record
+        max_results: int | None = None,  # hard cap on number of results
     ) -> list[dict[Wedge, Tree]]:
         """Gets a dictionary mapping Wedge -> Tree for all possible
         combinations of selecting up to n trees from the wedges, allowing
         skipping wedges, and ensuring no Tree is used more than once per
         combination.
 
+        Combinations are generated in descending size order (largest first)
+        so that, if *max_results* is hit, the most informative combinations
+        are kept.
+
         :param wedges: Ordered list of wedges to traverse.
         :param n: Maximum number of selections to include in a result.
         :param min_len: Minimum number of selections required for a
             result.
+        :param max_results: Stop early once this many results are found.
+            ``None`` means unlimited.
         :return: List of dictionaries mapping Wedge -> Tree (no repeated
             Tree ids).
         """
@@ -88,18 +96,23 @@ class TreeMatcher:
         # Key is a frozenset of (wedge_index, tree_id) so the order doesn't affect uniqueness.
         seen_maps: set[frozenset[tuple[int, int]]] = set()
 
-        # Kick off the external backtracking routine.
-        TreeMatcher._backtrack_wedge_maps(
-            wedges=wedges,
-            max_length=n,
-            min_length=min_len,
-            wedge_index=0,
-            chosen_pairs=[],
-            used_ids=set(),
-            results=results,
-            seen_maps=seen_maps,
-        )
-        
+        # Generate in descending size order so the largest (most informative)
+        # combinations are explored first and kept if we hit max_results.
+        for target_len in range(n, min_len - 1, -1):
+            if max_results is not None and len(results) >= max_results:
+                break
+            TreeMatcher._backtrack_wedge_maps(
+                wedges=wedges,
+                max_length=target_len,
+                min_length=target_len,  # exact length for this pass
+                wedge_index=0,
+                chosen_pairs=[],
+                used_ids=set(),
+                results=results,
+                seen_maps=seen_maps,
+                max_results=max_results,
+            )
+
         return results
 
     @staticmethod
@@ -112,6 +125,7 @@ class TreeMatcher:
         used_ids: set[int],
         results: list[dict[Wedge, Tree]],
         seen_maps: set[frozenset[tuple[int, int]]],
+        max_results: int | None = None,
     ) -> None:
         """Recursive generator for sequences_as_maps_from_wedges (defined
         externally).
@@ -129,7 +143,12 @@ class TreeMatcher:
         :param results: Output accumulator for dictionaries mapping
             Wedge -> Tree.
         :param seen_maps: Set used to deduplicate identical selections.
+        :param max_results: Stop generating once this many results exist.
         """
+        # Early exit if we already have enough results.
+        if max_results is not None and len(results) >= max_results:
+            return
+
         # Do not exceed the maximum selection length.
         if len(chosen_pairs) > max_length:
             return
@@ -177,6 +196,8 @@ class TreeMatcher:
 
         # Try selecting each candidate that does not reuse a previously chosen Tree id.
         for tree in candidate_trees:
+            if max_results is not None and len(results) >= max_results:
+                return
             if tree.id in used_ids:
                 continue
             used_ids.add(tree.id)
@@ -190,12 +211,15 @@ class TreeMatcher:
                 used_ids=used_ids,
                 results=results,
                 seen_maps=seen_maps,
+                max_results=max_results,
             )
             # Undo selection to explore alternative branches (classic backtracking).
             chosen_pairs.pop()
             used_ids.remove(tree.id)
 
         # --- Option 2: skip this wedge entirely (skip-allowed policy) ---
+        if max_results is not None and len(results) >= max_results:
+            return
         TreeMatcher._backtrack_wedge_maps(
             wedges=wedges,
             max_length=max_length,
@@ -205,6 +229,7 @@ class TreeMatcher:
             used_ids=used_ids,
             results=results,
             seen_maps=seen_maps,
+            max_results=max_results,
         )
 
     @staticmethod
@@ -631,8 +656,19 @@ class TreeMatcher:
         """
         # Generate maps: {Wedge -> Tree}, allowing skips, with length >= 2
         wedge_combinations = TreeMatcher._generate_wedge_combinations(
-            wedges, n=len(wedges), min_len=2
+            wedges, n=len(wedges), min_len=2,
+            max_results=MAX_WEDGE_COMBINATIONS,
         )
+
+        if (
+            MAX_WEDGE_COMBINATIONS is not None
+            and len(wedge_combinations) >= MAX_WEDGE_COMBINATIONS
+        ):
+            print(
+                f"[TreeMatcher] Combination cap reached "
+                f"({MAX_WEDGE_COMBINATIONS}); some lower-quality "
+                f"combos were pruned."
+            )
 
         pose_estimates: list[PoseEstimate] = []
         base_yaw_deg = current_pose.yaw

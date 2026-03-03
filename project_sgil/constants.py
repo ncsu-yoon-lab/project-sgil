@@ -15,8 +15,9 @@ TREE_LOCATIONS_PATH = "dataset/tables/RaleighSatellite_manual_trees.csv"
 
 # Path to the data logged while traveling
 # DATA_LOGGER_PATH = "dataset/tables/results_with_headings.json"
-DATA_LOGGER_PATH = "dataset/tables/manual_json_data.json"
+# DATA_LOGGER_PATH = "dataset/tables/manual_json_data.json"
 # Path to the folder with all the images
+DATA_LOGGER_PATH = "dataset/tables/manual_json_data_w_gaussian.json"
 IMAGE_FOLDER_PATH = "dataset/raleigh_images"
 
 # IMAGE_FOLDER_PATH = "../dataset/images-calibration"
@@ -31,7 +32,7 @@ BACKGROUND_EXTENT = ()
 PLOT = False
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = True #True
+PLOT_WEDGES = False #True
 
 PLOT_THETAS = False
 
@@ -48,7 +49,12 @@ PLOT_RANGE = (300, 1000)
 RANDOM = False
 
 # The error from the heading on the GPS
-HEADING_ERROR_DEG = 6
+HEADING_ERROR_DEG = 4
+
+# JSON field name to read the heading from for tree matching.
+# Common options: "rtk_heading", "gps_heading", "rtk_heading_filtered",
+#                 "gps_heading_filtered", "noisy_1_heading", etc.
+HEADING_JSON_FIELD = "rtk_heading_filtered"
 
 # Heading sweep: try multiple candidate headings around the given yaw
 HEADING_SWEEP_ENABLED = True
@@ -83,12 +89,13 @@ THETA_MATCHING_TOLERANCE = 0.8  # degrees
 # --- Automated SGIL image skipping ---
 # List of (start_inclusive, end_exclusive) frame index ranges to skip.
 # Example: IMAGES_TO_SKIP = [(200, 250), (1200, 1400)]
-IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), (5036, 6500)]
+IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 3633), (5036, 6500)]
+# IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), (5036, 6500)]
 
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
 AUTOMATED_FRAME_START = 140 # 288
-AUTOMATED_FRAME_END = 1000
+AUTOMATED_FRAME_END = 1000 #4000
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
@@ -146,3 +153,9 @@ WEDGE_PLOT_SHOW_LEGEND = False  # legend layout can be slow
 WEDGE_PLOT_SHOW_GRID = False
 DEBUG_WEDGE_COMBOS_MAX_PRINT = 25
 DEBUG_WEDGE_COMBOS_FILTER_TREE_IDS: list[int] | None = None
+
+# Maximum number of wedge→tree combinations to evaluate per heading candidate.
+# Prevents combinatorial explosion when many wedges / candidate trees exist.
+# Set to None for unlimited (original behaviour — may hang on dense scenes).
+MAX_WEDGE_COMBINATIONS: int | None = 50_000
+
