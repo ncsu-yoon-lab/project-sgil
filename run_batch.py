@@ -75,18 +75,18 @@ SATELLITE_CONFIGS: list[SatelliteConfig] = [
 # for each noise level.  The values below are initial estimates — tweak
 # as needed.
 HEADING_CONFIGS: list[HeadingConfig] = [
-    HeadingConfig("rtk_filtered", "rtk_heading_filtered",
-                  heading_error_deg=5, heading_sweep_range_deg=4),
-    HeadingConfig("noisy_1", "noisy_1_heading",
-                  heading_error_deg=7, heading_sweep_range_deg=5),
-    HeadingConfig("noisy_5", "noisy_5_heading",
-                  heading_error_deg=7, heading_sweep_range_deg=8),
-    HeadingConfig("noisy_10", "noisy_10_heading",
-                  heading_error_deg=12, heading_sweep_range_deg=12),
+    # HeadingConfig("rtk_filtered", "rtk_heading_filtered",
+    #               heading_error_deg=4, heading_sweep_range_deg=5),
+    # HeadingConfig("noisy_1", "noisy_1_heading",
+    #               heading_error_deg=7, heading_sweep_range_deg=5),
+    # HeadingConfig("noisy_5", "noisy_5_heading",
+    #               heading_error_deg=7, heading_sweep_range_deg=8),
+    # HeadingConfig("noisy_10", "noisy_10_heading",
+    #               heading_error_deg=12, heading_sweep_range_deg=12),
     HeadingConfig("noisy_15", "noisy_15_heading",
                   heading_error_deg=17, heading_sweep_range_deg=12),
-    HeadingConfig("noisy_20", "noisy_20_heading",
-                  heading_error_deg=17, heading_sweep_range_deg=23),
+    # HeadingConfig("noisy_20", "noisy_20_heading",
+    #               heading_error_deg=17, heading_sweep_range_deg=23),
 ]
 
 

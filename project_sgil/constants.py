@@ -92,10 +92,14 @@ THETA_MATCHING_TOLERANCE = 0.8  # degrees
 IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 3633), (5036, 6500)]
 # IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), (5036, 6500)]
 
+# If True, skipped frames still appear in the results table with their
+# GPS-delta-propagated position (no tree matching is performed).
+INCLUDE_SKIPPED_FRAMES = True
+
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
 AUTOMATED_FRAME_START = 140 # 288
-AUTOMATED_FRAME_END = 1000 #4000
+AUTOMATED_FRAME_END = 771 #4000
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0

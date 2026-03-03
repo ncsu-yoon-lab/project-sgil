@@ -30,6 +30,7 @@ from project_sgil.constants import (
     HEADING_SWEEP_ENABLED,
     IMAGE_SHAPE,
     IMAGES_TO_SKIP,
+    INCLUDE_SKIPPED_FRAMES,
     ORIGIN,
     PLOT,
     PLOT_WEDGES,
@@ -347,6 +348,55 @@ class AutomatedSGIL:
                             self.current_pose.yaw,
                         )
                         self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
+
+                if INCLUDE_SKIPPED_FRAMES:
+                    # Emit a result row using GPS-delta position only
+                    # (no tree matching performed).
+                    gps_pose_skip = (
+                        Pose2d(curr_gps_xy[0], curr_gps_xy[1],
+                               yaw=rtk_pose.yaw)
+                        if curr_gps_xy is not None else None
+                    )
+                    skip_est = (
+                        Pose2d(self.current_pose.x,
+                               self.current_pose.y,
+                               rtk_pose.yaw)
+                        if self.current_pose is not None else None
+                    )
+                    skip_err = (
+                        self._sgil_error_meters(skip_est, rtk_pose)
+                        if skip_est is not None
+                        else float("nan")
+                    )
+                    gps_err_skip = (
+                        float(math.hypot(
+                            curr_gps_xy[0] - rtk_pose.x,
+                            curr_gps_xy[1] - rtk_pose.y,
+                        ))
+                        if curr_gps_xy is not None
+                        else float("nan")
+                    )
+                    results.append(
+                        LocalizationResult(
+                            image_name=frame_name,
+                            sgil_err_m=skip_err,
+                            gps_err_m=gps_err_skip,
+                            rtk_pose=rtk_pose,
+                            current_pose=(
+                                Pose2d(
+                                    self.current_pose.x,
+                                    self.current_pose.y,
+                                    rtk_pose.yaw,
+                                )
+                                if self.current_pose is not None
+                                else rtk_pose
+                            ),
+                            gps_pose=gps_pose_skip,
+                            estimated_pose=skip_est,
+                            matched=False,
+                        )
+                    )
+
                 self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
                 continue
 
