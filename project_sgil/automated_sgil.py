@@ -24,7 +24,6 @@ from project_sgil.constants import (
     AUTOMATED_FRAME_START,
     AUTOMATED_MIN_SEGMENT_CONFIDENCE,
     AUTOMATED_SKIP_IF_NO_TREES,
-    AUTOMATED_USE_RTK_POSE_EACH_FRAME,
     DATA_LOGGER_PATH,
     HEADING_JSON_FIELD,
     HEADING_SWEEP_ENABLED,
@@ -35,8 +34,6 @@ from project_sgil.constants import (
     PLOT,
     PLOT_WEDGES,
     PLOT_THETAS,
-    MIN_DX,
-    MIN_DY,
     RTK_TO_CAMERA_OFFSET_X_FWD_M,
     RTK_TO_CAMERA_OFFSET_Y_LEFT_M,
 )
@@ -44,18 +41,11 @@ from project_sgil.data_structs import LocalizationResult, Point, Pose2d
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.localization.tree_matcher import TreeMatcher
 from project_sgil.utils.converter import Converter
+from project_sgil.localization.road_matcher import RoadMatcher
 
 
 class AutomatedSGIL:
     """Runs SGIL matching using segmentation centroids from results.json."""
-# Example: {605: -5.0} means "use the normal yaw - 5 degrees".
-    HEADING_OFFSET_DEG: dict[int, float] = {
-        605: 0.0,
-    }
-
-    # Backwards-compatible alias (deprecated): absolute yaw override.
-    # Prefer HEADING_OFFSET_DEG.
-    HEADING_OVERRIDE_DEG: dict[int, float] = {}
 
     def __init__(
         self,
@@ -68,6 +58,7 @@ class AutomatedSGIL:
     ) -> None:
         self.converter = Converter(origin[0], origin[1])
         self.tree_matcher = TreeMatcher(PLOT_WEDGES)
+        self.road_matcher = RoadMatcher(self.converter)
         self.image_shape = IMAGE_SHAPE
 
         # If provided, process exactly these numeric frame indices (e.g. [140, 152, ...]).
@@ -91,7 +82,7 @@ class AutomatedSGIL:
         # Runtime state
         self.current_pose: Pose2d | None = None
         self._last_rtk_xy: tuple[float, float] | None = None
-        self._last_gps_xy: tuple[float, float] | None = None
+
         self._correct_pose_latlon: tuple[float, float] | None = None
         self._rtk_pose_latlon: tuple[float, float] | None = None
         self._gps_pose_latlon: tuple[float, float] | None = None
@@ -160,7 +151,7 @@ class AutomatedSGIL:
         frames = data.get("frames", [])
         lookup: dict[str, dict[str, Any]] = {}
         for frame in frames:
-            name = str(frame.get("frame_name", "")).strip()
+            name = str(frame.get("frame_name", ""))
             if not name:
                 continue
             lookup[name] = frame
@@ -306,9 +297,6 @@ class AutomatedSGIL:
             or 10**18,
         )
 
-        # When using carryover mode (not RTK-each-frame), we need to continue
-        # updating the last GPS anchor across skipped frames so the next processed
-        # frame's dx_gps/dy_gps includes the skipped motion.
         for frame in ordered:
             frame_name = str(frame.get("frame_name", "")).strip()
             idx = self._frame_index_from_name(frame_name)
@@ -319,137 +307,71 @@ class AutomatedSGIL:
             if not self._passes_new_gps_gate(frame):
                 continue
 
-            # Parse pose (this also computes current GPS camera XY as self._gps_xy)
+            # Parse pose (also stores gps/rtk latlon)
             rtk_pose = self._frame_to_pose(frame)
             if rtk_pose is None:
                 continue
 
-            # Compute current GPS camera XY (set in _frame_to_pose)
-            curr_gps_xy = getattr(self, "_gps_xy", None)
+            gps_latlon = self._gps_pose_latlon
+            if gps_latlon is None:
+                continue
 
-            # If this index is inside a user-configured skip range, don't create
-            # a result row (and don't run the matcher). But in carryover mode,
-            # keep accumulating GPS deltas by advancing the anchor.
+            # Raw GPS camera XY (for reporting only)
+            gps_x, gps_y = self.converter.latlon_to_xy(gps_latlon)
+            gps_pose = Pose2d(gps_x, gps_y, yaw=rtk_pose.yaw)
+
+            # Snap GPS position to the road and choose road direction closest to GPS yaw.
+            road_match = self.road_matcher.match_gps(
+                gps_latlon=gps_latlon,
+                gps_yaw_deg=rtk_pose.yaw,
+            )
+            snapped_pose = road_match.snapped_pose
+
+            # Skip ranges: do not run tree matching, but still report a snapped pose.
             if idx is not None and self._in_skip_range(idx):
-                if not AUTOMATED_USE_RTK_POSE_EACH_FRAME and curr_gps_xy is not None:
-                    # Initialize anchors/state so we can accumulate deltas across the skipped range
-                    if self.current_pose is None:
-                        self.current_pose = Pose2d(rtk_pose.x, rtk_pose.y, rtk_pose.yaw)
-                    if self._last_gps_xy is None:
-                        self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
-                    else:
-                        dx_skip = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
-                        dy_skip = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
-                        # Advance the predicted pose by the skipped motion so the
-                        # next processed frame starts at the correct location.
-                        self.current_pose = Pose2d(
-                            self.current_pose.x + dx_skip,
-                            self.current_pose.y + dy_skip,
-                            self.current_pose.yaw,
-                        )
-                        self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
-
+                self.current_pose = snapped_pose
                 if INCLUDE_SKIPPED_FRAMES:
-                    # Emit a result row using GPS-delta position only
-                    # (no tree matching performed).
-                    gps_pose_skip = (
-                        Pose2d(curr_gps_xy[0], curr_gps_xy[1],
-                               yaw=rtk_pose.yaw)
-                        if curr_gps_xy is not None else None
-                    )
-                    skip_est = (
-                        Pose2d(self.current_pose.x,
-                               self.current_pose.y,
-                               rtk_pose.yaw)
-                        if self.current_pose is not None else None
-                    )
-                    skip_err = (
-                        self._sgil_error_meters(skip_est, rtk_pose)
-                        if skip_est is not None
-                        else float("nan")
-                    )
-                    gps_err_skip = (
-                        float(math.hypot(
-                            curr_gps_xy[0] - rtk_pose.x,
-                            curr_gps_xy[1] - rtk_pose.y,
-                        ))
-                        if curr_gps_xy is not None
-                        else float("nan")
-                    )
                     results.append(
                         LocalizationResult(
                             image_name=frame_name,
-                            sgil_err_m=skip_err,
-                            gps_err_m=gps_err_skip,
-                            rtk_pose=rtk_pose,
-                            current_pose=(
-                                Pose2d(
-                                    self.current_pose.x,
-                                    self.current_pose.y,
-                                    rtk_pose.yaw,
-                                )
-                                if self.current_pose is not None
-                                else rtk_pose
+                            sgil_err_m=self._sgil_error_meters(snapped_pose, rtk_pose),
+                            snapped_err_m=self._sgil_error_meters(snapped_pose, rtk_pose),
+                            gps_err_m=float(
+                                math.hypot(gps_x - rtk_pose.x, gps_y - rtk_pose.y)
                             ),
-                            gps_pose=gps_pose_skip,
-                            estimated_pose=skip_est,
+                            rtk_pose=rtk_pose,
+                            current_pose=snapped_pose,
+                            gps_pose=gps_pose,
+                            estimated_pose=snapped_pose,
                             matched=False,
                         )
                     )
-
-                self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
                 continue
-
-            # simulating snapping back to the road after a skip (like how your car does with gps)
-            if idx == 605:
-                self.current_pose.x = 141.91757704678744
-                self.current_pose.y = curr_gps_xy[1]
-
-            # Debug: print RTK/GPS positions and deltas each processed step
-            if self._last_rtk_xy is None:
-                dx_rtk = dy_rtk = 0.0
-            else:
-                (
-                    last_rtk_x,
-                    last_rtk_y,
-                ) = self._last_rtk_xy
-                dx_rtk = rtk_pose.x - last_rtk_x
-                dy_rtk = rtk_pose.y - last_rtk_y
-
-            if curr_gps_xy is None or self._last_gps_xy is None:
-                dx_gps_dbg = dy_gps_dbg = 0.0
-            else:
-                dx_gps_dbg = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
-                dy_gps_dbg = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
 
             pixel_points = self._pixel_points_from_segmentations(frame)
             if AUTOMATED_SKIP_IF_NO_TREES and not pixel_points:
+                # No trees: skip matching and just use the road-snapped pose.
+                self.current_pose = snapped_pose
+
+                # Optionally record this frame (matched=False)
+                if INCLUDE_SKIPPED_FRAMES:
+                    results.append(
+                        LocalizationResult(
+                            image_name=frame_name,
+                            sgil_err_m=self._sgil_error_meters(snapped_pose, rtk_pose),
+                            snapped_err_m=self._sgil_error_meters(snapped_pose, rtk_pose),
+                            gps_err_m=float(
+                                math.hypot(gps_x - rtk_pose.x, gps_y - rtk_pose.y)
+                            ),
+                            rtk_pose=rtk_pose,
+                            current_pose=snapped_pose,
+                            gps_pose=gps_pose,
+                            # Best available estimate when no trees are visible.
+                            estimated_pose=snapped_pose,
+                            matched=False,
+                        )
+                    )
                 continue
-
-            # Initialize state
-            if self.current_pose is None:
-                self.current_pose = Pose2d(rtk_pose.x, rtk_pose.y, rtk_pose.yaw)
-                self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
-                if hasattr(self, "_gps_xy") and self._gps_xy is not None:
-                    self._last_gps_xy = (float(self._gps_xy[0]), float(self._gps_xy[1]))
-
-            assert self.current_pose is not None
-
-            # GPS delta since last processed (camera-frame XY)
-            curr_gps_xy = getattr(self, "_gps_xy", None)
-            if curr_gps_xy is None or self._last_gps_xy is None:
-                dx_gps = dy_gps = 0.0
-            else:
-                dx_gps = float(curr_gps_xy[0]) - float(self._last_gps_xy[0])
-                dy_gps = float(curr_gps_xy[1]) - float(self._last_gps_xy[1])
-
-            if AUTOMATED_USE_RTK_POSE_EACH_FRAME:
-                # No carryover: use RTK pose directly for matching.
-                predicted_x = rtk_pose.x
-                predicted_y = rtk_pose.y
-            else:
-                predicted_x = self.current_pose.x + dx_gps
-                predicted_y = self.current_pose.y + dy_gps
 
             # Convert pixel points -> ground thetas
             img_w = int(self.image_shape[1])
@@ -458,58 +380,40 @@ class AutomatedSGIL:
             ]
 
             # Allow per-frame heading override/offset (useful for debugging).
-            # Priority:
-            #   1) per-frame offset: yaw = rtk_yaw + offset
-            #   2) legacy absolute override: yaw = override
-            #   3) default: rtk_yaw
-            yaw_for_match = rtk_pose.yaw
-            if idx is not None and idx in self.HEADING_OFFSET_DEG:
-                yaw_for_match = float(rtk_pose.yaw) + float(self.HEADING_OFFSET_DEG[idx])
-            elif idx is not None and idx in self.HEADING_OVERRIDE_DEG:
-                yaw_for_match = float(self.HEADING_OVERRIDE_DEG[idx])
+            # Initial yaw seed comes from the road direction. TreeMatcher can
+            # refine via heading sweep.
+            yaw_for_match = snapped_pose.yaw
 
-            pose_for_match = Pose2d(predicted_x, predicted_y, yaw_for_match)
+            pose_for_match = Pose2d(snapped_pose.x, snapped_pose.y, yaw_for_match)
 
-            est_pose: Pose2d | None
-            if dx_gps > MIN_DX or dy_gps > MIN_DY:
-                try:
-                    est_xy = self.tree_matcher.match_trees(
-                        pose_for_match,
-                        ground_thetas,
-                        rtk_pose,
-                        image_name=frame_name,
-                    )
-                    est_pose = Pose2d(est_xy.x, est_xy.y, pose_for_match.yaw)
-                    matched = True
-
-                except Exception:
-                    matched = False
-                    est_pose = None
-            else:
-                # Not enough motion since last GPS update: we skip matching.
+            try:
+                est_xy = self.tree_matcher.match_trees(
+                    pose_for_match,
+                    ground_thetas,
+                    rtk_pose,
+                    image_name=frame_name,
+                )
+                est_pose: Pose2d | None = Pose2d(est_xy.x, est_xy.y, pose_for_match.yaw)
+                matched = True
+            except Exception:
                 matched = False
                 est_pose = None
+
+            # If matching fails, fall back to the road-snapped pose rather than None.
+            if not matched or est_pose is None:
+                est_pose = snapped_pose
 
             # Snapshot AOI trees immediately after matching so plotting uses
             # the AOI computed for this exact pose.
             aoi_trees_for_plot = list(getattr(self.tree_matcher, "aoi_trees", []))
 
-            # If heading sweep is disabled, keep using RTK yaw when we have an estimate.
+            # If heading sweep is disabled, keep using the initial yaw when we have an estimate.
             if est_pose is not None and not HEADING_SWEEP_ENABLED:
                 est_pose.yaw = pose_for_match.yaw
 
             # Advance
-            if AUTOMATED_USE_RTK_POSE_EACH_FRAME:
-                # Keep the internal state in sync with RTK if we're in pure-RTK mode.
-                self.current_pose = Pose2d(rtk_pose.x, rtk_pose.y, rtk_pose.yaw)
-            else:
-                # Only advance with SGIL estimate if we actually got one.
-                if est_pose is not None:
-                    self.current_pose = Pose2d(est_pose.x, est_pose.y, rtk_pose.yaw)
+            self.current_pose = est_pose if est_pose is not None else pose_for_match
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
-            curr_gps_xy = getattr(self, "_gps_xy", None)
-            if curr_gps_xy is not None:
-                self._last_gps_xy = (float(curr_gps_xy[0]), float(curr_gps_xy[1]))
 
             sgil_err_m = (
                 self._sgil_error_meters(est_pose, rtk_pose)
@@ -540,19 +444,11 @@ class AutomatedSGIL:
                 LocalizationResult(
                     image_name=frame_name,
                     sgil_err_m=sgil_err_m,
-                    gps_err_m=float(
-                        math.hypot(
-                            curr_gps_xy[0] - rtk_pose.x,
-                            curr_gps_xy[1] - rtk_pose.y,
-                        )
-                    ),
+                    snapped_err_m=self._sgil_error_meters(snapped_pose, rtk_pose),
+                    gps_err_m=float(math.hypot(gps_x - rtk_pose.x, gps_y - rtk_pose.y)),
                     rtk_pose=rtk_pose,
                     current_pose=pose_for_match,
-                    gps_pose=(
-                        Pose2d(curr_gps_xy[0], curr_gps_xy[1], yaw=rtk_pose.yaw)
-                        if curr_gps_xy is not None
-                        else None
-                    ),
+                    gps_pose=gps_pose,
                     estimated_pose=est_pose,
                     matched=matched,
                 )
@@ -579,16 +475,33 @@ class AutomatedSGIL:
             return f"(x={p.x:.2f}, y={p.y:.2f}, yaw={p.yaw:.2f}°)"
 
         print(
-            f"\n{'frame':40s} | {'matched':10s} | {'sgil_err_m':10s} | {'gps_err_m':10s} | {'gps_pose':32s} | "
-            f"{'rtk_pose':32s} | {'current_pose':32s} | {'estimated_pose':32s}"
+            f"\n{'frame':40s} | {'matched':10s} | {'sgil_err_m':10s} | {'snapped_err_m':13s} | {'gps_err_m':10s} | "
+            f"{'gps_pose':32s} | {'rtk_pose':32s} | {'current_pose':32s} | {'estimated_pose':32s}"
         )
-        print("-" * 40 + "-+-" + "-" * 10 + "-+-" + "-" * 10 + "-+-" "-" *32 + "-+-" + "-" *32 + "-+-" "-" * 32 + "-+-" + "-" * 32)
+        print(
+            "-" * 40
+            + "-+-"
+            + "-" * 10
+            + "-+-"
+            + "-" * 13
+            + "-+-"
+            + "-" * 10
+            + "-+-"
+            + "-" * 32
+            + "-+-"
+            + "-" * 32
+            + "-+-"
+            + "-" * 32
+            + "-+-"
+            + "-" * 32
+        )
 
         for r in results:
             print(
                 f"{r.image_name:40s} | "
                 f"{r.matched!s:10s} | "
                 f"{r.sgil_err_m:10.2f} | "
+                f"{r.snapped_err_m:13.2f} | "
                 f"{r.gps_err_m:10.2f} | "
                 f"{fmt_pose(r.gps_pose) if r.gps_pose else 'None':32s} | "
                 f"{fmt_pose(r.rtk_pose):32s} | "
