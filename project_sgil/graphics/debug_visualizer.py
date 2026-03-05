@@ -18,6 +18,8 @@ from project_sgil.utils.utils import get_relative_angle
 matplotlib.use("Agg")  # Use non-interactive backend that won't interfere with OpenCV
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from matplotlib.lines import Line2D
+
 import numpy as np
 
 
@@ -187,7 +189,21 @@ class DebugVisualizer:
         ax.set_xlabel("X Coordinate")
         ax.set_ylabel("Y Coordinate")
         ax.set_title("Area of Interest Debug Plot")
-        ax.legend()
+        # Custom legend entries for wedge types
+        legend_lines = [
+            Line2D([0], [0], color="black", linewidth=2.0, linestyle="-", label="Matched Wedges"),
+            Line2D([0], [0], color="black", linewidth=2.0, linestyle=":", label="Wedges"),
+        ]
+
+        # Keep existing automatic legend entries (poses, AOI trees, etc.)
+        handles, labels = ax.get_legend_handles_labels()
+
+        ax.legend(
+            handles + legend_lines,
+            labels + ["Matched Wedges", "Wedges"],
+            bbox_to_anchor=(1.05, 1),
+            loc="upper left",
+        )
 
         stats_text = (
             f"Total trees: {len(all_sat_tree_loc)}\n"
@@ -290,13 +306,13 @@ class DebugVisualizer:
         ax.scatter(
             current_pose.x, current_pose.y, s=90, marker="*", label="Current Pose", c="#1f77b4"
         )
-        ax.text(
-            current_pose.x + 0.5,
-            current_pose.y + 0.5,
-            f"({pose_lat:.6f}, {pose_lon:.6f})",
-            fontsize=7,
-            alpha=0.8,
-        )
+        # ax.text(
+        #     current_pose.x + 0.5,
+        #     current_pose.y + 0.5,
+        #     f"({pose_lat:.6f}, {pose_lon:.6f})",
+        #     fontsize=7,
+        #     alpha=0.8,
+        # )
         heading_rad = math.radians(current_pose.yaw)
         head_len = 6.0
         ax.plot(
@@ -319,13 +335,13 @@ class DebugVisualizer:
                 zorder=5,
             )
             # optional: tiny label so you can see the numeric point quickly
-            ax.text(
-                rtk_pose.x + 0.5,
-                rtk_pose.y + 0.5,
-                f"RTK ({rtk_pose.x:.1f}, {rtk_pose.y:.1f})",
-                fontsize=7,
-                alpha=0.8,
-            )
+            # ax.text(
+            #     rtk_pose.x + 0.5,
+            #     rtk_pose.y + 0.5,
+            #     f"RTK ({rtk_pose.x:.1f}, {rtk_pose.y:.1f})",
+            #     fontsize=7,
+            #     alpha=0.8,
+            # )
 
         # --- Color palette per-wedge (cycles) ---
         colors = [
@@ -353,7 +369,7 @@ class DebugVisualizer:
                 linewidth=1.8,
                 alpha=0.8,
                 c=color,
-                label=(f"Wedge {idx + 1} Δθ={wedge.theta_degrees:+.1f}°" if idx == 0 else None),
+                # label=(f"Wedge {idx + 1} Δθ={wedge.theta_degrees:+.1f}°" if idx == 0 else None),
             )
 
             # (2) All candidate trees for this wedge (small dots in wedge color)
@@ -380,7 +396,7 @@ class DebugVisualizer:
                     linewidths=1.0,
                     alpha=0.95,
                     c=color,
-                    label=(f"Pick for Wedge {idx + 1}" if idx == 0 else None),
+                    # label=(f"Pick for Wedge {idx + 1}" if idx == 0 else None),
                 )
 
                 # Draw a ray through the selected tree along the relative line-of-bearing
@@ -411,7 +427,21 @@ class DebugVisualizer:
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_title("Wedge Selection & Geometry")
-        ax.legend(bbox_to_anchor=(1.05, 1), loc="upper left")
+        # Custom legend entries for wedge types
+        legend_lines = [
+            Line2D([0], [0], color="black", linewidth=2.0, linestyle="-", label="Matched Wedges"),
+            Line2D([0], [0], color="black", linewidth=2.0, linestyle=":", label="Wedges"),
+        ]
+
+        # Keep existing automatic legend entries (poses, AOI trees, etc.)
+        handles, labels = ax.get_legend_handles_labels()
+
+        ax.legend(
+            handles + legend_lines,
+            labels + ["Matched Wedges", "Wedges"],
+            bbox_to_anchor=(1.05, 1),
+            loc="upper left",
+        )
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
         
@@ -465,7 +495,7 @@ class DebugVisualizer:
                 [t.y for t in aoi_trees],
                 s=18,
                 alpha=0.25,
-                c="#777777",
+                c="#774777",
                 label="AOI Trees",
             )
             for t in aoi_trees:
@@ -539,7 +569,21 @@ class DebugVisualizer:
         ax.set_xlabel("X")
         ax.set_ylabel("Y")
         ax.set_title("Theta Lines (Pre-Match)")
-        ax.legend()
+        # Custom legend entries for wedge types
+        legend_lines = [
+            Line2D([0], [0], color="black", linewidth=2.0, linestyle="-", label="Matched Wedges"),
+            Line2D([0], [0], color="black", linewidth=2.0, linestyle=":", label="Wedges"),
+        ]
+
+        # Keep existing automatic legend entries (poses, AOI trees, etc.)
+        handles, labels = ax.get_legend_handles_labels()
+
+        ax.legend(
+            handles + legend_lines,
+            labels + ["Matched Wedges", "Wedges"],
+            bbox_to_anchor=(1.05, 1),
+            loc="upper left",
+        )
         ax.grid(True, alpha=0.3)
         plt.tight_layout()
 

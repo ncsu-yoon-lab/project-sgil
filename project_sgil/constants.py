@@ -27,13 +27,13 @@ BACKGROUND_EXTENT = ()
 
 # Boolean to plot points of trees
 # PLOT = True
-PLOT = False
+PLOT = True
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = False #True
+PLOT_WEDGES = True #True
 
 # If True, allow wedge debug plots even when not all wedges are matched
-PLOT_WEDGES_PARTIAL = False # True
+PLOT_WEDGES_PARTIAL = True # True
 
 PLOT_RANGE = (300, 700)
 
@@ -76,7 +76,7 @@ THETA_MATCHING_TOLERANCE = 0.8  # degrees
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
 AUTOMATED_FRAME_START = 140
-AUTOMATED_FRAME_END = 6500
+AUTOMATED_FRAME_END = 350
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
