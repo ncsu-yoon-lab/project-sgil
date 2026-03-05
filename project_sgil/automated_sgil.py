@@ -86,6 +86,7 @@ class AutomatedSGIL:
         self._correct_pose_latlon: tuple[float, float] | None = None
         self._rtk_pose_latlon: tuple[float, float] | None = None
         self._gps_pose_latlon: tuple[float, float] | None = None
+        self._gps_yaw_deg: float | None = None  # GPS-only heading (for road disambiguation)
 
     @staticmethod
     def _frame_latlon(frame: dict[str, Any]) -> tuple[float, float] | None:
@@ -241,6 +242,12 @@ class AutomatedSGIL:
         self._gps_xy = (gps_x, gps_y)
 
         self._correct_pose_latlon = self._rtk_pose_latlon
+
+        # Store GPS-only heading for road direction disambiguation.
+        self._gps_yaw_deg = float(
+            self.converter.rtk_heading_to_yaw(float(frame["gps_heading_filtered"]))
+        )
+
         return Pose2d(x=x, y=y, yaw=yaw)
 
     def _pixel_points_from_segmentations(self, frame: dict[str, Any]) -> list[Point]:
@@ -321,9 +328,10 @@ class AutomatedSGIL:
             gps_pose = Pose2d(gps_x, gps_y, yaw=rtk_pose.yaw)
 
             # Snap GPS position to the road and choose road direction closest to GPS yaw.
+            gps_yaw_for_road = self._gps_yaw_deg if self._gps_yaw_deg is not None else rtk_pose.yaw
             road_match = self.road_matcher.match_gps(
                 gps_latlon=gps_latlon,
-                gps_yaw_deg=rtk_pose.yaw,
+                gps_yaw_deg=gps_yaw_for_road,
             )
             snapped_pose = road_match.snapped_pose
 

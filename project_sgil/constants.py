@@ -57,9 +57,12 @@ HEADING_ERROR_DEG = 4
 HEADING_JSON_FIELD = "rtk_heading_filtered"
 
 # Heading sweep: try multiple candidate headings around the given yaw
-HEADING_SWEEP_ENABLED = True
-HEADING_SWEEP_RANGE_DEG = 5  # search yaw ± this many degrees
+HEADING_SWEEP_ENABLED = False
+HEADING_SWEEP_RANGE_DEG = 2  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
+
+POSITION_SWEEP_RANGE = 5
+POSITION_SWEEP_STEP_SIZE = 1
 
 # Vertical and Horizontal FOV
 H_FOV_DEG = 110  # [degrees]

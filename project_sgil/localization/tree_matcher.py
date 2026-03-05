@@ -34,6 +34,8 @@ from project_sgil.constants import (
     HEADING_SCORE_W_DELTA_YAW,
     HEADING_SCORE_W_NUM_WEDGES,
     HEADING_SCORE_W_THETA_ERROR,
+    POSITION_SWEEP_RANGE,
+    POSITION_SWEEP_STEP_SIZE,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
@@ -337,7 +339,7 @@ class TreeMatcher:
         # --- Position sweep (along-road) ---------------------------------
         # We assume current_pose.yaw is aligned with the road direction (from RoadMatcher).
         # Try shifting the input pose ±3 meters along the road in 1m steps.
-        position_offsets_m = list(range(-3, 4))  # [-3, -2, -1, 0, 1, 2, 3]
+        position_offsets_m = list(range(-POSITION_SWEEP_RANGE, POSITION_SWEEP_RANGE + 1, POSITION_SWEEP_STEP_SIZE))  # [-3, -2, -1, 0, 1, 2, 3]
 
         # Build the list of candidate yaw values to evaluate (heading sweep)
         if HEADING_SWEEP_ENABLED:
