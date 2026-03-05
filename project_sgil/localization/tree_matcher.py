@@ -34,9 +34,9 @@ from project_sgil.constants import (
     HEADING_SCORE_W_DELTA_YAW,
     HEADING_SCORE_W_NUM_WEDGES,
     HEADING_SCORE_W_THETA_ERROR,
-    POSITION_SWEEP_RANGE,
+    MAX_POSITION_SWEEP_RANGE,
     POSITION_SWEEP_STEP_SIZE,
-    MAX_ESTIMATE_DIST_FROM_SNAPPED_M,
+    MAX_ESTIMATE_DIST_FROM_SNAPPED_POSITION_SWEEP,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
@@ -353,7 +353,7 @@ class TreeMatcher:
         # Rationale: larger snap distance likely means larger along-road uncertainty.
         base_sweep_m = 10
         k_sweep_per_snap_m = 1  # linear coefficient: +1m sweep range per 1m snap distance
-        max_sweep_m = int(POSITION_SWEEP_RANGE)
+        max_sweep_m = int(MAX_POSITION_SWEEP_RANGE)
 
         # Computed sweep range in meters (integer for range())
         sweep_m = int(round(base_sweep_m + k_sweep_per_snap_m * float(max(0.0, snap_distance_m))))
@@ -791,7 +791,7 @@ class TreeMatcher:
             # ---- distance gate vs snapped/current pose ----
             if (
                 (est_x - current_pose.x) ** 2 + (est_y - current_pose.y) ** 2
-            ) ** 0.5 > MAX_ESTIMATE_DIST_FROM_SNAPPED_M:
+            ) ** 0.5 > MAX_ESTIMATE_DIST_FROM_SNAPPED_POSITION_SWEEP:
                 continue
 
             est_pose = Pose2d(est_x, est_y, current_pose.yaw)

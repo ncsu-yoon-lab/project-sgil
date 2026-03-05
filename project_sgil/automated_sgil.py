@@ -210,7 +210,7 @@ class AutomatedSGIL:
     # ---------------- Pose + trees ----------------
 
     def _frame_to_pose(self, frame: dict[str, Any]) -> Pose2d | None:
-        if frame.get(HEADING_JSON_FIELD) is None:
+        if frame.get("rtk_heading_filtered") is None:
             return None
 
         # Store lat/lon (raw antenna locations)
@@ -221,7 +221,7 @@ class AutomatedSGIL:
         x, y = self.converter.latlon_to_xy(self._rtk_pose_latlon)
 
         # Yaw from the configured heading field
-        yaw = self.converter.rtk_heading_to_yaw(frame[HEADING_JSON_FIELD])
+        yaw = self.converter.rtk_heading_to_yaw(frame["rtk_heading_filtered"])
 
         # Apply extrinsic: RTK -> camera (body frame offsets rotated by yaw)
         dx_b = float(RTK_TO_CAMERA_OFFSET_X_FWD_M)

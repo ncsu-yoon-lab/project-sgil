@@ -51,9 +51,6 @@ RANDOM = False
 # The error from the heading on the GPS
 HEADING_ERROR_DEG = 3
 
-# JSON field name to read the heading from for tree matching.
-# Common options: "rtk_heading", "gps_heading", "rtk_heading_filtered",
-#                 "gps_heading_filtered", "noisy_1_heading", etc.
 HEADING_JSON_FIELD = "rtk_heading_filtered"
 
 # Heading sweep: try multiple candidate headings around the given yaw
@@ -61,12 +58,12 @@ HEADING_SWEEP_ENABLED = False
 HEADING_SWEEP_RANGE_DEG = 2  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
-POSITION_SWEEP_RANGE = 30
+MAX_POSITION_SWEEP_RANGE = 30
 POSITION_SWEEP_STEP_SIZE = 1
 
 # Hard gate: reject any pose estimate too far from the snapped/current pose.
 # (Prevents weird intersections from dominating scoring.)
-MAX_ESTIMATE_DIST_FROM_SNAPPED_M = 30
+MAX_ESTIMATE_DIST_FROM_SNAPPED_POSITION_SWEEP = 4
 
 # Vertical and Horizontal FOV
 H_FOV_DEG = 110  # [degrees]
