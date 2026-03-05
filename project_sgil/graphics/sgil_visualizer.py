@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 POSE_RE = re.compile(
     r"\(\s*x\s*=\s*(?P<x>[-+]?\d+(?:\.\d+)?)\s*,\s*"
     r"y\s*=\s*(?P<y>[-+]?\d+(?:\.\d+)?)\s*,\s*"
-    r"yaw\s*=\s*(?P<yaw>[-+]?\d+(?:\.\d+)?)\s*°\s*\)"
+    r"yaw\s*=\s*(?P<yaw>[-+]?\d+(?:\.\d+)?)\s*[^)]*\)"
 )
 
 
@@ -54,8 +54,24 @@ def parse_pose(cell: str) -> Optional[Tuple[float, float, float]]:
     return (float(m.group("x")), float(m.group("y")), float(m.group("yaw")))
 
 
+def _read_text_maybe_utf16(path: Path) -> str:
+    data = path.read_bytes()
+
+    # PowerShell `>` redirection frequently writes UTF-16LE text.
+    # That produces lots of NUL bytes when read as UTF-8.
+    if data.startswith(b"\xff\xfe"):
+        return data.decode("utf-16le", errors="replace")
+    if data.startswith(b"\xfe\xff"):
+        return data.decode("utf-16be", errors="replace")
+    if b"\x00" in data[:200]:
+        # Heuristic fallback: looks like UTF-16 without BOM
+        return data.decode("utf-16le", errors="replace")
+
+    return data.decode("utf-8", errors="replace")
+
+
 def parse_table_txt(path: Path) -> List[Row]:
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    lines = _read_text_maybe_utf16(path).replace("\x00", "").splitlines()
 
     data_lines: List[str] = []
     for ln in lines:

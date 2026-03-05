@@ -100,7 +100,9 @@
                     "centroid_y": 626,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": null,
+            "rtk_heading_filtered": 1.4883725251370097
         },
         {
             "frame_name": "images/image_00000017.png",
@@ -166,7 +168,9 @@
                     "centroid_y": 608,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -24.161205435831075,
+            "rtk_heading_filtered": -1.060229430835009
         },
         {
             "frame_name": "images/image_00000140.png",
@@ -241,7 +245,9 @@
                     "centroid_y": 560,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 36.70242468273541,
+            "rtk_heading_filtered": 82.83169573433769
         },
         {
             "frame_name": "images/image_00000152.png",
@@ -298,7 +304,9 @@
                     "centroid_y": 564,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 61.804628013007566,
+            "rtk_heading_filtered": 84.57377219577363
         },
         {
             "frame_name": "images/image_00000167.png",
@@ -364,7 +372,9 @@
                     "centroid_y": 560,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.00689094525396,
+            "rtk_heading_filtered": 85.1528610451117
         },
         {
             "frame_name": "images/image_00000182.png",
@@ -439,7 +449,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 80.73322906644006,
+            "rtk_heading_filtered": 85.75641835290863
         },
         {
             "frame_name": "images/image_00000198.png",
@@ -514,7 +526,9 @@
                     "centroid_y": 601,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.63576151266496,
+            "rtk_heading_filtered": 86.12827232095411
         },
         {
             "frame_name": "images/image_00000212.png",
@@ -580,7 +594,9 @@
                     "centroid_y": 587,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.93276731946372,
+            "rtk_heading_filtered": 86.4062571271586
         },
         {
             "frame_name": "images/image_00000228.png",
@@ -637,7 +653,9 @@
                     "centroid_y": 570,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 82.8195165008136,
+            "rtk_heading_filtered": 86.76786398975308
         },
         {
             "frame_name": "images/image_00000243.png",
@@ -694,7 +712,9 @@
                     "centroid_y": 546,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 82.58335253501964,
+            "rtk_heading_filtered": 87.11174335073898
         },
         {
             "frame_name": "images/image_00000258.png",
@@ -742,7 +762,9 @@
                     "centroid_y": 550,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 76.33847740641083,
+            "rtk_heading_filtered": 87.27009491287453
         },
         {
             "frame_name": "images/image_00000273.png",
@@ -790,7 +812,9 @@
                     "centroid_y": 572,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 83.08925887755414,
+            "rtk_heading_filtered": 87.45355712360058
         },
         {
             "frame_name": "images/image_00000288.png",
@@ -838,7 +862,9 @@
                     "centroid_y": 622,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.73095569399126,
+            "rtk_heading_filtered": 87.92711630311975
         },
         {
             "frame_name": "images/image_00000303.png",
@@ -895,7 +921,9 @@
                     "centroid_y": 626,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 76.04312209426485,
+            "rtk_heading_filtered": 88.32287434080075
         },
         {
             "frame_name": "images/image_00000318.png",
@@ -943,7 +971,9 @@
                     "centroid_y": 612,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 87.64179280269377,
+            "rtk_heading_filtered": 88.41628885866757
         },
         {
             "frame_name": "images/image_00000333.png",
@@ -991,7 +1021,9 @@
                     "centroid_y": 598,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 85.87346454949703,
+            "rtk_heading_filtered": 88.29570987510952
         },
         {
             "frame_name": "images/image_00000348.png",
@@ -1030,7 +1062,9 @@
                     "centroid_y": 603,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 107.03041660890102,
+            "rtk_heading_filtered": 88.04865542054958
         },
         {
             "frame_name": "images/image_00000363.png",
@@ -1069,7 +1103,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 97.12119969633771,
+            "rtk_heading_filtered": 87.81602827464542
         },
         {
             "frame_name": "images/image_00000378.png",
@@ -1108,7 +1144,9 @@
                     "centroid_y": 611,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.44201335031595,
+            "rtk_heading_filtered": 87.52471656479094
         },
         {
             "frame_name": "images/image_00000393.png",
@@ -1147,7 +1185,9 @@
                     "centroid_y": 620,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.8350062116462,
+            "rtk_heading_filtered": 88.01223444975884
         },
         {
             "frame_name": "images/image_00000409.png",
@@ -1195,7 +1235,9 @@
                     "centroid_y": 627,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.81873541990196,
+            "rtk_heading_filtered": 87.76006112833606
         },
         {
             "frame_name": "images/image_00000424.png",
@@ -1243,7 +1285,9 @@
                     "centroid_y": 626,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.51894897146964,
+            "rtk_heading_filtered": 87.70298829505191
         },
         {
             "frame_name": "images/image_00000439.png",
@@ -1291,7 +1335,9 @@
                     "centroid_y": 603,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 79.02420786870006,
+            "rtk_heading_filtered": 87.94216810746286
         },
         {
             "frame_name": "images/image_00000454.png",
@@ -1348,7 +1394,9 @@
                     "centroid_y": 618,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 79.35435790921841,
+            "rtk_heading_filtered": 87.8653659098317
         },
         {
             "frame_name": "images/image_00000469.png",
@@ -1405,7 +1453,9 @@
                     "centroid_y": 606,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.74164184244485,
+            "rtk_heading_filtered": 87.11188300471949
         },
         {
             "frame_name": "images/image_00000484.png",
@@ -1462,7 +1512,9 @@
                     "centroid_y": 608,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 80.6698419023472,
+            "rtk_heading_filtered": 87.78321438663302
         },
         {
             "frame_name": "images/image_00000499.png",
@@ -1519,7 +1571,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.69722729389468,
+            "rtk_heading_filtered": 88.00390809238054
         },
         {
             "frame_name": "images/image_00000514.png",
@@ -1576,7 +1630,9 @@
                     "centroid_y": 560,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 80.32260531589712,
+            "rtk_heading_filtered": 88.41467370271205
         },
         {
             "frame_name": "images/image_00000529.png",
@@ -1651,7 +1707,9 @@
                     "centroid_y": 597,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 85.10989653315667,
+            "rtk_heading_filtered": 88.11547084402599
         },
         {
             "frame_name": "images/image_00000544.png",
@@ -1717,7 +1775,9 @@
                     "centroid_y": 605,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 82.90248767778534,
+            "rtk_heading_filtered": 87.55817047834582
         },
         {
             "frame_name": "images/image_00000559.png",
@@ -1783,7 +1843,9 @@
                     "centroid_y": 602,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.46001307503458,
+            "rtk_heading_filtered": 87.94283640570482
         },
         {
             "frame_name": "images/image_00000574.png",
@@ -1858,7 +1920,9 @@
                     "centroid_y": 576,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 76.74734147626637,
+            "rtk_heading_filtered": 87.4523749414337
         },
         {
             "frame_name": "images/image_00000590.png",
@@ -1933,7 +1997,9 @@
                     "centroid_y": 561,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.6117251245466,
+            "rtk_heading_filtered": 88.09607704554602
         },
         {
             "frame_name": "images/image_00000605.png",
@@ -1945,52 +2011,43 @@
             "rtk_lon": -78.63939874837592,
             "rtk_heading": 88.4721219786346,
             "segmentations": [
-                {
-                    "bbox_x1": 543,
-                    "bbox_y1": 550,
-                    "bbox_x2": 563,
-                    "bbox_y2": 570,
-                    "centroid_x": 553,
-                    "centroid_y": 560,
+                                {
+                    "bbox_x1": 553,
+                    "bbox_y1": 432,
+                    "bbox_x2": 573,
+                    "bbox_y2": 452,
+                    "centroid_x": 563,
+                    "centroid_y": 442,
+                    "confidence": 1.0
+                },
+                                {
+                    "bbox_x1": 851,
+                    "bbox_y1": 457,
+                    "bbox_x2": 871,
+                    "bbox_y2": 477,
+                    "centroid_x": 861,
+                    "centroid_y": 467,
                     "confidence": 1.0
                 },
                 {
-                    "bbox_x1": 858,
-                    "bbox_y1": 525,
-                    "bbox_x2": 878,
-                    "bbox_y2": 545,
-                    "centroid_x": 868,
-                    "centroid_y": 535,
+                    "bbox_x1": 914,
+                    "bbox_y1": 444,
+                    "bbox_x2": 934,
+                    "bbox_y2": 464,
+                    "centroid_x": 924,
+                    "centroid_y": 454,
                     "confidence": 1.0
                 },
                 {
-                    "bbox_x1": 923,
-                    "bbox_y1": 525,
-                    "bbox_x2": 943,
-                    "bbox_y2": 545,
-                    "centroid_x": 933,
-                    "centroid_y": 535,
+                    "bbox_x1": 939,
+                    "bbox_y1": 476,
+                    "bbox_x2": 959,
+                    "bbox_y2": 496,
+                    "centroid_x": 949,
+                    "centroid_y": 486,
                     "confidence": 1.0
                 },
-                {
-                    "bbox_x1": 949,
-                    "bbox_y1": 525,
-                    "bbox_x2": 969,
-                    "bbox_y2": 545,
-                    "centroid_x": 959,
-                    "centroid_y": 535,
-                    "confidence": 1.0
-                },
-                {
-                    "bbox_x1": 965,
-                    "bbox_y1": 525,
-                    "bbox_x2": 985,
-                    "bbox_y2": 545,
-                    "centroid_x": 975,
-                    "centroid_y": 535,
-                    "confidence": 1.0
-                },
-                {
+                                {
                     "bbox_x1": 978,
                     "bbox_y1": 525,
                     "bbox_x2": 998,
@@ -1998,17 +2055,10 @@
                     "centroid_x": 988,
                     "centroid_y": 535,
                     "confidence": 1.0
-                },
-                {
-                    "bbox_x1": 1256,
-                    "bbox_y1": 532,
-                    "bbox_x2": 1276,
-                    "bbox_y2": 552,
-                    "centroid_x": 1266,
-                    "centroid_y": 542,
-                    "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 90.19623395432853,
+            "rtk_heading_filtered": 88.4721219786346
         },
         {
             "frame_name": "images/image_00000620.png",
@@ -2083,7 +2133,9 @@
                     "centroid_y": 560,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 75.38757595017111,
+            "rtk_heading_filtered": 87.99482731184396
         },
         {
             "frame_name": "images/image_00000635.png",
@@ -2149,7 +2201,9 @@
                     "centroid_y": 565,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 83.71335469518245,
+            "rtk_heading_filtered": 87.78696996831123
         },
         {
             "frame_name": "images/image_00000650.png",
@@ -2215,7 +2269,9 @@
                     "centroid_y": 562,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 90.36754721986081,
+            "rtk_heading_filtered": 87.41850214012368
         },
         {
             "frame_name": "images/image_00000665.png",
@@ -2290,7 +2346,9 @@
                     "centroid_y": 474,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 96.44538473006959,
+            "rtk_heading_filtered": 87.34027464931208
         },
         {
             "frame_name": "images/image_00000680.png",
@@ -2365,7 +2423,9 @@
                     "centroid_y": 548,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.26716935364456,
+            "rtk_heading_filtered": 87.32746593173658
         },
         {
             "frame_name": "images/image_00000695.png",
@@ -2449,7 +2509,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.86861627145008,
+            "rtk_heading_filtered": 87.12493197825526
         },
         {
             "frame_name": "images/image_00000710.png",
@@ -2524,7 +2586,9 @@
                     "centroid_y": 543,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 79.09187495149749,
+            "rtk_heading_filtered": 87.0330501090691
         },
         {
             "frame_name": "images/image_00000725.png",
@@ -2617,7 +2681,9 @@
                     "centroid_y": 593,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 55.26870586692129,
+            "rtk_heading_filtered": 86.88186899089044
         },
         {
             "frame_name": "images/image_00000740.png",
@@ -2674,7 +2740,9 @@
                     "centroid_y": 545,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 52.85160051564553,
+            "rtk_heading_filtered": 86.4917601325238
         },
         {
             "frame_name": "images/image_00000755.png",
@@ -2740,7 +2808,9 @@
                     "centroid_y": 570,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 58.79333935694233,
+            "rtk_heading_filtered": 86.10888184929958
         },
         {
             "frame_name": "images/image_00000771.png",
@@ -2806,7 +2876,9 @@
                     "centroid_y": 575,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 71.72213972647745,
+            "rtk_heading_filtered": 86.37570990507868
         },
         {
             "frame_name": "images/image_00000786.png",
@@ -2863,7 +2935,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 70.65142925229459,
+            "rtk_heading_filtered": 89.31051658369555
         },
         {
             "frame_name": "images/image_00000801.png",
@@ -2929,7 +3003,9 @@
                     "centroid_y": 567,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 74.9873631732699,
+            "rtk_heading_filtered": 93.48995648449062
         },
         {
             "frame_name": "images/image_00000816.png",
@@ -2995,7 +3071,9 @@
                     "centroid_y": 569,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.35648458161518,
+            "rtk_heading_filtered": 93.65826324447627
         },
         {
             "frame_name": "images/image_00000831.png",
@@ -3061,7 +3139,9 @@
                     "centroid_y": 549,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 62.640620758303974,
+            "rtk_heading_filtered": 91.05930349852008
         },
         {
             "frame_name": "images/image_00000846.png",
@@ -3127,7 +3207,9 @@
                     "centroid_y": 559,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 68.42035924948662,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000861.png",
@@ -3193,7 +3275,9 @@
                     "centroid_y": 550,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000876.png",
@@ -3268,7 +3352,9 @@
                     "centroid_y": 552,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000891.png",
@@ -3334,7 +3420,9 @@
                     "centroid_y": 561,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000906.png",
@@ -3400,7 +3488,9 @@
                     "centroid_y": 559,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000921.png",
@@ -3466,7 +3556,9 @@
                     "centroid_y": 561,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000936.png",
@@ -3532,7 +3624,9 @@
                     "centroid_y": 567,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000952.png",
@@ -3598,7 +3692,9 @@
                     "centroid_y": 569,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000967.png",
@@ -3664,7 +3760,9 @@
                     "centroid_y": 564,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000982.png",
@@ -3730,7 +3828,9 @@
                     "centroid_y": 577,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00000997.png",
@@ -3796,7 +3896,9 @@
                     "centroid_y": 559,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001012.png",
@@ -3862,7 +3964,9 @@
                     "centroid_y": 574,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001027.png",
@@ -3928,7 +4032,9 @@
                     "centroid_y": 560,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001042.png",
@@ -3994,7 +4100,9 @@
                     "centroid_y": 616,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001057.png",
@@ -4060,7 +4168,9 @@
                     "centroid_y": 575,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001072.png",
@@ -4126,7 +4236,9 @@
                     "centroid_y": 555,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001087.png",
@@ -4192,7 +4304,9 @@
                     "centroid_y": 567,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001102.png",
@@ -4258,7 +4372,9 @@
                     "centroid_y": 603,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001117.png",
@@ -4324,7 +4440,9 @@
                     "centroid_y": 569,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001132.png",
@@ -4390,7 +4508,9 @@
                     "centroid_y": 563,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001148.png",
@@ -4456,7 +4576,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001163.png",
@@ -4522,7 +4644,9 @@
                     "centroid_y": 567,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001193.png",
@@ -4588,7 +4712,9 @@
                     "centroid_y": 573,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001238.png",
@@ -4654,7 +4780,9 @@
                     "centroid_y": 571,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 99.85450924348667,
+            "rtk_heading_filtered": 93.66584856153403
         },
         {
             "frame_name": "images/image_00001248.png",
@@ -4720,7 +4848,9 @@
                     "centroid_y": 571,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 63.54103893549618,
+            "rtk_heading_filtered": 101.38597249459806
         },
         {
             "frame_name": "images/image_00001263.png",
@@ -4786,7 +4916,9 @@
                     "centroid_y": 579,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 109.25039452808272,
+            "rtk_heading_filtered": 109.84965920701929
         },
         {
             "frame_name": "images/image_00001278.png",
@@ -4861,7 +4993,9 @@
                     "centroid_y": 633,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 107.08182584997239,
+            "rtk_heading_filtered": 121.27285332924026
         },
         {
             "frame_name": "images/image_00001293.png",
@@ -4945,7 +5079,9 @@
                     "centroid_y": 630,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 100.61045606575975,
+            "rtk_heading_filtered": 131.85170083592112
         },
         {
             "frame_name": "images/image_00001308.png",
@@ -5011,7 +5147,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 63.61421062392976,
+            "rtk_heading_filtered": 143.36390630738498
         },
         {
             "frame_name": "images/image_00001323.png",
@@ -5077,7 +5215,9 @@
                     "centroid_y": 612,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 76.62206597350179,
+            "rtk_heading_filtered": 154.47053284510704
         },
         {
             "frame_name": "images/image_00001338.png",
@@ -5170,7 +5310,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 108.03318448418077,
+            "rtk_heading_filtered": 164.496260168077
         },
         {
             "frame_name": "images/image_00001353.png",
@@ -5263,7 +5405,9 @@
                     "centroid_y": 646,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 142.98954194443272,
+            "rtk_heading_filtered": 171.7560846492687
         },
         {
             "frame_name": "images/image_00001368.png",
@@ -5347,7 +5491,9 @@
                     "centroid_y": 615,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 170.87068360386044,
+            "rtk_heading_filtered": 174.83122602207246
         },
         {
             "frame_name": "images/image_00001383.png",
@@ -5431,7 +5577,9 @@
                     "centroid_y": 605,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 159.7405753311921,
+            "rtk_heading_filtered": 176.02994423717664
         },
         {
             "frame_name": "images/image_00001398.png",
@@ -5515,7 +5663,9 @@
                     "centroid_y": 635,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 164.7164830911215,
+            "rtk_heading_filtered": 176.39294683493966
         },
         {
             "frame_name": "images/image_00001413.png",
@@ -5608,7 +5758,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 168.02309390934113,
+            "rtk_heading_filtered": 177.4833712890646
         },
         {
             "frame_name": "images/image_00001428.png",
@@ -5710,7 +5862,9 @@
                     "centroid_y": 544,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 179.24379191180026,
+            "rtk_heading_filtered": 177.5530624628574
         },
         {
             "frame_name": "images/image_00001444.png",
@@ -5812,7 +5966,9 @@
                     "centroid_y": 617,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -179.98594419734528,
+            "rtk_heading_filtered": 178.42956090815366
         },
         {
             "frame_name": "images/image_00001459.png",
@@ -5905,7 +6061,9 @@
                     "centroid_y": 625,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 153.30797259107942,
+            "rtk_heading_filtered": -178.27098762126718
         },
         {
             "frame_name": "images/image_00001474.png",
@@ -5998,7 +6156,9 @@
                     "centroid_y": 547,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 174.307126764967,
+            "rtk_heading_filtered": -175.3502232379036
         },
         {
             "frame_name": "images/image_00001489.png",
@@ -6082,7 +6242,9 @@
                     "centroid_y": 614,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 174.307126764967,
+            "rtk_heading_filtered": -139.8548068595531
         },
         {
             "frame_name": "images/image_00001504.png",
@@ -6175,7 +6337,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 174.307126764967,
+            "rtk_heading_filtered": -140.9782398111533
         },
         {
             "frame_name": "images/image_00001519.png",
@@ -6268,7 +6432,9 @@
                     "centroid_y": 584,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -142.6032416685001,
+            "rtk_heading_filtered": -140.9782398111533
         },
         {
             "frame_name": "images/image_00001534.png",
@@ -6361,7 +6527,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -157.8219799059113,
+            "rtk_heading_filtered": -140.9782398111533
         },
         {
             "frame_name": "images/image_00001549.png",
@@ -6454,7 +6622,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -157.42545398561242,
+            "rtk_heading_filtered": 176.70656615288271
         },
         {
             "frame_name": "images/image_00001564.png",
@@ -6538,7 +6708,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -157.42545398561242,
+            "rtk_heading_filtered": 176.2025113323583
         },
         {
             "frame_name": "images/image_00001579.png",
@@ -6631,7 +6803,9 @@
                     "centroid_y": 607,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -157.42545398561242,
+            "rtk_heading_filtered": 177.18940471305172
         },
         {
             "frame_name": "images/image_00001594.png",
@@ -6724,7 +6898,9 @@
                     "centroid_y": 561,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -153.80816438056954,
+            "rtk_heading_filtered": 177.18940471305172
         },
         {
             "frame_name": "images/image_00001610.png",
@@ -6817,7 +6993,9 @@
                     "centroid_y": 620,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -165.38458797994863,
+            "rtk_heading_filtered": 177.18940471305172
         },
         {
             "frame_name": "images/image_00001640.png",
@@ -6910,7 +7088,9 @@
                     "centroid_y": 553,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -173.5307001508812,
+            "rtk_heading_filtered": 177.89108489296012
         },
         {
             "frame_name": "images/image_00001655.png",
@@ -7003,7 +7183,9 @@
                     "centroid_y": 597,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -173.5307001508812,
+            "rtk_heading_filtered": 177.44455488341484
         },
         {
             "frame_name": "images/image_00001670.png",
@@ -7087,7 +7269,9 @@
                     "centroid_y": 628,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -173.5307001508812,
+            "rtk_heading_filtered": 177.30660246488858
         },
         {
             "frame_name": "images/image_00001685.png",
@@ -7171,7 +7355,9 @@
                     "centroid_y": 575,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 160.24727520469983,
+            "rtk_heading_filtered": 176.89548790137553
         },
         {
             "frame_name": "images/image_00001700.png",
@@ -7246,7 +7432,9 @@
                     "centroid_y": 617,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 169.31547104427568,
+            "rtk_heading_filtered": 177.04202954035284
         },
         {
             "frame_name": "images/image_00001715.png",
@@ -7321,7 +7509,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 174.8772688489459,
+            "rtk_heading_filtered": 176.92599119994853
         },
         {
             "frame_name": "images/image_00001730.png",
@@ -7396,7 +7586,9 @@
                     "centroid_y": 645,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 164.8841849001169,
+            "rtk_heading_filtered": 176.52239814792148
         },
         {
             "frame_name": "images/image_00001745.png",
@@ -7471,7 +7663,9 @@
                     "centroid_y": 656,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 169.889089301012,
+            "rtk_heading_filtered": 176.07015668113752
         },
         {
             "frame_name": "images/image_00001760.png",
@@ -7528,7 +7722,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 168.3165569976435,
+            "rtk_heading_filtered": 175.2118299214629
         },
         {
             "frame_name": "images/image_00001775.png",
@@ -7594,7 +7790,9 @@
                     "centroid_y": 615,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 166.95309459937934,
+            "rtk_heading_filtered": 176.62652167630716
         },
         {
             "frame_name": "images/image_00001790.png",
@@ -7669,7 +7867,9 @@
                     "centroid_y": 639,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 169.6367733091073,
+            "rtk_heading_filtered": 178.21777133437075
         },
         {
             "frame_name": "images/image_00001806.png",
@@ -7735,7 +7935,9 @@
                     "centroid_y": 618,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 178.9518665096523,
+            "rtk_heading_filtered": 178.11016105929187
         },
         {
             "frame_name": "images/image_00001821.png",
@@ -7801,7 +8003,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -179.52152255370999,
+            "rtk_heading_filtered": 177.84655550212403
         },
         {
             "frame_name": "images/image_00001836.png",
@@ -7867,7 +8071,9 @@
                     "centroid_y": 619,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -175.0906963832707,
+            "rtk_heading_filtered": 177.54625482546075
         },
         {
             "frame_name": "images/image_00001851.png",
@@ -7969,7 +8175,9 @@
                     "centroid_y": 580,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -178.51720677657707,
+            "rtk_heading_filtered": 177.51492932292857
         },
         {
             "frame_name": "images/image_00001866.png",
@@ -8044,7 +8252,9 @@
                     "centroid_y": 579,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 175.6156848687444,
+            "rtk_heading_filtered": 178.57126002823492
         },
         {
             "frame_name": "images/image_00001881.png",
@@ -8128,7 +8338,9 @@
                     "centroid_y": 595,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 173.33204099467042,
+            "rtk_heading_filtered": 178.81296908789628
         },
         {
             "frame_name": "images/image_00001896.png",
@@ -8212,7 +8424,9 @@
                     "centroid_y": 593,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -175.4426479341816,
+            "rtk_heading_filtered": 178.46609656428058
         },
         {
             "frame_name": "images/image_00001911.png",
@@ -8305,7 +8519,9 @@
                     "centroid_y": 617,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 178.64316963129156,
+            "rtk_heading_filtered": 177.63051691865545
         },
         {
             "frame_name": "images/image_00001926.png",
@@ -8398,7 +8614,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 174.557791188994,
+            "rtk_heading_filtered": 177.89118152051827
         },
         {
             "frame_name": "images/image_00001941.png",
@@ -8482,7 +8700,9 @@
                     "centroid_y": 589,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 176.7164389294211,
+            "rtk_heading_filtered": 178.25447328036236
         },
         {
             "frame_name": "images/image_00001956.png",
@@ -8584,7 +8804,9 @@
                     "centroid_y": 577,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 172.54306608844337,
+            "rtk_heading_filtered": 177.81256913649315
         },
         {
             "frame_name": "images/image_00001971.png",
@@ -8668,7 +8890,9 @@
                     "centroid_y": 592,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 174.12411435077152,
+            "rtk_heading_filtered": 178.03327628798476
         },
         {
             "frame_name": "images/image_00001987.png",
@@ -8743,7 +8967,9 @@
                     "centroid_y": 602,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 172.024488250051,
+            "rtk_heading_filtered": 178.28366936080755
         },
         {
             "frame_name": "images/image_00002001.png",
@@ -8818,7 +9044,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 172.64495028257008,
+            "rtk_heading_filtered": 178.676136631688
         },
         {
             "frame_name": "images/image_00002017.png",
@@ -8911,7 +9139,9 @@
                     "centroid_y": 617,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 171.51820300830457,
+            "rtk_heading_filtered": 179.2982819930325
         },
         {
             "frame_name": "images/image_00002032.png",
@@ -8977,7 +9207,9 @@
                     "centroid_y": 635,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 168.9080913693173,
+            "rtk_heading_filtered": 178.94898846026828
         },
         {
             "frame_name": "images/image_00002047.png",
@@ -9025,7 +9257,9 @@
                     "centroid_y": 645,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 167.6118425786739,
+            "rtk_heading_filtered": 178.90737210585655
         },
         {
             "frame_name": "images/image_00002059.png",
@@ -9073,7 +9307,9 @@
                     "centroid_y": 521,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -158.27757241161672,
+            "rtk_heading_filtered": -94.43996640830052
         },
         {
             "frame_name": "images/image_00002089.png",
@@ -9121,7 +9357,9 @@
                     "centroid_y": 569,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -155.80140333932687,
+            "rtk_heading_filtered": -86.16470798274493
         },
         {
             "frame_name": "images/image_00002104.png",
@@ -9169,7 +9407,9 @@
                     "centroid_y": 556,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -128.2900613765639,
+            "rtk_heading_filtered": -70.06948597500283
         },
         {
             "frame_name": "images/image_00002119.png",
@@ -9217,7 +9457,9 @@
                     "centroid_y": 569,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -86.93163284824638,
+            "rtk_heading_filtered": -48.70455007697575
         },
         {
             "frame_name": "images/image_00002134.png",
@@ -9274,7 +9516,9 @@
                     "centroid_y": 458,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -65.5353882670133,
+            "rtk_heading_filtered": -30.31269044534322
         },
         {
             "frame_name": "images/image_00002150.png",
@@ -9322,7 +9566,9 @@
                     "centroid_y": 553,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -46.52308780929471,
+            "rtk_heading_filtered": -12.28669023757204
         },
         {
             "frame_name": "images/image_00002165.png",
@@ -9370,7 +9616,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -28.55128878757724,
+            "rtk_heading_filtered": -6.727440603264069
         },
         {
             "frame_name": "images/image_00002180.png",
@@ -9427,7 +9675,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -16.87674610539543,
+            "rtk_heading_filtered": -5.015064768436179
         },
         {
             "frame_name": "images/image_00002195.png",
@@ -9493,7 +9743,9 @@
                     "centroid_y": 602,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -14.062087118204115,
+            "rtk_heading_filtered": -4.361725371891522
         },
         {
             "frame_name": "images/image_00002210.png",
@@ -9568,7 +9820,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -11.611781894144734,
+            "rtk_heading_filtered": -3.914139235344957
         },
         {
             "frame_name": "images/image_00002225.png",
@@ -9643,7 +9897,9 @@
                     "centroid_y": 593,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.996668901285073,
+            "rtk_heading_filtered": -3.3765092800303487
         },
         {
             "frame_name": "images/image_00002240.png",
@@ -9727,7 +9983,9 @@
                     "centroid_y": 590,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.773320428414825,
+            "rtk_heading_filtered": -2.8223297148113637
         },
         {
             "frame_name": "images/image_00002255.png",
@@ -9820,7 +10078,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.558083881749651,
+            "rtk_heading_filtered": -1.51542942267457
         },
         {
             "frame_name": "images/image_00002270.png",
@@ -9913,7 +10173,9 @@
                     "centroid_y": 595,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.756380823019969,
+            "rtk_heading_filtered": -0.4101344722584841
         },
         {
             "frame_name": "images/image_00002285.png",
@@ -9997,7 +10259,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.055580566769269,
+            "rtk_heading_filtered": -0.6313523518366135
         },
         {
             "frame_name": "images/image_00002300.png",
@@ -10072,7 +10336,9 @@
                     "centroid_y": 592,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -7.193090861782397,
+            "rtk_heading_filtered": -0.9908557334653714
         },
         {
             "frame_name": "images/image_00002316.png",
@@ -10138,7 +10404,9 @@
                     "centroid_y": 618,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.000210222640892,
+            "rtk_heading_filtered": -1.4631451281379315
         },
         {
             "frame_name": "images/image_00002330.png",
@@ -10204,7 +10472,9 @@
                     "centroid_y": 571,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -7.830999339269077,
+            "rtk_heading_filtered": -1.9955694902994807
         },
         {
             "frame_name": "images/image_00002345.png",
@@ -10252,7 +10522,9 @@
                     "centroid_y": 574,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.481400336591491,
+            "rtk_heading_filtered": -1.7034264467633966
         },
         {
             "frame_name": "images/image_00002361.png",
@@ -10300,7 +10572,9 @@
                     "centroid_y": 535,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.680751923603433,
+            "rtk_heading_filtered": -1.725781186664044
         },
         {
             "frame_name": "images/image_00002375.png",
@@ -10339,7 +10613,9 @@
                     "centroid_y": 563,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.089146135693637,
+            "rtk_heading_filtered": -2.043293386460846
         },
         {
             "frame_name": "images/image_00002391.png",
@@ -10387,7 +10663,9 @@
                     "centroid_y": 591,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.332016899536468,
+            "rtk_heading_filtered": -2.706122215329634
         },
         {
             "frame_name": "images/image_00002406.png",
@@ -10444,7 +10722,9 @@
                     "centroid_y": 566,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.556381453395982,
+            "rtk_heading_filtered": -3.0806941803922845
         },
         {
             "frame_name": "images/image_00002421.png",
@@ -10501,7 +10781,9 @@
                     "centroid_y": 573,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.27967709169192,
+            "rtk_heading_filtered": -2.622840835233759
         },
         {
             "frame_name": "images/image_00002436.png",
@@ -10558,7 +10840,9 @@
                     "centroid_y": 567,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.463358792702666,
+            "rtk_heading_filtered": 161.1464189161025
         },
         {
             "frame_name": "images/image_00002451.png",
@@ -10615,7 +10899,9 @@
                     "centroid_y": 556,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.463358792702666,
+            "rtk_heading_filtered": 161.1464189161025
         },
         {
             "frame_name": "images/image_00002471.png",
@@ -10672,7 +10958,9 @@
                     "centroid_y": 583,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 55.534035754572585,
+            "rtk_heading_filtered": -3.1461452868174637
         },
         {
             "frame_name": "images/image_00002486.png",
@@ -10738,7 +11026,9 @@
                     "centroid_y": 578,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 55.534035754572585,
+            "rtk_heading_filtered": -3.656586554589112
         },
         {
             "frame_name": "images/image_00002501.png",
@@ -10795,7 +11085,9 @@
                     "centroid_y": 585,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.865822855067464,
+            "rtk_heading_filtered": -3.456369897061534
         },
         {
             "frame_name": "images/image_00002516.png",
@@ -10843,7 +11135,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.450599635692527,
+            "rtk_heading_filtered": -2.947045721138475
         },
         {
             "frame_name": "images/image_00002531.png",
@@ -10882,7 +11176,9 @@
                     "centroid_y": 576,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -12.289094354107533,
+            "rtk_heading_filtered": -3.0196441977260813
         },
         {
             "frame_name": "images/image_00002546.png",
@@ -10921,7 +11217,9 @@
                     "centroid_y": 564,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.116611359103212,
+            "rtk_heading_filtered": -3.0272445685450253
         },
         {
             "frame_name": "images/image_00002561.png",
@@ -10978,7 +11276,9 @@
                     "centroid_y": 573,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -13.429005785637077,
+            "rtk_heading_filtered": -2.280498122926145
         },
         {
             "frame_name": "images/image_00002576.png",
@@ -11026,7 +11326,9 @@
                     "centroid_y": 543,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.679642663585678,
+            "rtk_heading_filtered": -2.9523749196073727
         },
         {
             "frame_name": "images/image_00002591.png",
@@ -11074,7 +11376,9 @@
                     "centroid_y": 556,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.373533304756865,
+            "rtk_heading_filtered": -2.678750579978982
         },
         {
             "frame_name": "images/image_00002607.png",
@@ -11113,7 +11417,9 @@
                     "centroid_y": 572,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.829536790469291,
+            "rtk_heading_filtered": -2.5636961905045523
         },
         {
             "frame_name": "images/image_00002622.png",
@@ -11152,7 +11458,9 @@
                     "centroid_y": 593,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.380722426678462,
+            "rtk_heading_filtered": -2.5540770124843446
         },
         {
             "frame_name": "images/image_00002637.png",
@@ -11191,7 +11499,9 @@
                     "centroid_y": 620,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.995969961483567,
+            "rtk_heading_filtered": -2.512488778283725
         },
         {
             "frame_name": "images/image_00002652.png",
@@ -11221,7 +11531,9 @@
                     "centroid_y": 616,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.296233115293449,
+            "rtk_heading_filtered": -2.471889697048113
         },
         {
             "frame_name": "images/image_00002667.png",
@@ -11251,7 +11563,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -7.555943457350473,
+            "rtk_heading_filtered": -2.4566868136877
         },
         {
             "frame_name": "images/image_00002682.png",
@@ -11281,7 +11595,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.729767338521034,
+            "rtk_heading_filtered": -2.3365465253104403
         },
         {
             "frame_name": "images/image_00002697.png",
@@ -11311,7 +11627,9 @@
                     "centroid_y": 600,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.005637618773557,
+            "rtk_heading_filtered": -2.2665262727132807
         },
         {
             "frame_name": "images/image_00002712.png",
@@ -11341,7 +11659,9 @@
                     "centroid_y": 567,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.18873242083426,
+            "rtk_heading_filtered": -2.247444899079705
         },
         {
             "frame_name": "images/image_00002727.png",
@@ -11380,7 +11700,9 @@
                     "centroid_y": 600,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.058762052829758,
+            "rtk_heading_filtered": -2.046216826574529
         },
         {
             "frame_name": "images/image_00002742.png",
@@ -11419,7 +11741,9 @@
                     "centroid_y": 563,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.211774054835116,
+            "rtk_heading_filtered": -1.9541618942987051
         },
         {
             "frame_name": "images/image_00002757.png",
@@ -11467,7 +11791,9 @@
                     "centroid_y": 599,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.268312761415878,
+            "rtk_heading_filtered": -2.1659251116451435
         },
         {
             "frame_name": "images/image_00002772.png",
@@ -11515,7 +11841,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.415869373863131,
+            "rtk_heading_filtered": -2.152785015889208
         },
         {
             "frame_name": "images/image_00002787.png",
@@ -11554,7 +11882,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.056952599852867,
+            "rtk_heading_filtered": -2.2496080201438446
         },
         {
             "frame_name": "images/image_00002803.png",
@@ -11593,7 +11923,9 @@
                     "centroid_y": 587,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -11.11386355197614,
+            "rtk_heading_filtered": -2.534418288931522
         },
         {
             "frame_name": "images/image_00002818.png",
@@ -11632,7 +11964,9 @@
                     "centroid_y": 578,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -11.20615619433085,
+            "rtk_heading_filtered": -2.572849833711409
         },
         {
             "frame_name": "images/image_00002833.png",
@@ -11671,7 +12005,9 @@
                     "centroid_y": 556,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -13.569245825613493,
+            "rtk_heading_filtered": -2.4557442957970324
         },
         {
             "frame_name": "images/image_00002848.png",
@@ -11701,7 +12037,9 @@
                     "centroid_y": 595,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.56200122591891,
+            "rtk_heading_filtered": -2.354692918239789
         },
         {
             "frame_name": "images/image_00002863.png",
@@ -11731,7 +12069,9 @@
                     "centroid_y": 452,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.190975721346534,
+            "rtk_heading_filtered": -1.8731202793212136
         },
         {
             "frame_name": "images/image_00002878.png",
@@ -11752,7 +12092,9 @@
                     "centroid_y": 601,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.965091311187942,
+            "rtk_heading_filtered": 0.0708194697847327
         },
         {
             "frame_name": "images/image_00002893.png",
@@ -11773,7 +12115,9 @@
                     "centroid_y": 605,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -21.946050583790434,
+            "rtk_heading_filtered": 0.0708194697847327
         },
         {
             "frame_name": "images/image_00002909.png",
@@ -11794,7 +12138,9 @@
                     "centroid_y": 603,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -21.946050583790434,
+            "rtk_heading_filtered": 0.0708194697847327
         },
         {
             "frame_name": "images/image_00002939.png",
@@ -11815,7 +12161,9 @@
                     "centroid_y": 599,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -21.946050583790434,
+            "rtk_heading_filtered": -2.406209150071841
         },
         {
             "frame_name": "images/image_00002954.png",
@@ -11836,7 +12184,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -21.946050583790434,
+            "rtk_heading_filtered": -2.8427840018911814
         },
         {
             "frame_name": "images/image_00002969.png",
@@ -11847,7 +12197,9 @@
             "rtk_lat": 35.7742973401888,
             "rtk_lon": -78.64053366323758,
             "rtk_heading": -2.963779160416581,
-            "segmentations": []
+            "segmentations": [],
+            "gps_heading_filtered": -11.504102949376101,
+            "rtk_heading_filtered": -2.963779160416581
         },
         {
             "frame_name": "images/image_00002985.png",
@@ -11858,7 +12210,9 @@
             "rtk_lat": 35.774293301594,
             "rtk_lon": -78.64049875254751,
             "rtk_heading": -17.371784705899945,
-            "segmentations": []
+            "segmentations": [],
+            "gps_heading_filtered": 1.7659493376757622,
+            "rtk_heading_filtered": -17.371784705899945
         },
         {
             "frame_name": "images/image_00003000.png",
@@ -11879,7 +12233,9 @@
                     "centroid_y": 640,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -64.55916339398618,
+            "rtk_heading_filtered": -43.61232609462126
         },
         {
             "frame_name": "images/image_00003015.png",
@@ -11900,7 +12256,9 @@
                     "centroid_y": 632,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -76.33718853141765,
+            "rtk_heading_filtered": -69.78575013992588
         },
         {
             "frame_name": "images/image_00003030.png",
@@ -11939,7 +12297,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.64093457102075,
+            "rtk_heading_filtered": -85.44073133832906
         },
         {
             "frame_name": "images/image_00003045.png",
@@ -11978,7 +12338,9 @@
                     "centroid_y": 599,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -90.89300949899442,
+            "rtk_heading_filtered": -90.51581156676548
         },
         {
             "frame_name": "images/image_00003060.png",
@@ -12017,7 +12379,9 @@
                     "centroid_y": 617,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -92.12052247397618,
+            "rtk_heading_filtered": -92.34222174034728
         },
         {
             "frame_name": "images/image_00003075.png",
@@ -12056,7 +12420,9 @@
                     "centroid_y": 614,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -97.47567795034058,
+            "rtk_heading_filtered": -91.98745739700746
         },
         {
             "frame_name": "images/image_00003090.png",
@@ -12095,7 +12461,9 @@
                     "centroid_y": 601,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -100.41497719229956,
+            "rtk_heading_filtered": -89.13078487730009
         },
         {
             "frame_name": "images/image_00003105.png",
@@ -12125,7 +12493,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -108.06557172701272,
+            "rtk_heading_filtered": -87.33936497157586
         },
         {
             "frame_name": "images/image_00003120.png",
@@ -12164,7 +12534,9 @@
                     "centroid_y": 602,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -103.38623111745149,
+            "rtk_heading_filtered": -86.92302445842176
         },
         {
             "frame_name": "images/image_00003135.png",
@@ -12194,7 +12566,9 @@
                     "centroid_y": 575,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -105.70380692433294,
+            "rtk_heading_filtered": -88.16908568869181
         },
         {
             "frame_name": "images/image_00003151.png",
@@ -12224,7 +12598,9 @@
                     "centroid_y": 515,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -107.0224734463043,
+            "rtk_heading_filtered": -90.17891689367242
         },
         {
             "frame_name": "images/image_00003166.png",
@@ -12263,7 +12639,9 @@
                     "centroid_y": 626,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -101.8491612388719,
+            "rtk_heading_filtered": -90.9516588767594
         },
         {
             "frame_name": "images/image_00003181.png",
@@ -12302,7 +12680,9 @@
                     "centroid_y": 632,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -98.03422633043319,
+            "rtk_heading_filtered": -91.67536326273644
         },
         {
             "frame_name": "images/image_00003196.png",
@@ -12350,7 +12730,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -95.75552997791407,
+            "rtk_heading_filtered": -91.79263318948254
         },
         {
             "frame_name": "images/image_00003211.png",
@@ -12407,7 +12789,9 @@
                     "centroid_y": 599,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -92.54240910099705,
+            "rtk_heading_filtered": -91.86129912241806
         },
         {
             "frame_name": "images/image_00003226.png",
@@ -12455,7 +12839,9 @@
                     "centroid_y": 600,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -94.31518747751207,
+            "rtk_heading_filtered": -92.19580650724868
         },
         {
             "frame_name": "images/image_00003241.png",
@@ -12521,7 +12907,9 @@
                     "centroid_y": 564,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -94.63286854186303,
+            "rtk_heading_filtered": -92.99455047418034
         },
         {
             "frame_name": "images/image_00003256.png",
@@ -12605,7 +12993,9 @@
                     "centroid_y": 549,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -95.51858543731065,
+            "rtk_heading_filtered": -92.7691387527714
         },
         {
             "frame_name": "images/image_00003271.png",
@@ -12698,7 +13088,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -94.37626998123758,
+            "rtk_heading_filtered": -92.83443101172362
         },
         {
             "frame_name": "images/image_00003286.png",
@@ -12800,7 +13192,9 @@
                     "centroid_y": 563,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -96.1617470699519,
+            "rtk_heading_filtered": -92.81992548917034
         },
         {
             "frame_name": "images/image_00003301.png",
@@ -12920,7 +13314,9 @@
                     "centroid_y": 578,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -97.21575920352358,
+            "rtk_heading_filtered": -93.10112785192506
         },
         {
             "frame_name": "images/image_00003316.png",
@@ -13031,7 +13427,9 @@
                     "centroid_y": 583,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -94.10929664097999,
+            "rtk_heading_filtered": -93.35372451619568
         },
         {
             "frame_name": "images/image_00003332.png",
@@ -13142,7 +13540,9 @@
                     "centroid_y": 591,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003347.png",
@@ -13271,7 +13671,9 @@
                     "centroid_y": 583,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003362.png",
@@ -13409,7 +13811,9 @@
                     "centroid_y": 590,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003377.png",
@@ -13538,7 +13942,9 @@
                     "centroid_y": 585,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003392.png",
@@ -13676,7 +14082,9 @@
                     "centroid_y": 553,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003407.png",
@@ -13814,7 +14222,9 @@
                     "centroid_y": 543,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003422.png",
@@ -13961,7 +14371,9 @@
                     "centroid_y": 543,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003437.png",
@@ -14090,7 +14502,9 @@
                     "centroid_y": 543,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003452.png",
@@ -14228,7 +14642,9 @@
                     "centroid_y": 585,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003467.png",
@@ -14366,7 +14782,9 @@
                     "centroid_y": 553,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.84084714519882
         },
         {
             "frame_name": "images/image_00003482.png",
@@ -14504,7 +14922,9 @@
                     "centroid_y": 578,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": -93.45252217335184
         },
         {
             "frame_name": "images/image_00003498.png",
@@ -14642,7 +15062,9 @@
                     "centroid_y": 558,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.68107101044424
         },
         {
             "frame_name": "images/image_00003513.png",
@@ -14789,7 +15211,9 @@
                     "centroid_y": 580,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.68107101044424
         },
         {
             "frame_name": "images/image_00003528.png",
@@ -14936,7 +15360,9 @@
                     "centroid_y": 560,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": 117.68107101044424
         },
         {
             "frame_name": "images/image_00003543.png",
@@ -15083,7 +15509,9 @@
                     "centroid_y": 564,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": -95.25756776367103
         },
         {
             "frame_name": "images/image_00003573.png",
@@ -15221,7 +15649,9 @@
                     "centroid_y": 584,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -82.4698474867302,
+            "rtk_heading_filtered": -94.46132592087466
         },
         {
             "frame_name": "images/image_00003588.png",
@@ -15350,7 +15780,9 @@
                     "centroid_y": 570,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -96.12301988329443,
+            "rtk_heading_filtered": -90.6171645967318
         },
         {
             "frame_name": "images/image_00003603.png",
@@ -15488,7 +15920,9 @@
                     "centroid_y": 562,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -92.5341538519921,
+            "rtk_heading_filtered": -78.28451472379389
         },
         {
             "frame_name": "images/image_00003618.png",
@@ -15644,7 +16078,9 @@
                     "centroid_y": 607,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -89.13334200362874,
+            "rtk_heading_filtered": -63.33591114974495
         },
         {
             "frame_name": "images/image_00003633.png",
@@ -15755,7 +16191,9 @@
                     "centroid_y": 600,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -76.9923441828323,
+            "rtk_heading_filtered": -47.73899008730905
         },
         {
             "frame_name": "images/image_00003648.png",
@@ -15884,7 +16322,9 @@
                     "centroid_y": 648,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -63.09831603129663,
+            "rtk_heading_filtered": -34.2064570126985
         },
         {
             "frame_name": "images/image_00003663.png",
@@ -15977,7 +16417,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -49.45744366545729,
+            "rtk_heading_filtered": -16.245396751187137
         },
         {
             "frame_name": "images/image_00003678.png",
@@ -16061,7 +16503,9 @@
                     "centroid_y": 636,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -32.853878382217566,
+            "rtk_heading_filtered": -7.602509849192975
         },
         {
             "frame_name": "images/image_00003694.png",
@@ -16136,7 +16580,9 @@
                     "centroid_y": 629,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -21.341130573768957,
+            "rtk_heading_filtered": -3.103668362669847
         },
         {
             "frame_name": "images/image_00003709.png",
@@ -16202,7 +16648,9 @@
                     "centroid_y": 621,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -12.890835206851563,
+            "rtk_heading_filtered": -2.968766490139395
         },
         {
             "frame_name": "images/image_00003724.png",
@@ -16259,7 +16707,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.47197287306196,
+            "rtk_heading_filtered": -1.639879066641852
         },
         {
             "frame_name": "images/image_00003739.png",
@@ -16298,7 +16748,9 @@
                     "centroid_y": 587,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.658640522167154,
+            "rtk_heading_filtered": -2.194156034673832
         },
         {
             "frame_name": "images/image_00003754.png",
@@ -16346,7 +16798,9 @@
                     "centroid_y": 614,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.881050156194268,
+            "rtk_heading_filtered": -2.6434645560148824
         },
         {
             "frame_name": "images/image_00003769.png",
@@ -16385,7 +16839,9 @@
                     "centroid_y": 578,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.579280173298484,
+            "rtk_heading_filtered": -3.2459888464212034
         },
         {
             "frame_name": "images/image_00003784.png",
@@ -16433,7 +16889,9 @@
                     "centroid_y": 606,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.84131138360466,
+            "rtk_heading_filtered": -2.734610320503578
         },
         {
             "frame_name": "images/image_00003799.png",
@@ -16499,7 +16957,9 @@
                     "centroid_y": 607,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.552685864079653,
+            "rtk_heading_filtered": -2.056948741288299
         },
         {
             "frame_name": "images/image_00003814.png",
@@ -16574,7 +17034,9 @@
                     "centroid_y": 597,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.260662670204766,
+            "rtk_heading_filtered": -1.691354844066669
         },
         {
             "frame_name": "images/image_00003829.png",
@@ -16667,7 +17129,9 @@
                     "centroid_y": 614,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -7.226095020308654,
+            "rtk_heading_filtered": -1.9031986216658143
         },
         {
             "frame_name": "images/image_00003845.png",
@@ -16742,7 +17206,9 @@
                     "centroid_y": 592,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -3.1673125243665496,
+            "rtk_heading_filtered": -0.5446596389689456
         },
         {
             "frame_name": "images/image_00003859.png",
@@ -16799,7 +17265,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.524693644118061,
+            "rtk_heading_filtered": 2.4815935725605778
         },
         {
             "frame_name": "images/image_00003874.png",
@@ -16865,7 +17333,9 @@
                     "centroid_y": 584,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -4.778430766009055,
+            "rtk_heading_filtered": 3.723540535544804
         },
         {
             "frame_name": "images/image_00003890.png",
@@ -16958,7 +17428,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -2.1401073171884417,
+            "rtk_heading_filtered": 2.691275480220429
         },
         {
             "frame_name": "images/image_00003905.png",
@@ -17033,7 +17505,9 @@
                     "centroid_y": 579,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -5.141481789443811,
+            "rtk_heading_filtered": 1.6873594015808953
         },
         {
             "frame_name": "images/image_00003920.png",
@@ -17099,7 +17573,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.729389776529498,
+            "rtk_heading_filtered": 0.4432625454690553
         },
         {
             "frame_name": "images/image_00003935.png",
@@ -17156,7 +17632,9 @@
                     "centroid_y": 598,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.769157186521348,
+            "rtk_heading_filtered": -0.8220630969757863
         },
         {
             "frame_name": "images/image_00003950.png",
@@ -17240,7 +17718,9 @@
                     "centroid_y": 569,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.715293220354383,
+            "rtk_heading_filtered": -1.1610491119338875
         },
         {
             "frame_name": "images/image_00003965.png",
@@ -17306,7 +17786,9 @@
                     "centroid_y": 597,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -11.676067686070857,
+            "rtk_heading_filtered": -2.2992975561532725
         },
         {
             "frame_name": "images/image_00003980.png",
@@ -17354,7 +17836,9 @@
                     "centroid_y": 580,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.342895667921278,
+            "rtk_heading_filtered": -2.660914404852734
         },
         {
             "frame_name": "images/image_00003995.png",
@@ -17429,7 +17913,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.71781558849228,
+            "rtk_heading_filtered": -3.1149524626247427
         },
         {
             "frame_name": "images/image_00004010.png",
@@ -17486,7 +17972,9 @@
                     "centroid_y": 528,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -27.414361107305233,
+            "rtk_heading_filtered": -4.379175217999687
         },
         {
             "frame_name": "images/image_00004025.png",
@@ -17552,7 +18040,9 @@
                     "centroid_y": 561,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -55.49569528771141,
+            "rtk_heading_filtered": -2.807316316401675
         },
         {
             "frame_name": "images/image_00004040.png",
@@ -17609,7 +18099,9 @@
                     "centroid_y": 506,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -5.192998676177217,
+            "rtk_heading_filtered": -1.0476491668963652
         },
         {
             "frame_name": "images/image_00004071.png",
@@ -17675,7 +18167,9 @@
                     "centroid_y": 558,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -1.3913074347725791,
+            "rtk_heading_filtered": -2.0662319966187237
         },
         {
             "frame_name": "images/image_00004085.png",
@@ -17732,7 +18226,9 @@
                     "centroid_y": 565,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -1.3913074347725791,
+            "rtk_heading_filtered": 12.74997266633558
         },
         {
             "frame_name": "images/image_00004101.png",
@@ -17789,7 +18285,9 @@
                     "centroid_y": 586,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -19.649456160834923,
+            "rtk_heading_filtered": 38.63277719200645
         },
         {
             "frame_name": "images/image_00004116.png",
@@ -17891,7 +18389,9 @@
                     "centroid_y": 580,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 7.600740431944585,
+            "rtk_heading_filtered": 64.20177956972879
         },
         {
             "frame_name": "images/image_00004131.png",
@@ -17984,7 +18484,9 @@
                     "centroid_y": 616,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 45.21098788129174,
+            "rtk_heading_filtered": 75.26842233326421
         },
         {
             "frame_name": "images/image_00004146.png",
@@ -18077,7 +18579,9 @@
                     "centroid_y": 670,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 59.29217385827779,
+            "rtk_heading_filtered": 77.28140102529872
         },
         {
             "frame_name": "images/image_00004161.png",
@@ -18161,7 +18665,9 @@
                     "centroid_y": 630,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 69.28976547439513,
+            "rtk_heading_filtered": 80.02438086892167
         },
         {
             "frame_name": "images/image_00004176.png",
@@ -18245,7 +18751,9 @@
                     "centroid_y": 635,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 72.76649411035362,
+            "rtk_heading_filtered": 84.63058631756402
         },
         {
             "frame_name": "images/image_00004191.png",
@@ -18311,7 +18819,9 @@
                     "centroid_y": 611,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 75.24537309464685,
+            "rtk_heading_filtered": 85.64470771644793
         },
         {
             "frame_name": "images/image_00004206.png",
@@ -18377,7 +18887,9 @@
                     "centroid_y": 617,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 74.42370393248916,
+            "rtk_heading_filtered": 86.58814079915453
         },
         {
             "frame_name": "images/image_00004221.png",
@@ -18470,7 +18982,9 @@
                     "centroid_y": 629,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.69770011284939,
+            "rtk_heading_filtered": 86.86009020288043
         },
         {
             "frame_name": "images/image_00004236.png",
@@ -18536,7 +19050,9 @@
                     "centroid_y": 632,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 79.41962487867976,
+            "rtk_heading_filtered": 87.15335693801413
         },
         {
             "frame_name": "images/image_00004251.png",
@@ -18611,7 +19127,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.60631648576874,
+            "rtk_heading_filtered": 87.89959587126786
         },
         {
             "frame_name": "images/image_00004266.png",
@@ -18677,7 +19195,9 @@
                     "centroid_y": 626,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 80.05339971286921,
+            "rtk_heading_filtered": 88.37694986441706
         },
         {
             "frame_name": "images/image_00004282.png",
@@ -18734,7 +19254,9 @@
                     "centroid_y": 637,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 79.2292335414004,
+            "rtk_heading_filtered": 88.03879337755123
         },
         {
             "frame_name": "images/image_00004297.png",
@@ -18782,7 +19304,9 @@
                     "centroid_y": 627,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.44439792012325,
+            "rtk_heading_filtered": 87.97899254251992
         },
         {
             "frame_name": "images/image_00004312.png",
@@ -18830,7 +19354,9 @@
                     "centroid_y": 621,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.89224266972755,
+            "rtk_heading_filtered": 88.20026540994431
         },
         {
             "frame_name": "images/image_00004327.png",
@@ -18887,7 +19413,9 @@
                     "centroid_y": 600,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 79.52656746013609,
+            "rtk_heading_filtered": 89.20747773263531
         },
         {
             "frame_name": "images/image_00004342.png",
@@ -18962,7 +19490,9 @@
                     "centroid_y": 638,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 77.58307452669065,
+            "rtk_heading_filtered": 88.78859974512356
         },
         {
             "frame_name": "images/image_00004357.png",
@@ -19028,7 +19558,9 @@
                     "centroid_y": 628,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 77.69017803777197,
+            "rtk_heading_filtered": 88.25558121719835
         },
         {
             "frame_name": "images/image_00004372.png",
@@ -19085,7 +19617,9 @@
                     "centroid_y": 606,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.00384792253884,
+            "rtk_heading_filtered": 92.62171727158704
         },
         {
             "frame_name": "images/image_00004387.png",
@@ -19142,7 +19676,9 @@
                     "centroid_y": 634,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.84503621341761,
+            "rtk_heading_filtered": 92.62171727158704
         },
         {
             "frame_name": "images/image_00004402.png",
@@ -19199,7 +19735,9 @@
                     "centroid_y": 630,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.84503621341761,
+            "rtk_heading_filtered": 92.62171727158704
         },
         {
             "frame_name": "images/image_00004447.png",
@@ -19256,7 +19794,9 @@
                     "centroid_y": 628,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.84503621341761,
+            "rtk_heading_filtered": 92.62171727158704
         },
         {
             "frame_name": "images/image_00004493.png",
@@ -19313,7 +19853,9 @@
                     "centroid_y": 629,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.84503621341761,
+            "rtk_heading_filtered": 92.62171727158704
         },
         {
             "frame_name": "images/image_00004523.png",
@@ -19370,7 +19912,9 @@
                     "centroid_y": 635,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.84503621341761,
+            "rtk_heading_filtered": 88.40220008709565
         },
         {
             "frame_name": "images/image_00004538.png",
@@ -19427,7 +19971,9 @@
                     "centroid_y": 619,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.84503621341761,
+            "rtk_heading_filtered": 87.35885507815955
         },
         {
             "frame_name": "images/image_00004553.png",
@@ -19475,7 +20021,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 76.15271647526642,
+            "rtk_heading_filtered": 87.50928942391525
         },
         {
             "frame_name": "images/image_00004568.png",
@@ -19514,7 +20062,9 @@
                     "centroid_y": 607,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 79.08885798266523,
+            "rtk_heading_filtered": 87.46645206785625
         },
         {
             "frame_name": "images/image_00004583.png",
@@ -19571,7 +20121,9 @@
                     "centroid_y": 612,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.86483919464216,
+            "rtk_heading_filtered": 87.70446044902387
         },
         {
             "frame_name": "images/image_00004598.png",
@@ -19628,7 +20180,9 @@
                     "centroid_y": 618,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 80.56621272937072,
+            "rtk_heading_filtered": 88.1745750113169
         },
         {
             "frame_name": "images/image_00004613.png",
@@ -19676,7 +20230,9 @@
                     "centroid_y": 560,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.23301709402695,
+            "rtk_heading_filtered": 89.98105711229925
         },
         {
             "frame_name": "images/image_00004628.png",
@@ -19715,7 +20271,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.53173729585336,
+            "rtk_heading_filtered": 90.37339741762216
         },
         {
             "frame_name": "images/image_00004644.png",
@@ -19745,7 +20303,9 @@
                     "centroid_y": 599,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 83.17201576627913,
+            "rtk_heading_filtered": 91.4964222251978
         },
         {
             "frame_name": "images/image_00004659.png",
@@ -19775,7 +20335,9 @@
                     "centroid_y": 618,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.30819237779691,
+            "rtk_heading_filtered": 91.42099741365338
         },
         {
             "frame_name": "images/image_00004674.png",
@@ -19814,7 +20376,9 @@
                     "centroid_y": 621,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 84.05912761975647,
+            "rtk_heading_filtered": 90.10204908755908
         },
         {
             "frame_name": "images/image_00004689.png",
@@ -19871,7 +20435,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 77.23381344016444,
+            "rtk_heading_filtered": 88.80009526884635
         },
         {
             "frame_name": "images/image_00004704.png",
@@ -19919,7 +20485,9 @@
                     "centroid_y": 606,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 68.8166513235085,
+            "rtk_heading_filtered": 88.03381264798442
         },
         {
             "frame_name": "images/image_00004719.png",
@@ -19958,7 +20526,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 75.47717456848177,
+            "rtk_heading_filtered": 88.02102717196175
         },
         {
             "frame_name": "images/image_00004734.png",
@@ -20006,7 +20576,9 @@
                     "centroid_y": 614,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 80.25932355108021,
+            "rtk_heading_filtered": 87.83901734044622
         },
         {
             "frame_name": "images/image_00004749.png",
@@ -20072,7 +20644,9 @@
                     "centroid_y": 611,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.57997266667952,
+            "rtk_heading_filtered": 88.37392360433184
         },
         {
             "frame_name": "images/image_00004764.png",
@@ -20138,7 +20712,9 @@
                     "centroid_y": 605,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 82.2315128436244,
+            "rtk_heading_filtered": 88.58978747632587
         },
         {
             "frame_name": "images/image_00004779.png",
@@ -20195,7 +20771,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 80.41983725491122,
+            "rtk_heading_filtered": 88.7114252485439
         },
         {
             "frame_name": "images/image_00004794.png",
@@ -20243,7 +20821,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 77.9653601732149,
+            "rtk_heading_filtered": 88.43575779898937
         },
         {
             "frame_name": "images/image_00004809.png",
@@ -20282,7 +20862,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 77.84242871402873,
+            "rtk_heading_filtered": 88.74632587008634
         },
         {
             "frame_name": "images/image_00004825.png",
@@ -20330,7 +20912,9 @@
                     "centroid_y": 619,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 70.32594281010574,
+            "rtk_heading_filtered": 88.85510212261968
         },
         {
             "frame_name": "images/image_00004840.png",
@@ -20387,7 +20971,9 @@
                     "centroid_y": 606,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 76.21714889052092,
+            "rtk_heading_filtered": 88.80496507585356
         },
         {
             "frame_name": "images/image_00004855.png",
@@ -20444,7 +21030,9 @@
                     "centroid_y": 615,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 78.55156190238938,
+            "rtk_heading_filtered": 89.31367669488064
         },
         {
             "frame_name": "images/image_00004870.png",
@@ -20501,7 +21089,9 @@
                     "centroid_y": 612,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 81.55520510713929,
+            "rtk_heading_filtered": 89.72616946037968
         },
         {
             "frame_name": "images/image_00004885.png",
@@ -20549,7 +21139,9 @@
                     "centroid_y": 601,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 93.13973045738031,
+            "rtk_heading_filtered": 89.77279742285354
         },
         {
             "frame_name": "images/image_00004900.png",
@@ -20588,7 +21180,9 @@
                     "centroid_y": 635,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 88.44984119785651,
+            "rtk_heading_filtered": 89.60424228644196
         },
         {
             "frame_name": "images/image_00004915.png",
@@ -20627,7 +21221,9 @@
                     "centroid_y": 640,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 86.7576375077721,
+            "rtk_heading_filtered": 89.71829500031984
         },
         {
             "frame_name": "images/image_00004930.png",
@@ -20675,7 +21271,9 @@
                     "centroid_y": 578,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 60.87587155167059,
+            "rtk_heading_filtered": 89.93659805398498
         },
         {
             "frame_name": "images/image_00004945.png",
@@ -20723,7 +21321,9 @@
                     "centroid_y": 607,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 58.335821605125396,
+            "rtk_heading_filtered": 89.55292482642739
         },
         {
             "frame_name": "images/image_00004960.png",
@@ -20780,7 +21380,9 @@
                     "centroid_y": 608,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 51.71833947551475,
+            "rtk_heading_filtered": 94.26421954725022
         },
         {
             "frame_name": "images/image_00004975.png",
@@ -20837,7 +21439,9 @@
                     "centroid_y": 655,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 46.83441775833211,
+            "rtk_heading_filtered": 111.5078847895318
         },
         {
             "frame_name": "images/image_00004991.png",
@@ -20876,7 +21480,9 @@
                     "centroid_y": 647,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 28.66807797960239,
+            "rtk_heading_filtered": 135.97917689469256
         },
         {
             "frame_name": "images/image_00005005.png",
@@ -20924,7 +21530,9 @@
                     "centroid_y": 627,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 70.70377342126513,
+            "rtk_heading_filtered": 157.49583760958433
         },
         {
             "frame_name": "images/image_00005036.png",
@@ -20972,7 +21580,9 @@
                     "centroid_y": 618,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 160.97403061000836,
+            "rtk_heading_filtered": 176.67314827503384
         },
         {
             "frame_name": "images/image_00005050.png",
@@ -21020,7 +21630,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -172.6311297700891,
+            "rtk_heading_filtered": 178.13354065266105
         },
         {
             "frame_name": "images/image_00005066.png",
@@ -21059,7 +21671,9 @@
                     "centroid_y": 612,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 178.8997718170335,
+            "rtk_heading_filtered": 178.36828395311193
         },
         {
             "frame_name": "images/image_00005081.png",
@@ -21098,7 +21712,9 @@
                     "centroid_y": 462,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -139.81446747291668,
+            "rtk_heading_filtered": 178.6437366341093
         },
         {
             "frame_name": "images/image_00005096.png",
@@ -21128,7 +21744,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -157.3453243167749,
+            "rtk_heading_filtered": 178.16164027649893
         },
         {
             "frame_name": "images/image_00005111.png",
@@ -21158,7 +21776,9 @@
                     "centroid_y": 622,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 175.45735450486737,
+            "rtk_heading_filtered": 178.93485356629182
         },
         {
             "frame_name": "images/image_00005126.png",
@@ -21179,7 +21799,9 @@
                     "centroid_y": 630,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 149.34459297162147,
+            "rtk_heading_filtered": -178.0502374934667
         },
         {
             "frame_name": "images/image_00005141.png",
@@ -21200,7 +21822,9 @@
                     "centroid_y": 635,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 179.27800912505083,
+            "rtk_heading_filtered": -154.38313678541502
         },
         {
             "frame_name": "images/image_00005156.png",
@@ -21221,7 +21845,9 @@
                     "centroid_y": 639,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -152.63811913193106,
+            "rtk_heading_filtered": -154.38313678541502
         },
         {
             "frame_name": "images/image_00005171.png",
@@ -21242,7 +21868,9 @@
                     "centroid_y": 645,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -139.82817039715994,
+            "rtk_heading_filtered": -179.63244384480024
         },
         {
             "frame_name": "images/image_00005186.png",
@@ -21263,7 +21891,9 @@
                     "centroid_y": 650,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -139.82817039715994,
+            "rtk_heading_filtered": 178.60571962940867
         },
         {
             "frame_name": "images/image_00005201.png",
@@ -21293,7 +21923,9 @@
                     "centroid_y": 675,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -139.82817039715994,
+            "rtk_heading_filtered": 178.53094403336965
         },
         {
             "frame_name": "images/image_00005217.png",
@@ -21323,7 +21955,9 @@
                     "centroid_y": 658,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -139.82817039715994,
+            "rtk_heading_filtered": 178.09287976750826
         },
         {
             "frame_name": "images/image_00005232.png",
@@ -21353,7 +21987,9 @@
                     "centroid_y": 635,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 116.34138780753533,
+            "rtk_heading_filtered": 177.42772078661372
         },
         {
             "frame_name": "images/image_00005247.png",
@@ -21410,7 +22046,9 @@
                     "centroid_y": 558,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -173.26108507756518,
+            "rtk_heading_filtered": 176.64649680931538
         },
         {
             "frame_name": "images/image_00005262.png",
@@ -21476,7 +22114,9 @@
                     "centroid_y": 573,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -152.8468053206733,
+            "rtk_heading_filtered": 177.04530478703057
         },
         {
             "frame_name": "images/image_00005277.png",
@@ -21524,7 +22164,9 @@
                     "centroid_y": 655,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -146.50078083213535,
+            "rtk_heading_filtered": 176.50863750603122
         },
         {
             "frame_name": "images/image_00005292.png",
@@ -21572,7 +22214,9 @@
                     "centroid_y": 641,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -142.5356786529477,
+            "rtk_heading_filtered": 177.70463818659934
         },
         {
             "frame_name": "images/image_00005307.png",
@@ -21620,7 +22264,9 @@
                     "centroid_y": 638,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -164.8460213899629,
+            "rtk_heading_filtered": 178.51046327259013
         },
         {
             "frame_name": "images/image_00005322.png",
@@ -21668,7 +22314,9 @@
                     "centroid_y": 638,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 176.5828170489998,
+            "rtk_heading_filtered": 177.13363374422462
         },
         {
             "frame_name": "images/image_00005337.png",
@@ -21734,7 +22382,9 @@
                     "centroid_y": 625,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 172.82447217176525,
+            "rtk_heading_filtered": 177.08542948990555
         },
         {
             "frame_name": "images/image_00005352.png",
@@ -21818,7 +22468,9 @@
                     "centroid_y": 622,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 163.80971751204277,
+            "rtk_heading_filtered": 176.91536803367097
         },
         {
             "frame_name": "images/image_00005367.png",
@@ -21902,7 +22554,9 @@
                     "centroid_y": 627,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 156.15092265640297,
+            "rtk_heading_filtered": 176.56838693020322
         },
         {
             "frame_name": "images/image_00005382.png",
@@ -21977,7 +22631,9 @@
                     "centroid_y": 603,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 170.61347798042814,
+            "rtk_heading_filtered": 176.61469110582243
         },
         {
             "frame_name": "images/image_00005398.png",
@@ -22070,7 +22726,9 @@
                     "centroid_y": 644,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 167.25978434547557,
+            "rtk_heading_filtered": 176.71707161150715
         },
         {
             "frame_name": "images/image_00005413.png",
@@ -22154,7 +22812,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 163.55593368143204,
+            "rtk_heading_filtered": 176.59680881663692
         },
         {
             "frame_name": "images/image_00005428.png",
@@ -22247,7 +22907,9 @@
                     "centroid_y": 643,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 163.41199632938498,
+            "rtk_heading_filtered": 177.1605746615888
         },
         {
             "frame_name": "images/image_00005443.png",
@@ -22313,7 +22975,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 155.76346183297332,
+            "rtk_heading_filtered": 177.041733816547
         },
         {
             "frame_name": "images/image_00005458.png",
@@ -22388,7 +23052,9 @@
                     "centroid_y": 630,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 165.8567053518869,
+            "rtk_heading_filtered": 177.1590623501126
         },
         {
             "frame_name": "images/image_00005473.png",
@@ -22454,7 +23120,9 @@
                     "centroid_y": 656,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 168.3725366187607,
+            "rtk_heading_filtered": 176.48468310418025
         },
         {
             "frame_name": "images/image_00005488.png",
@@ -22520,7 +23188,9 @@
                     "centroid_y": 630,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 162.09645274963307,
+            "rtk_heading_filtered": 177.9807434037006
         },
         {
             "frame_name": "images/image_00005503.png",
@@ -22586,7 +23256,9 @@
                     "centroid_y": 631,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 168.59464014557724,
+            "rtk_heading_filtered": -172.1795626944605
         },
         {
             "frame_name": "images/image_00005518.png",
@@ -22670,7 +23342,9 @@
                     "centroid_y": 616,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 163.98240218144505,
+            "rtk_heading_filtered": -157.26047222053197
         },
         {
             "frame_name": "images/image_00005533.png",
@@ -22736,7 +23410,9 @@
                     "centroid_y": 586,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 171.22319780326202,
+            "rtk_heading_filtered": -138.15901062695704
         },
         {
             "frame_name": "images/image_00005549.png",
@@ -22766,7 +23442,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -168.07692007003004,
+            "rtk_heading_filtered": -118.90998174132218
         },
         {
             "frame_name": "images/image_00005563.png",
@@ -22805,7 +23483,9 @@
                     "centroid_y": 626,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -152.89776501357235,
+            "rtk_heading_filtered": -106.6214940053366
         },
         {
             "frame_name": "images/image_00005579.png",
@@ -22844,7 +23524,9 @@
                     "centroid_y": 599,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -160.02686197256045,
+            "rtk_heading_filtered": -99.17284252440746
         },
         {
             "frame_name": "images/image_00005594.png",
@@ -22883,7 +23565,9 @@
                     "centroid_y": 606,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -142.32376453938508,
+            "rtk_heading_filtered": -96.3553107850032
         },
         {
             "frame_name": "images/image_00005609.png",
@@ -22922,7 +23606,9 @@
                     "centroid_y": 590,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -171.66766875561197,
+            "rtk_heading_filtered": -94.65633453463452
         },
         {
             "frame_name": "images/image_00005624.png",
@@ -22961,7 +23647,9 @@
                     "centroid_y": 588,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -177.3949956129311,
+            "rtk_heading_filtered": -93.89702822928938
         },
         {
             "frame_name": "images/image_00005639.png",
@@ -23009,7 +23697,9 @@
                     "centroid_y": 587,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": 178.70661686043593,
+            "rtk_heading_filtered": -93.40054345245647
         },
         {
             "frame_name": "images/image_00005654.png",
@@ -23057,7 +23747,9 @@
                     "centroid_y": 628,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -170.54850828962293,
+            "rtk_heading_filtered": -93.2623296933867
         },
         {
             "frame_name": "images/image_00005669.png",
@@ -23105,7 +23797,9 @@
                     "centroid_y": 612,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -164.66494680728152,
+            "rtk_heading_filtered": -93.04369957044796
         },
         {
             "frame_name": "images/image_00005684.png",
@@ -23153,7 +23847,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -126.91396903998903,
+            "rtk_heading_filtered": -91.96885679941992
         },
         {
             "frame_name": "images/image_00005699.png",
@@ -23192,7 +23888,9 @@
                     "centroid_y": 665,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -109.01720800543033,
+            "rtk_heading_filtered": -92.08669960360275
         },
         {
             "frame_name": "images/image_00005714.png",
@@ -23231,7 +23929,9 @@
                     "centroid_y": 662,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -107.50212172690472,
+            "rtk_heading_filtered": -92.6879244314252
         },
         {
             "frame_name": "images/image_00005729.png",
@@ -23270,7 +23970,9 @@
                     "centroid_y": 591,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -117.82263358026968,
+            "rtk_heading_filtered": -93.3784687136099
         },
         {
             "frame_name": "images/image_00005745.png",
@@ -23309,7 +24011,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -119.44807972702351,
+            "rtk_heading_filtered": -93.46666960087823
         },
         {
             "frame_name": "images/image_00005760.png",
@@ -23366,7 +24070,9 @@
                     "centroid_y": 619,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -117.67146340266225,
+            "rtk_heading_filtered": -93.26109902156952
         },
         {
             "frame_name": "images/image_00005775.png",
@@ -23432,7 +24138,9 @@
                     "centroid_y": 612,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -102.39986124295476,
+            "rtk_heading_filtered": -93.05742890674468
         },
         {
             "frame_name": "images/image_00005790.png",
@@ -23498,7 +24206,9 @@
                     "centroid_y": 637,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -102.1199415327638,
+            "rtk_heading_filtered": -92.8004091872418
         },
         {
             "frame_name": "images/image_00005805.png",
@@ -23555,7 +24265,9 @@
                     "centroid_y": 606,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -102.26839380673242,
+            "rtk_heading_filtered": -92.52220594151034
         },
         {
             "frame_name": "images/image_00005820.png",
@@ -23603,7 +24315,9 @@
                     "centroid_y": 572,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -105.23660443211341,
+            "rtk_heading_filtered": -92.81786086105082
         },
         {
             "frame_name": "images/image_00005835.png",
@@ -23651,7 +24365,9 @@
                     "centroid_y": 636,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -102.7065676254316,
+            "rtk_heading_filtered": -92.27143354966384
         },
         {
             "frame_name": "images/image_00005850.png",
@@ -23699,7 +24415,9 @@
                     "centroid_y": 626,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -111.36222350203015,
+            "rtk_heading_filtered": -91.85910018951954
         },
         {
             "frame_name": "images/image_00005865.png",
@@ -23738,7 +24456,9 @@
                     "centroid_y": 675,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -116.42300179633756,
+            "rtk_heading_filtered": -92.67022061558006
         },
         {
             "frame_name": "images/image_00005880.png",
@@ -23786,7 +24506,9 @@
                     "centroid_y": 586,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -118.48691066059023,
+            "rtk_heading_filtered": -92.8868809250779
         },
         {
             "frame_name": "images/image_00005895.png",
@@ -23825,7 +24547,9 @@
                     "centroid_y": 553,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -118.61077351115068,
+            "rtk_heading_filtered": -93.09093765945202
         },
         {
             "frame_name": "images/image_00005910.png",
@@ -23864,7 +24588,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -108.10017929298601,
+            "rtk_heading_filtered": -92.70741106376389
         },
         {
             "frame_name": "images/image_00005925.png",
@@ -23894,7 +24620,9 @@
                     "centroid_y": 604,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -105.02924293934196,
+            "rtk_heading_filtered": -92.52269571642168
         },
         {
             "frame_name": "images/image_00005941.png",
@@ -23915,7 +24643,9 @@
                     "centroid_y": 576,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -101.5135072905693,
+            "rtk_heading_filtered": -92.32651328026547
         },
         {
             "frame_name": "images/image_00005956.png",
@@ -23945,7 +24675,9 @@
                     "centroid_y": 628,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -107.23029161722233,
+            "rtk_heading_filtered": -92.97404806864203
         },
         {
             "frame_name": "images/image_00005971.png",
@@ -23975,7 +24707,9 @@
                     "centroid_y": 600,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -107.6000869847858,
+            "rtk_heading_filtered": -92.588184080377
         },
         {
             "frame_name": "images/image_00005986.png",
@@ -23996,7 +24730,9 @@
                     "centroid_y": 614,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -106.5162117411673,
+            "rtk_heading_filtered": -91.07161667885298
         },
         {
             "frame_name": "images/image_00006001.png",
@@ -24026,7 +24762,9 @@
                     "centroid_y": 519,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -105.83991853112678,
+            "rtk_heading_filtered": -89.18531126720299
         },
         {
             "frame_name": "images/image_00006016.png",
@@ -24056,7 +24794,9 @@
                     "centroid_y": 512,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -103.63668070905358,
+            "rtk_heading_filtered": -87.22530429988313
         },
         {
             "frame_name": "images/image_00006031.png",
@@ -24095,7 +24835,9 @@
                     "centroid_y": 632,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -100.98242698532805,
+            "rtk_heading_filtered": -87.73052519471449
         },
         {
             "frame_name": "images/image_00006046.png",
@@ -24134,7 +24876,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -99.95786751300606,
+            "rtk_heading_filtered": -89.05013205547766
         },
         {
             "frame_name": "images/image_00006061.png",
@@ -24173,7 +24917,9 @@
                     "centroid_y": 502,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -100.3453950324291,
+            "rtk_heading_filtered": -90.3095819817024
         },
         {
             "frame_name": "images/image_00006076.png",
@@ -24221,7 +24967,9 @@
                     "centroid_y": 615,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -101.77860669776189,
+            "rtk_heading_filtered": -90.76416700908564
         },
         {
             "frame_name": "images/image_00006091.png",
@@ -24260,7 +25008,9 @@
                     "centroid_y": 458,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -99.4738313908587,
+            "rtk_heading_filtered": -91.49004564835478
         },
         {
             "frame_name": "images/image_00006107.png",
@@ -24308,7 +25058,9 @@
                     "centroid_y": 435,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -97.74012369364321,
+            "rtk_heading_filtered": -92.34786375130764
         },
         {
             "frame_name": "images/image_00006122.png",
@@ -24347,7 +25099,9 @@
                     "centroid_y": 409,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -97.18214358580228,
+            "rtk_heading_filtered": -92.52649131564829
         },
         {
             "frame_name": "images/image_00006137.png",
@@ -24413,7 +25167,9 @@
                     "centroid_y": 598,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -98.68806547748183,
+            "rtk_heading_filtered": -92.55207695621162
         },
         {
             "frame_name": "images/image_00006152.png",
@@ -24497,7 +25253,9 @@
                     "centroid_y": 562,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -99.32671202755171,
+            "rtk_heading_filtered": -92.31231362621256
         },
         {
             "frame_name": "images/image_00006167.png",
@@ -24572,7 +25330,9 @@
                     "centroid_y": 585,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -97.59181950800738,
+            "rtk_heading_filtered": -92.45666746349389
         },
         {
             "frame_name": "images/image_00006182.png",
@@ -24710,7 +25470,9 @@
                     "centroid_y": 532,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -98.11325630702063,
+            "rtk_heading_filtered": -93.11143802638377
         },
         {
             "frame_name": "images/image_00006197.png",
@@ -24866,7 +25628,9 @@
                     "centroid_y": 549,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -99.72618256509294,
+            "rtk_heading_filtered": -94.10579391944212
         },
         {
             "frame_name": "images/image_00006212.png",
@@ -24995,7 +25759,9 @@
                     "centroid_y": 570,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -102.80973882978135,
+            "rtk_heading_filtered": -91.43660792995324
         },
         {
             "frame_name": "images/image_00006227.png",
@@ -25151,7 +25917,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -95.40481381770498,
+            "rtk_heading_filtered": -73.37054373186875
         },
         {
             "frame_name": "images/image_00006242.png",
@@ -25280,7 +26048,9 @@
                     "centroid_y": 595,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -86.55407923178338,
+            "rtk_heading_filtered": -50.12211728258386
         },
         {
             "frame_name": "images/image_00006257.png",
@@ -25391,7 +26161,9 @@
                     "centroid_y": 609,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -71.00078644655329,
+            "rtk_heading_filtered": -29.68018453000383
         },
         {
             "frame_name": "images/image_00006272.png",
@@ -25475,7 +26247,9 @@
                     "centroid_y": 573,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -44.45253742883392,
+            "rtk_heading_filtered": -12.44094642265508
         },
         {
             "frame_name": "images/image_00006287.png",
@@ -25559,7 +26333,9 @@
                     "centroid_y": 641,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -23.3100546140058,
+            "rtk_heading_filtered": -5.556860201855389
         },
         {
             "frame_name": "images/image_00006303.png",
@@ -25625,7 +26401,9 @@
                     "centroid_y": 623,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -13.817177566754628,
+            "rtk_heading_filtered": -3.20527269116336
         },
         {
             "frame_name": "images/image_00006318.png",
@@ -25691,7 +26469,9 @@
                     "centroid_y": 643,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.234993131417786,
+            "rtk_heading_filtered": -2.8490278303053373
         },
         {
             "frame_name": "images/image_00006333.png",
@@ -25739,7 +26519,9 @@
                     "centroid_y": 555,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -7.586699991820514,
+            "rtk_heading_filtered": -2.922834849621033
         },
         {
             "frame_name": "images/image_00006348.png",
@@ -25787,7 +26569,9 @@
                     "centroid_y": 620,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.409961614678819,
+            "rtk_heading_filtered": -2.498891700700294
         },
         {
             "frame_name": "images/image_00006363.png",
@@ -25835,7 +26619,9 @@
                     "centroid_y": 627,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.427494834284108,
+            "rtk_heading_filtered": -2.0055117844256367
         },
         {
             "frame_name": "images/image_00006378.png",
@@ -25901,7 +26687,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.150078969963339,
+            "rtk_heading_filtered": -2.187175719526904
         },
         {
             "frame_name": "images/image_00006393.png",
@@ -25976,7 +26764,9 @@
                     "centroid_y": 598,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.500926121833013,
+            "rtk_heading_filtered": -2.1865104899387595
         },
         {
             "frame_name": "images/image_00006408.png",
@@ -26069,7 +26859,9 @@
                     "centroid_y": 605,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.525808281579936,
+            "rtk_heading_filtered": -2.1852595104260986
         },
         {
             "frame_name": "images/image_00006423.png",
@@ -26153,7 +26945,9 @@
                     "centroid_y": 589,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -8.030599244426762,
+            "rtk_heading_filtered": -2.0022404763728514
         },
         {
             "frame_name": "images/image_00006438.png",
@@ -26264,7 +27058,9 @@
                     "centroid_y": 581,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.735478748041102,
+            "rtk_heading_filtered": -2.0926714586273465
         },
         {
             "frame_name": "images/image_00006453.png",
@@ -26366,7 +27162,9 @@
                     "centroid_y": 594,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.179656369066713,
+            "rtk_heading_filtered": -2.5832160661206016
         },
         {
             "frame_name": "images/image_00006468.png",
@@ -26468,7 +27266,9 @@
                     "centroid_y": 607,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.475402029160755,
+            "rtk_heading_filtered": -2.047094482912569
         },
         {
             "frame_name": "images/image_00006483.png",
@@ -26552,7 +27352,9 @@
                     "centroid_y": 541,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.457502543746365,
+            "rtk_heading_filtered": -1.5488026531899202
         },
         {
             "frame_name": "images/image_00006499.png",
@@ -26636,7 +27438,9 @@
                     "centroid_y": 613,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -9.929782880524451,
+            "rtk_heading_filtered": 5.741222150306702
         },
         {
             "frame_name": "images/image_00006514.png",
@@ -26720,7 +27524,9 @@
                     "centroid_y": 565,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -10.20600525947119,
+            "rtk_heading_filtered": 6.925557581266252
         },
         {
             "frame_name": "images/image_00006529.png",
@@ -26786,7 +27592,9 @@
                     "centroid_y": 575,
                     "confidence": 1.0
                 }
-            ]
+            ],
+            "gps_heading_filtered": -11.661587352930214,
+            "rtk_heading_filtered": 2.3251081725939486
         }
     ]
 }
