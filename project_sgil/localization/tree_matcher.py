@@ -321,7 +321,15 @@ class TreeMatcher:
             print(f"[TreeMatcher] Failed to plot NO_POSE debug: {e}")
 
 
-    def match_trees(self, current_pose: Pose2d, ground_thetas: list[float], rtk_pose: Pose2d, image_name: str = None) -> Point:
+    def match_trees(
+        self,
+        current_pose: Pose2d,
+        ground_thetas: list[float],
+        rtk_pose: Pose2d,
+        image_name: str = None,
+        *,
+        snap_distance_m: float = 0.0,
+    ) -> Pose2d:
         """Match trees based on current position and ground view angles.
 
         When HEADING_SWEEP_ENABLED is True the method tries multiple candidate
@@ -334,13 +342,38 @@ class TreeMatcher:
         :param ground_thetas: List of camera angles to trees in ground
             view (positive = left, negative = right).
         :param image_name: Name of the image for debugging purposes
+        :param snap_distance_m: Distance (m) between raw GPS position and the road-snapped
+            position used to form current_pose. Used to adapt the position sweep range.
         :return: Estimated location of the vehicle as Point.
         """
         
         # --- Position sweep (along-road) ---------------------------------
         # We assume current_pose.yaw is aligned with the road direction (from RoadMatcher).
-        # Try shifting the input pose ±3 meters along the road in 1m steps.
-        position_offsets_m = list(range(-POSITION_SWEEP_RANGE, POSITION_SWEEP_RANGE + 1, POSITION_SWEEP_STEP_SIZE))  # [-3, -2, -1, 0, 1, 2, 3]
+        # Adapt sweep range based on how far GPS had to be snapped to the road.
+        # Rationale: larger snap distance likely means larger along-road uncertainty.
+        base_sweep_m = 10
+        k_sweep_per_snap_m = 1  # linear coefficient: +1m sweep range per 1m snap distance
+        max_sweep_m = int(POSITION_SWEEP_RANGE)
+
+        # Computed sweep range in meters (integer for range())
+        sweep_m = int(round(base_sweep_m + k_sweep_per_snap_m * float(max(0.0, snap_distance_m))))
+        if sweep_m < base_sweep_m:
+            sweep_m = base_sweep_m
+        if sweep_m > max_sweep_m:
+            sweep_m = max_sweep_m
+
+        position_offsets_m = list(
+            range(-sweep_m, sweep_m + 1, POSITION_SWEEP_STEP_SIZE)
+        )
+
+        if image_name is not None:
+            try:
+                print(
+                    f"[TreeMatcher] sweep_m=±{sweep_m} (base={base_sweep_m}, k={k_sweep_per_snap_m}, "
+                    f"snap_distance_m={float(snap_distance_m):.2f}, cap={max_sweep_m})"
+                )
+            except Exception:
+                pass
 
         # Build the list of candidate yaw values to evaluate (heading sweep)
         if HEADING_SWEEP_ENABLED:

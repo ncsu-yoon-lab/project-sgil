@@ -61,7 +61,7 @@ HEADING_SWEEP_ENABLED = False
 HEADING_SWEEP_RANGE_DEG = 2  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
-POSITION_SWEEP_RANGE = 20
+POSITION_SWEEP_RANGE = 30
 POSITION_SWEEP_STEP_SIZE = 1
 
 # Hard gate: reject any pose estimate too far from the snapped/current pose.

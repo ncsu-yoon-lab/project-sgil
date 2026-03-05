@@ -84,7 +84,9 @@ class RoadMatcher:
         self._yaw_ab = math.degrees(math.atan2(dy1, dx1))
 
         # Convert road 2 to XY if provided
-        self._has_road2 = self._road2_start_latlon is not None and self._road2_end_latlon is not None
+        self._has_road2 = (
+            self._road2_start_latlon is not None and self._road2_end_latlon is not None
+        )
         if self._has_road2:
             self._a2x, self._a2y = self._converter.latlon_to_xy(self._road2_start_latlon)
             self._b2x, self._b2y = self._converter.latlon_to_xy(self._road2_end_latlon)
@@ -93,7 +95,8 @@ class RoadMatcher:
             if abs(dx2) < 1e-9 and abs(dy2) < 1e-9:
                 raise ValueError(
                     "RoadMatcher road2 endpoints are identical (degenerate segment). "
-                    "Set ROAD2_START_LATLON/ROAD2_END_LATLON or pass road2 endpoints to the constructor."
+                    "Set ROAD2_START_LATLON/ROAD2_END_LATLON or pass road2 endpoints "
+                    "to the constructor."
                 )
             self._yaw2_ab = math.degrees(math.atan2(dy2, dx2))
         else:
@@ -169,7 +172,9 @@ class RoadMatcher:
             d2 = float(math.hypot(px - cx2, py - cy2))
 
             if d2 < best_dist:
-                best_cx, best_cy, best_yaw_ab, best_dist = float(cx2), float(cy2), float(self._yaw2_ab), d2
+                best_cx, best_cy = float(cx2), float(cy2)
+                best_yaw_ab = float(self._yaw2_ab)
+                best_dist = d2
 
         # Two candidate headings: along A->B and B->A for the chosen road
         yaw1 = float(best_yaw_ab)

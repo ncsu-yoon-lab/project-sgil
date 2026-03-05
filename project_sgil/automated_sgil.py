@@ -334,6 +334,7 @@ class AutomatedSGIL:
                 gps_yaw_deg=gps_yaw_for_road,
             )
             snapped_pose = road_match.snapped_pose
+            snap_distance_m = float(getattr(road_match, "snap_distance_m", 0.0))
 
             # Skip ranges: do not run tree matching, but still report a snapped pose.
             if idx is not None and self._in_skip_range(idx):
@@ -395,11 +396,12 @@ class AutomatedSGIL:
             pose_for_match = Pose2d(snapped_pose.x, snapped_pose.y, yaw_for_match)
 
             try:
-                est_pose_from_matcher = self.tree_matcher.match_trees(
+                est_pose_from_matcher: Pose2d = self.tree_matcher.match_trees(
                     pose_for_match,
                     ground_thetas,
                     rtk_pose,
                     image_name=frame_name,
+                    snap_distance_m=snap_distance_m,
                 )
                 est_pose: Pose2d | None = Pose2d(
                     est_pose_from_matcher.x,
@@ -415,18 +417,15 @@ class AutomatedSGIL:
             if not matched or est_pose is None:
                 est_pose = snapped_pose
 
-            # Snapshot AOI trees immediately after matching so plotting uses
-            # the AOI computed for this exact pose.
-            aoi_trees_for_plot = list(getattr(self.tree_matcher, "aoi_trees", []))
+            # Help type checkers: from here on, est_pose is always a Pose2d.
+            est_pose = Pose2d(est_pose.x, est_pose.y, est_pose.yaw)
 
             # If heading sweep is disabled, keep using the initial yaw when we have an estimate.
-            if est_pose is not None and not HEADING_SWEEP_ENABLED:
+            if not HEADING_SWEEP_ENABLED:
                 est_pose.yaw = pose_for_match.yaw
 
             # Advance: keep current_pose aligned with the best available estimate.
-            # If heading sweep ran, est_pose.yaw differs from pose_for_match.yaw.
             self.current_pose = est_pose if est_pose is not None else pose_for_match
-            self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
 
             sgil_err_m = (
                 self._sgil_error_meters(est_pose, rtk_pose)
@@ -521,7 +520,8 @@ class AutomatedSGIL:
             idx = self._frame_index_from_name(r.image_name)
             if idx is not None and self._in_skip_range(idx):
                 skipped_names.add(r.image_name)
-            # no-tree skip path is also matched=False but not in IMAGES_TO_SKIP
+
+            # no-tree skip path is also matched=False but not in the explicit IMAGES_TO_SKIP ranges
             if AUTOMATED_SKIP_IF_NO_TREES and (not r.matched):
                 # Mark as skipped when estimated_pose == snapped_pose and we didn't attempt matching.
                 # (Conservative: avoids counting failed matches as "skipped".)
@@ -534,16 +534,19 @@ class AutomatedSGIL:
                         skipped_names.add(r.image_name)
 
         for r in results:
+            gps_pose_str = fmt_pose(r.gps_pose) if r.gps_pose else "None"
+            est_pose_str = fmt_pose(r.estimated_pose) if r.estimated_pose else "None"
+
             print(
                 f"{r.image_name:40s} | "
                 f"{r.matched!s:10s} | "
                 f"{r.sgil_err_m:10.2f} | "
                 f"{r.snapped_err_m:13.2f} | "
                 f"{r.gps_err_m:10.2f} | "
-                f"{fmt_pose(r.gps_pose) if r.gps_pose else 'None':32s} | "
+                f"{gps_pose_str:32s} | "
                 f"{fmt_pose(r.rtk_pose):32s} | "
                 f"{fmt_pose(r.current_pose):32s} | "
-                f"{fmt_pose(r.estimated_pose) if r.estimated_pose else 'None':32s}"
+                f"{est_pose_str:32s}"
             )
 
         # ---- Summary means (3 columns), with and without skipped images ----
