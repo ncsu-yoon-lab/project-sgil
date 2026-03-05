@@ -387,13 +387,17 @@ class AutomatedSGIL:
             pose_for_match = Pose2d(snapped_pose.x, snapped_pose.y, yaw_for_match)
 
             try:
-                est_xy = self.tree_matcher.match_trees(
+                est_pose_from_matcher = self.tree_matcher.match_trees(
                     pose_for_match,
                     ground_thetas,
                     rtk_pose,
                     image_name=frame_name,
                 )
-                est_pose: Pose2d | None = Pose2d(est_xy.x, est_xy.y, pose_for_match.yaw)
+                est_pose: Pose2d | None = Pose2d(
+                    est_pose_from_matcher.x,
+                    est_pose_from_matcher.y,
+                    est_pose_from_matcher.yaw,
+                )
                 matched = True
             except Exception:
                 matched = False
@@ -411,7 +415,8 @@ class AutomatedSGIL:
             if est_pose is not None and not HEADING_SWEEP_ENABLED:
                 est_pose.yaw = pose_for_match.yaw
 
-            # Advance
+            # Advance: keep current_pose aligned with the best available estimate.
+            # If heading sweep ran, est_pose.yaw differs from pose_for_match.yaw.
             self.current_pose = est_pose if est_pose is not None else pose_for_match
             self._last_rtk_xy = (rtk_pose.x, rtk_pose.y)
 
@@ -447,7 +452,7 @@ class AutomatedSGIL:
                     snapped_err_m=self._sgil_error_meters(snapped_pose, rtk_pose),
                     gps_err_m=float(math.hypot(gps_x - rtk_pose.x, gps_y - rtk_pose.y)),
                     rtk_pose=rtk_pose,
-                    current_pose=pose_for_match,
+                    current_pose=self.current_pose,
                     gps_pose=gps_pose,
                     estimated_pose=est_pose,
                     matched=matched,
@@ -474,6 +479,11 @@ class AutomatedSGIL:
         def fmt_pose(p: Pose2d) -> str:
             return f"(x={p.x:.2f}, y={p.y:.2f}, yaw={p.yaw:.2f}°)"
 
+        # Helper: safe mean over finite values
+        def mean_finite(vals: list[float]) -> float:
+            finite = [float(v) for v in vals if v is not None and math.isfinite(float(v))]
+            return float(sum(finite) / len(finite)) if finite else float("nan")
+
         print(
             f"\n{'frame':40s} | {'matched':10s} | {'sgil_err_m':10s} | {'snapped_err_m':13s} | {'gps_err_m':10s} | "
             f"{'gps_pose':32s} | {'rtk_pose':32s} | {'current_pose':32s} | {'estimated_pose':32s}"
@@ -496,6 +506,25 @@ class AutomatedSGIL:
             + "-" * 32
         )
 
+        # Track which frames were skipped (either via IMAGES_TO_SKIP or due to no trees)
+        skipped_names: set[str] = set()
+        for r in results:
+            # idx-based skip
+            idx = self._frame_index_from_name(r.image_name)
+            if idx is not None and self._in_skip_range(idx):
+                skipped_names.add(r.image_name)
+            # no-tree skip path is also matched=False but not in IMAGES_TO_SKIP
+            if AUTOMATED_SKIP_IF_NO_TREES and (not r.matched):
+                # Mark as skipped when estimated_pose == snapped_pose and we didn't attempt matching.
+                # (Conservative: avoids counting failed matches as "skipped".)
+                if r.estimated_pose is not None and r.current_pose is not None:
+                    if (
+                        abs(r.estimated_pose.x - r.current_pose.x) < 1e-9
+                        and abs(r.estimated_pose.y - r.current_pose.y) < 1e-9
+                        and abs(r.estimated_pose.yaw - r.current_pose.yaw) < 1e-9
+                    ):
+                        skipped_names.add(r.image_name)
+
         for r in results:
             print(
                 f"{r.image_name:40s} | "
@@ -508,6 +537,30 @@ class AutomatedSGIL:
                 f"{fmt_pose(r.current_pose):32s} | "
                 f"{fmt_pose(r.estimated_pose) if r.estimated_pose else 'None':32s}"
             )
+
+        # ---- Summary means (3 columns), with and without skipped images ----
+        all_sgil = [r.sgil_err_m for r in results]
+        all_snap = [r.snapped_err_m for r in results]
+        all_gps = [r.gps_err_m for r in results]
+
+        not_skipped = [r for r in results if r.image_name not in skipped_names]
+        ns_sgil = [r.sgil_err_m for r in not_skipped]
+        ns_snap = [r.snapped_err_m for r in not_skipped]
+        ns_gps = [r.gps_err_m for r in not_skipped]
+
+        print("\n--- Mean errors ---")
+        print(
+            f"Including skipped (n={len(results)}): "
+            f"mean_sgil_err_m={mean_finite(all_sgil):.3f} | "
+            f"mean_snapped_err_m={mean_finite(all_snap):.3f} | "
+            f"mean_gps_err_m={mean_finite(all_gps):.3f}"
+        )
+        print(
+            f"Excluding skipped (n={len(not_skipped)}): "
+            f"mean_sgil_err_m={mean_finite(ns_sgil):.3f} | "
+            f"mean_snapped_err_m={mean_finite(ns_snap):.3f} | "
+            f"mean_gps_err_m={mean_finite(ns_gps):.3f}"
+        )
 
 
 if __name__ == "__main__":

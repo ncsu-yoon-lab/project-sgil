@@ -58,6 +58,11 @@ class TreeMatcher:
         self.wedges: list[Wedge] = []
         self.converter = Converter(ORIGIN[0], ORIGIN[1])
 
+        # Default scoring parameters (used by base TreeMatcher)
+        self.tree_radius_m = float(TREE_RADIUS_M)
+        self.theta_tol_deg = float(THETA_MATCHING_TOLERANCE)
+        self.heading_error_deg = float(HEADING_ERROR_DEG)
+
         # Load tree locations from CSV and convert to Point instances
         with open(path, newline="") as csvfile:
             scanner = csv.reader(csvfile, delimiter=",")
@@ -329,14 +334,17 @@ class TreeMatcher:
         :return: Estimated location of the vehicle as Point.
         """
         
-        # Build the list of candidate yaw values to evaluate
+        # --- Position sweep (along-road) ---------------------------------
+        # We assume current_pose.yaw is aligned with the road direction (from RoadMatcher).
+        # Try shifting the input pose ±3 meters along the road in 1m steps.
+        position_offsets_m = list(range(-3, 4))  # [-3, -2, -1, 0, 1, 2, 3]
+
+        # Build the list of candidate yaw values to evaluate (heading sweep)
         if HEADING_SWEEP_ENABLED:
             candidate_yaws: list[float] = []
             steps = int(HEADING_SWEEP_RANGE_DEG / HEADING_SWEEP_STEP_DEG)
             for i in range(-steps, steps + 1):
-                candidate_yaws.append(
-                    current_pose.yaw + i * HEADING_SWEEP_STEP_DEG
-                )
+                candidate_yaws.append(current_pose.yaw + i * HEADING_SWEEP_STEP_DEG)
         else:
             candidate_yaws = [current_pose.yaw]
 
@@ -365,46 +373,44 @@ class TreeMatcher:
             except Exception:
                 within_range = False
 
-        # Each entry: (PoseEstimate, wedges_snapshot, aoi_snapshot,
-        #              candidate_pose)
-        all_entries: list[
-            tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]
-        ] = []
+        # Each entry: (PoseEstimate, wedges_snapshot, aoi_snapshot, candidate_pose, offset_m)
+        all_entries: list[tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d, float]] = []
 
-        last_fail_snapshot = None  # (wedges_snap, aoi_snap, candidate_pose)
+        last_fail_snapshot = None  # (wedges_snap, aoi_snap, candidate_pose, offset_m)
 
-        for candidate_yaw in candidate_yaws:
-            # Clear previous state for this candidate heading
-            self.wedges.clear()
-            self.aoi_trees.clear()
+        # Sweep position offsets; for each swept pose, perform the existing heading sweep.
+        base_yaw_rad = math.radians(current_pose.yaw)
+        for offset_m in position_offsets_m:
+            base_x = current_pose.x + float(offset_m) * math.cos(base_yaw_rad)
+            base_y = current_pose.y + float(offset_m) * math.sin(base_yaw_rad)
+            base_pose = Pose2d(base_x, base_y, current_pose.yaw)
 
-            candidate_pose = Pose2d(
-                current_pose.x, current_pose.y, candidate_yaw
-            )
+            for candidate_yaw in candidate_yaws:
+                # Clear previous state for this candidate heading
+                self.wedges.clear()
+                self.aoi_trees.clear()
 
-            # The area of interest based on the candidate pose
-            self.aoi_trees = self._get_area_of_interest(candidate_pose)
+                candidate_pose = Pose2d(base_pose.x, base_pose.y, candidate_yaw)
 
-            # Loop through all the thetas and create wedges
-            for theta in ground_thetas:
-                self.wedges.append(
-                    self._create_wedge(candidate_pose, theta)
+                # The area of interest based on the candidate pose
+                self.aoi_trees = self._get_area_of_interest(candidate_pose)
+
+                # Loop through all the thetas and create wedges
+                for theta in ground_thetas:
+                    self.wedges.append(self._create_wedge(candidate_pose, theta))
+
+                # Estimate location by matching wedges to trees
+                pose_estimates = self._wedge_matching(
+                    self.wedges, candidate_pose, rtk_pose, image_name=image_name
                 )
 
-            # Estimate location by matching wedges to trees
-            pose_estimates = self._wedge_matching(
-                self.wedges, candidate_pose, rtk_pose, image_name=image_name
-            )
+                # Snapshot wedges & aoi for later plotting
+                wedges_snap = list(self.wedges)
+                aoi_snap = list(self.aoi_trees)
+                last_fail_snapshot = (wedges_snap, aoi_snap, candidate_pose, float(offset_m))
 
-            # Snapshot wedges & aoi for later plotting
-            wedges_snap = list(self.wedges)
-            aoi_snap = list(self.aoi_trees)
-            last_fail_snapshot = (wedges_snap, aoi_snap, candidate_pose)
-
-            for pe in pose_estimates:
-                all_entries.append(
-                    (pe, wedges_snap, aoi_snap, candidate_pose)
-                )
+                for pe in pose_estimates:
+                    all_entries.append((pe, wedges_snap, aoi_snap, candidate_pose, float(offset_m)))
 
         # Restore original plot_wedges setting
         self.plot_wedges = saved_plot_wedges
@@ -412,7 +418,7 @@ class TreeMatcher:
         if not all_entries:
             # Only plot if user enabled plotting AND within range gate passed
             if saved_plot_wedges and within_range and last_fail_snapshot is not None:
-                wedges_snap, aoi_snap, cand_pose = last_fail_snapshot
+                wedges_snap, aoi_snap, cand_pose, _offset_m = last_fail_snapshot
 
                 # Pick a reason string that's useful
                 if len(ground_thetas) < 2:
@@ -436,24 +442,23 @@ class TreeMatcher:
             raise ValueError("No pose estimates found")
         
         # --- Pick best per candidate yaw & plot -------------------------
-        best_per_yaw: dict[float, tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]] = {}
-        
-        if sweep_active:
-            # Group entries by candidate yaw and keep only the best pose-score entry per yaw
-            by_yaw: dict[float, list[
-                tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d]
-            ]] = collections.defaultdict(list)
-            for entry in all_entries:
-                by_yaw[entry[3].yaw].append(entry)
+        best_per_key: dict[tuple[float, float], tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d, float]] = {}
 
-            for cand_yaw, entries in by_yaw.items():
-                best_per_yaw[cand_yaw] = max(entries, key=lambda e: e[0].score)
+        if sweep_active:
+            # Group entries by (offset_m, candidate_yaw) and keep only the best pose-score entry per key
+            by_key: dict[tuple[float, float], list[tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d, float]]] = collections.defaultdict(list)
+            for entry in all_entries:
+                pe, w, a, cand_pose, offset_m = entry
+                by_key[(offset_m, cand_pose.yaw)].append(entry)
+
+            for key, entries in by_key.items():
+                best_per_key[key] = max(entries, key=lambda e: e[0].score)
 
         # Plot wedges for best scored combo for each yaw, including heading score
-        if sweep_active and saved_plot_wedges and best_per_yaw and within_range:
-            for cand_yaw, best in best_per_yaw.items():
-                pe, wedges_snap, aoi_snap, cand_pose = best
-                
+        if sweep_active and saved_plot_wedges and best_per_key and within_range:
+            for (offset_m, cand_yaw), best in best_per_key.items():
+                pe, wedges_snap, aoi_snap, cand_pose, _off = best
+
                 heading_score, theta_rms = self._calculate_heading_score(
                     candidate_yaw=cand_yaw,
                     base_yaw=current_pose.yaw,
@@ -478,6 +483,7 @@ class TreeMatcher:
                     estimated_location=Point(pe.pose.x, pe.pose.y),
                     save_name=(
                         f"img_name_{image_name[7:-4] if image_name else 'unknown'}"
+                        f"_sweep_pos_{offset_m:+.0f}m"
                         f"_sweep_yaw_{cand_yaw:.1f}"
                         f"_delta_{delta:+.1f}"
                         f"_dist_{dist:.2f}"
@@ -490,42 +496,61 @@ class TreeMatcher:
                 )
 
         # --- Final selection -------------------------------------------
-        if sweep_active and best_per_yaw:
-            scored: list[tuple[float, float, PoseEstimate]] = []
-            for cand_yaw, (pe, _w, _a, _cpose) in best_per_yaw.items():
+        if sweep_active and best_per_key:
+            # First: for each position offset, pick the yaw with the highest heading_score.
+            best_per_offset: dict[float, tuple[PoseEstimate, float, float, float, Pose2d]] = {}
+            # value: (pose_estimate, chosen_yaw, heading_score, theta_rms, chosen_candidate_pose)
+            for (offset_m, cand_yaw), (pe, _w, _a, cpose, _off) in best_per_key.items():
                 heading_score, theta_rms = self._calculate_heading_score(
                     candidate_yaw=cand_yaw,
                     base_yaw=current_pose.yaw,
                     pose_estimate=pe,
                 )
-                scored.append((heading_score, theta_rms, pe))
+                if offset_m not in best_per_offset or heading_score > best_per_offset[offset_m][2]:
+                    best_per_offset[offset_m] = (pe, cand_yaw, heading_score, theta_rms, cpose)
 
-            # highest heading_score wins
-            heading_score, theta_rms, final_estimate = max(scored, key=lambda x: x[0])
+            # Second: choose the best position offset by PoseEstimate.score (your request).
+            chosen_offset_m, (final_estimate, chosen_yaw, heading_score, theta_rms, chosen_cpose) = max(
+                best_per_offset.items(), key=lambda kv: kv[1][0].score
+            )
+
+            # IMPORTANT: PoseEstimate.pose is XY. Ensure returned pose carries the selected yaw.
+            final_pose = Pose2d(final_estimate.pose.x, final_estimate.pose.y, chosen_yaw)
 
             print(
-                f"[TreeMatcher] Heading sweep selected yaw={final_estimate.pose.yaw:.2f} "
-                f"(input was {current_pose.yaw:.2f}, delta={normalize_deg(final_estimate.pose.yaw - current_pose.yaw):+.2f}) "
-                f"pose_score={final_estimate.score:.2f} theta_rms={theta_rms:.2f} heading_score={heading_score:.2f}"
+                f"[TreeMatcher] Position sweep selected offset={chosen_offset_m:+.0f}m "
+                f"pose_score={final_estimate.score:.2f} "
+                f"(chosen_yaw={chosen_yaw:.2f}, input_yaw={current_pose.yaw:.2f}, delta_yaw={normalize_deg(chosen_yaw - current_pose.yaw):+.2f}) "
+                f"theta_rms={theta_rms:.2f} heading_score={heading_score:.2f}"
             )
 
             if PLOT_ONLY_CHOSEN_COMBO and saved_plot_wedges and within_range:
                 try:
+                    # Reuse the wedges/aoi from the chosen candidate (keyed by offset and yaw)
+                    chosen_key = (float(chosen_offset_m), float(chosen_yaw))
+                    chosen_entry = best_per_key.get(chosen_key)
+                    if chosen_entry is not None:
+                        _pe, wedges_snap, aoi_snap, cand_pose, _off = chosen_entry
+                    else:
+                        # Fallback: plot with the chosen candidate pose but without snapshots
+                        wedges_snap, aoi_snap, cand_pose = list(self.wedges), list(self.aoi_trees), chosen_cpose
+
                     for w, t in final_estimate.wedge_combinations.items():
                         w.matched_tree = t
-                    dx = final_estimate.pose.x - rtk_pose.x
-                    dy = final_estimate.pose.y - rtk_pose.y
+                    dx = final_pose.x - rtk_pose.x
+                    dy = final_pose.y - rtk_pose.y
                     dist = math.hypot(dx, dy)
                     DebugVisualizer.plot_wedges(
                         wedges=wedges_snap,
                         wedge_combination=final_estimate.wedge_combinations,
-                        current_pose=Pose2d(current_pose.x, current_pose.y, final_estimate.pose.yaw),
+                        current_pose=cand_pose,
                         rtk_pose=rtk_pose,
                         aoi_trees=aoi_snap,
-                        estimated_location=Point(final_estimate.pose.x, final_estimate.pose.y),
+                        estimated_location=Point(final_pose.x, final_pose.y),
                         save_name=(
-                            f"CHOSEN_combo_{getattr(final_estimate,'combo_index',None)}"
+                            f"CHOSEN_combo_{getattr(final_estimate, 'combo_index', None)}"
                             f"_img_{image_name[7:-4] if image_name else 'unknown'}"
+                            f"_pos_{chosen_offset_m:+.0f}m"
                             f"_dist_{dist:.2f}"
                             f"_wedges_{len(final_estimate.wedge_combinations)}"
                             f"_score_{final_estimate.score:.2f}"
@@ -535,17 +560,22 @@ class TreeMatcher:
                 except Exception as e:
                     print(f"[TreeMatcher] Failed to plot chosen combo: {e}")
         else:
-            # Find the best pose estimate across all candidate headings
+            # Find the best pose estimate across all candidate headings/offsets
             best_entry = max(all_entries, key=lambda e: e[0].score)
             final_estimate = best_entry[0]
+            chosen_offset_m = float(best_entry[4])
+            cand_pose = best_entry[3]
+
+            # IMPORTANT: PoseEstimate.pose is XY. Carry yaw from the selected candidate pose.
+            final_pose = Pose2d(final_estimate.pose.x, final_estimate.pose.y, cand_pose.yaw)
 
             if PLOT_ONLY_CHOSEN_COMBO and saved_plot_wedges and within_range:
                 try:
-                    pe, wedges_snap, aoi_snap, cand_pose = best_entry
+                    pe, wedges_snap, aoi_snap, cand_pose, _off = best_entry
                     for w, t in final_estimate.wedge_combinations.items():
                         w.matched_tree = t
-                    dx = final_estimate.pose.x - rtk_pose.x
-                    dy = final_estimate.pose.y - rtk_pose.y
+                    dx = final_pose.x - rtk_pose.x
+                    dy = final_pose.y - rtk_pose.y
                     dist = math.hypot(dx, dy)
                     DebugVisualizer.plot_wedges(
                         wedges=wedges_snap,
@@ -553,10 +583,11 @@ class TreeMatcher:
                         current_pose=cand_pose,
                         rtk_pose=rtk_pose,
                         aoi_trees=aoi_snap,
-                        estimated_location=Point(final_estimate.pose.x, final_estimate.pose.y),
+                        estimated_location=Point(final_pose.x, final_pose.y),
                         save_name=(
-                            f"CHOSEN_combo_{getattr(final_estimate,'combo_index',None)}"
+                            f"CHOSEN_combo_{getattr(final_estimate, 'combo_index', None)}"
                             f"_img_{image_name[7:-4] if image_name else 'unknown'}"
+                            f"_pos_{chosen_offset_m:+.0f}m"
                             f"_dist_{dist:.2f}"
                             f"_wedges_{len(final_estimate.wedge_combinations)}"
                             f"_score_{final_estimate.score:.2f}"
@@ -591,52 +622,95 @@ class TreeMatcher:
             wedge.matched_tree = tree
 
         # Return the pose with the highest score
-        return final_estimate.pose
+        return final_pose
 
     def _get_area_of_interest(self, current_pose: Pose2d) -> list[Tree]:
-        """Identify satellite trees within area of interest.
+        """Return satellite trees within the AOI wedge in front of the vehicle.
 
-        :param current_pose: Current position estimation as Pose2d.
-        :return: List of tree locations (Point) within the area of
-            interest.
+        Mirrors the AOI depiction in DebugVisualizer.plot_aoi(): the AOI is centered
+        a bit *behind* the current pose along heading.
         """
-
-        area_of_interest_tree_locations: list[Tree] = []
-
-        # Computes adjusted pose offset 10m behind current heading
-        adjusted_pose = Pose2d(
-            x=current_pose.x - 5 * math.cos(math.radians(current_pose.yaw)),
-            y=current_pose.y - 5 * math.sin(math.radians(current_pose.yaw)),
+        # Mirror DebugVisualizer's AOI center shift (-5m along heading)
+        heading_rad = math.radians(current_pose.yaw)
+        aoi_center = Pose2d(
+            x=current_pose.x - 5.0 * math.cos(heading_rad),
+            y=current_pose.y - 5.0 * math.sin(heading_rad),
             yaw=current_pose.yaw,
         )
 
-        for tree_id, tree in enumerate(self.satellite_tree_locations):
-            # Checks if the distance is within the radius
-            if distance(tree, adjusted_pose) < AOI_RADIUS_M:
-                # Checks if the relative angle to the tree is within the expected limit
-                rel_angle_deg = get_relative_angle(tree, adjusted_pose)
-                if abs(rel_angle_deg) < AOI_ANGLE_DEG:
-                    area_of_interest_tree_locations.append(Tree(tree.x, tree.y, tree_id))
+        aoi_trees: list[Tree] = []
+        for i, pt in enumerate(self.satellite_tree_locations):
+            dx = pt.x - aoi_center.x
+            dy = pt.y - aoi_center.y
+            if dx * dx + dy * dy > AOI_RADIUS_M * AOI_RADIUS_M:
+                continue
 
-        return area_of_interest_tree_locations
+            rel = get_relative_angle(Point(pt.x, pt.y), aoi_center)
+            if abs(rel) <= float(AOI_ANGLE_DEG):
+                aoi_trees.append(Tree(pt.x, pt.y, id=i))
+        return aoi_trees
 
     def _create_wedge(self, current_pose: Pose2d, theta: float) -> Wedge:
-        """Create a wedge based on current location and ground view angle.
-
-        :param current_pose: Current position and orientation as Pose2d.
-        :param theta: Ground view angle to a single tree.
-        :return: Wedge object containing the theta and trees in the
-            wedge.
-        """
-
+        """Create a wedge (theta ray) and populate candidate trees near that ray."""
         wedge = Wedge(theta)
-
         for tree in self.aoi_trees:
             rel_angle_deg = get_relative_angle(tree, current_pose)
-            if abs(rel_angle_deg - theta) < HEADING_ERROR_DEG:
+            if abs(normalize_deg(rel_angle_deg - theta)) < float(self.heading_error_deg):
                 wedge.trees.append(tree)
-
         return wedge
+
+    def _calculate_pose_estimate_score(
+        self,
+        wedge_map: dict[Wedge, Tree],
+        estimated_pose: Pose2d,
+        residual_rms: float,
+    ) -> float:
+        """Heuristic score for a pose estimate. Higher is better."""
+        if not wedge_map:
+            return 0.0
+
+        total_selected = len(wedge_map)
+        visible_count = 0
+        theta_match_count = 0
+
+        for wedge, selected_tree in wedge_map.items():
+            # Occlusion heuristic: count as visible if no other tree blocks the segment
+            occluded = False
+            for other_tree in self.aoi_trees:
+                if other_tree.id == selected_tree.id:
+                    continue
+                if _segment_intersects_circle(
+                    start=estimated_pose,
+                    end=selected_tree,
+                    center=other_tree,
+                    radius=float(self.tree_radius_m),
+                ):
+                    occluded = True
+                    break
+            if not occluded:
+                visible_count += 1
+
+            observed_deg = get_relative_angle(selected_tree, estimated_pose)
+            diff = normalize_deg(observed_deg - wedge.theta_degrees)
+            if abs(diff) <= float(self.theta_tol_deg):
+                theta_match_count += 1
+
+        visibility_ratio = visible_count / float(total_selected)
+        theta_match_ratio = theta_match_count / float(total_selected)
+
+        # Residual RMS component is only meaningful with enough constraints
+        if total_selected <= 2:
+            rms_component = 0.0
+        else:
+            rms_score = 1.0 / (1.0 + (float(residual_rms) / max(1e-9, float(SCORE_RMS_SCALE))))
+            rms_component = float(SCORE_WEIGHT_RMS) * rms_score
+
+        return float(
+            float(SCORE_WEIGHT_OCCLUSION) * visibility_ratio
+            + float(SCORE_WEIGHT_THETA_MATCH) * theta_match_ratio
+            + rms_component
+            + float(NUMBER_SELECTED_WEIGHT) * float(total_selected)
+        )
 
     def _wedge_matching(
         self,
@@ -646,240 +720,85 @@ class TreeMatcher:
         *,
         image_name: str | None = None,
     ) -> list[PoseEstimate]:
-        """Estimate poses by evaluating all skip-allowed wedge→tree maps
-        (length ≥ 2).
+        """Try matching wedges to satellite trees and return PoseEstimates."""
+        # Only consider wedges that have at least one candidate
+        eligible = [w for w in wedges if w.trees]
+        if len(eligible) < 2:
+            return []
 
-        :param wedges: List of candidate Wedge objects.
-        :param current_pose: Current estimated pose of the vehicle.
-        :param image_name: Frame name used for debug plot gating.
-        :return: List of PoseEstimate objects (pose + confidence).
-        """
-        # Generate maps: {Wedge -> Tree}, allowing skips, with length >= 2
-        wedge_combinations = TreeMatcher._generate_wedge_combinations(
-            wedges, n=len(wedges), min_len=2,
+        combos = self._generate_wedge_combinations(
+            wedges=eligible,
+            n=len(eligible),
+            min_len=2,
             max_results=MAX_WEDGE_COMBINATIONS,
         )
 
-        if (
-            MAX_WEDGE_COMBINATIONS is not None
-            and len(wedge_combinations) >= MAX_WEDGE_COMBINATIONS
-        ):
-            print(
-                f"[TreeMatcher] Combination cap reached "
-                f"({MAX_WEDGE_COMBINATIONS}); some lower-quality "
-                f"combos were pruned."
-            )
-
         pose_estimates: list[PoseEstimate] = []
-        base_yaw_deg = current_pose.yaw
 
-        combo_index = 0
+        # Optional plotting gate for partial combos
+        do_partial_plot = bool(self.plot_wedges and PLOT_WEDGES_PARTIAL)
 
-        for wedge_map in wedge_combinations:
-            # Build line set for this combination
+        # Hard gate: reject any pose estimate too far from the snapped/current pose.
+        # (Prevents weird intersections from dominating scoring.)
+        MAX_ESTIMATE_DIST_FROM_SNAPPED_M = 20.0
+
+        for combo_index, wedge_map in enumerate(combos, start=1):
+            # Build lines: each selected tree + its observed bearing implies the vehicle lies on
+            # a ray backwards from the tree.
             lines: list[tuple[Point, float]] = []
             for wedge, tree in wedge_map.items():
-                phi = math.radians(base_yaw_deg + wedge.theta_degrees)
-                lines.append((tree, phi))
+                # Absolute angle from vehicle to tree is (current_yaw + theta)
+                phi = math.radians(current_pose.yaw + wedge.theta_degrees)
+                lines.append((Point(tree.x, tree.y), float(phi)))
 
-            solution = TreeMatcher._solve_least_squares_intersection(lines)
-            if solution is None:
+            sol = self._solve_least_squares_intersection(lines)
+            if sol is None:
+                continue
+            est_x, est_y, rms = sol
+
+            # ---- distance gate vs snapped/current pose ----
+            if (
+                (est_x - current_pose.x) ** 2 + (est_y - current_pose.y) ** 2
+            ) ** 0.5 > MAX_ESTIMATE_DIST_FROM_SNAPPED_M:
                 continue
 
-            x_hat, y_hat, rms = solution
+            est_pose = Pose2d(est_x, est_y, current_pose.yaw)
 
-            estimated_pose = Pose2d(x_hat, y_hat, current_pose.yaw)
+            score = self._calculate_pose_estimate_score(wedge_map, est_pose, rms)
+            confidence = max(0.0, min(1.0, score / 200.0))
 
-            # Compute distance to RTK pose (used for debug naming)
-            dx = x_hat - rtk_pose.x
-            dy = y_hat - rtk_pose.y
-            dist = math.hypot(dx, dy)
-
-            combo_index += 1
-
-            # Mark matched trees in wedges
-            for wedge, tree in wedge_map.items():
-                wedge.matched_tree = tree
-
-            # Create PoseEstimate
-            score = self._calculate_pose_estimate_score(
-                wedge_map=wedge_map,
-                estimated_pose=estimated_pose,
-                residual_rms=rms,
+            pe = PoseEstimate(
+                pose=est_pose,
+                score=float(score),
+                confidence=float(confidence),
+                wedge_combinations=wedge_map,
+                combo_index=combo_index,
             )
+            pose_estimates.append(pe)
 
-            confidence = self.calculate_pose_estimate_confidence(
-                PoseEstimate(
-                    Pose2d(x_hat, y_hat, current_pose.yaw),
-                    score,
-                    1,
-                    wedge_map,
-                    combo_index=combo_index,
-                ),
-                list(wedge_map.values()),
-                self.aoi_trees,
-            )
-
-            # Debug visualization
-            if (
-                self.plot_wedges
-                and not PLOT_ONLY_CHOSEN_COMBO
-                and (
-                    (PLOT_WEDGES_PARTIAL and len(wedge_map) >= 2)
-                    or (len(wedge_map) == len(wedges))
-                )
-            ):
-                # Respect global "only plot this image" gate.
-                if WEDGE_PLOT_ONLY_IMAGE is not None and image_name is not None:
-                    try:
-                        img_num = int(os.path.basename(image_name).split("_")[-1].split(".")[0])
-                    except Exception:
-                        img_num = None
-                    if img_num is None or img_num != int(WEDGE_PLOT_ONLY_IMAGE):
-                        pass
-                    else:
-                        DebugVisualizer.plot_wedges(
-                            wedges=wedges,
-                            wedge_combination=wedge_map,
-                            current_pose=current_pose,
-                            rtk_pose=rtk_pose,
-                            aoi_trees=self.aoi_trees,
-                            estimated_location=Point(x_hat, y_hat),
-                            save_name=(
-                                f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_"
-                                f"score_{score:.2f}_conf_{confidence:.2f}"
-                            ),
-                        )
-                else:
+            if do_partial_plot and image_name is not None:
+                try:
+                    for w, t in wedge_map.items():
+                        w.matched_tree = t
+                    dx = est_x - rtk_pose.x
+                    dy = est_y - rtk_pose.y
+                    dist = math.hypot(dx, dy)
                     DebugVisualizer.plot_wedges(
-                        wedges=wedges,
+                        wedges=eligible,
                         wedge_combination=wedge_map,
                         current_pose=current_pose,
                         rtk_pose=rtk_pose,
                         aoi_trees=self.aoi_trees,
-                        estimated_location=Point(x_hat, y_hat),
+                        estimated_location=Point(est_x, est_y),
                         save_name=(
-                            f"combo_{combo_index}_dist_{dist:.2f}_wedges_{len(wedge_map)}_"
-                            f"score_{score:.2f}_conf_{confidence:.2f}"
+                            f"combo_{combo_index}_img_{image_name[7:-4]}"
+                            f"_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}"
                         ),
                     )
-
-            pose_estimates.append(
-                PoseEstimate(
-                    estimated_pose,
-                    score,
-                    confidence,
-                    wedge_map,
-                    combo_index=combo_index,
-                )
-            )
+                except Exception:
+                    pass
 
         return pose_estimates
-
-    def _calculate_pose_estimate_score(
-        self,
-        wedge_map: dict[Wedge, Tree],
-        estimated_pose: Pose2d,
-        residual_rms: float,
-    ) -> float:
-        """Heuristic score using number of wedges, occlusion, RMS (if 3+
-        trees), and theta matching.
-
-        :param wedge_map: Selected {Wedge -> Tree}.
-        :param estimated_pose: Pose used as the viewpoint for checks.
-        :param residual_rms: LS perpendicular residual (meters).
-        :return: Score (higher is better).
-        """
-        if not wedge_map:
-            return 0.0
-
-        visible_count = 0
-        theta_match_count = 0
-        total_selected = len(wedge_map)
-
-        # For each selected wedge, check (a) occlusion and (b) theta match
-        for wedge, selected_tree in wedge_map.items():
-            # --- (a) Occlusion: is the line to the selected tree blocked by another tree? ---
-            occluded = False
-            # Scan all other trees in the aoi
-            for other_tree in self.aoi_trees:
-                if other_tree.id == selected_tree.id:
-                    continue
-                if _segment_intersects_circle(
-                    start=estimated_pose,
-                    end=selected_tree,
-                    center=other_tree,
-                    radius=TREE_RADIUS_M,
-                ):
-                    occluded = True
-                    break
-            if not occluded:
-                visible_count += 1
-
-            # --- (b) Theta matching: is the observed angle close to wedge.theta_degrees? ---
-            # Observed angle of this tree relative to the estimated pose heading
-            observed_deg = get_relative_angle(selected_tree, estimated_pose)
-
-            # Smallest signed difference in degrees (wrap at 180)
-            diff = normalize_deg(observed_deg - wedge.theta_degrees)
-            if abs(diff) <= THETA_MATCHING_TOLERANCE:
-                theta_match_count += 1
-
-        # Occlusion component: fraction of visible selections
-        visibility_ratio = visible_count / float(total_selected)
-        occlusion_component = SCORE_WEIGHT_OCCLUSION * visibility_ratio
-
-        # TODO: maybe make this not a ratio
-        # Theta matching component: fraction of angle-consistent selections
-        theta_match_ratio = theta_match_count / float(total_selected)
-        theta_match_component = SCORE_WEIGHT_THETA_MATCH * theta_match_ratio
-
-        # RMS component: only count when 3+ trees are used (2 gives trivial RMS≈0)
-        if total_selected <= 2:
-            rms_component = 0.0
-        else:
-            rms_score = 1.0 / (1.0 + (residual_rms / max(1e-9, SCORE_RMS_SCALE)))
-            rms_component = SCORE_WEIGHT_RMS * rms_score
-
-        # Number of wedges component
-        num_wedges_component = total_selected * NUMBER_SELECTED_WEIGHT
-
-        return float(
-            occlusion_component + theta_match_component + rms_component + num_wedges_component
-        )
-
-    def calculate_pose_estimate_confidence(
-        self,
-        pose_estimate: PoseEstimate,
-        matched_trees: list[Tree],
-        all_trees: list[Tree],
-    ) -> float:
-        """Calculate confidence for a pose estimate.
-
-        Confidence is a heuristic measure of reliability, expressed as a
-        value between 0.0 and 1.0. It is independent of the score and
-        focuses on the robustness of the match.
-
-        :param pose_estimate: The PoseEstimate to evaluate.
-        :param matched_trees: Trees that were successfully matched in
-            the estimate.
-        :param all_trees: All candidate trees in the area of interest.
-        :return: Confidence value in [0.0, 1.0].
-        """
-        if not all_trees:
-            return 0.0
-
-        # Example heuristic: fraction of trees matched
-        match_ratio = len(matched_trees) / len(all_trees)
-
-        # Example heuristic: normalize score component (optional)
-        score_component = min(1.0, pose_estimate.score / 100.0)
-
-        # Blend heuristics (weights can be tuned)
-        confidence = 0.7 * match_ratio + 0.3 * score_component
-
-        # Clamp to [0.0, 1.0]
-        return max(0.0, min(1.0, confidence))
 
     def _calculate_heading_score(
         self,
@@ -888,48 +807,32 @@ class TreeMatcher:
         base_yaw: float,
         pose_estimate: PoseEstimate,
     ) -> tuple[float, float]:
-        """Post-score heuristic used to select the best yaw during heading sweep.
+        """Return (heading_score, theta_rms).
 
-        This runs *after* `_calculate_pose_estimate_score` has produced a
-        best-per-yaw PoseEstimate.
-
-        Components:
-          1) Prefer smaller |Δyaw| from the input yaw (closer to 0 deg off).
-          2) Prefer higher pose_estimate.score (existing combo score).
-          3) Prefer lower total theta error of the matched wedges (RMS in degrees).
-
-        Returns:
-          (heading_score, theta_rms_deg)
+        heading_score is used only to pick the best yaw for a given position sweep.
         """
-        # (1) closeness to 0 delta-yaw
-        delta = normalize_deg(candidate_yaw - base_yaw)
-        delta_score = 1.0 / (1.0 + abs(delta))
+        # Penalize yaw change
+        delta_yaw = abs(normalize_deg(float(candidate_yaw) - float(base_yaw)))
 
-        # (3) theta error RMS (lower is better)
-        errs: list[float] = []
-        for wedge, selected_tree in pose_estimate.wedge_combinations.items():
-            observed_deg = get_relative_angle(selected_tree, pose_estimate.pose)
-            diff = normalize_deg(observed_deg - wedge.theta_degrees)
-            errs.append(diff)
+        # Penalize theta errors for chosen combo by comparing predicted vs wedge theta
+        theta_errs: list[float] = []
+        est_pose = pose_estimate.pose
+        for wedge, tree in pose_estimate.wedge_combinations.items():
+            observed_deg = get_relative_angle(tree, est_pose)
+            predicted_deg = normalize_deg(float(base_yaw) + float(wedge.theta_degrees))
+            err = normalize_deg(observed_deg - predicted_deg)
+            theta_errs.append(float(err))
 
-        if errs:
-            theta_rms = math.sqrt(sum(e * e for e in errs) / len(errs))
+        if theta_errs:
+            theta_rms = math.sqrt(sum(e * e for e in theta_errs) / float(len(theta_errs)))
         else:
-            theta_rms = float("inf")
+            theta_rms = 999.0
 
-        theta_score = 1.0 / (1.0 + theta_rms)
+        num_wedges = float(len(pose_estimate.wedge_combinations))
 
-        # (2) number of matched wedges (higher is better) normalized to (0, 1)
-        # Use the number of wedges in the *best combo for this yaw*.
-        n = float(len(pose_estimate.wedge_combinations))
-        num_wedges_score = n / (1.0 + n)
-
-        heading_score = (
-            float(HEADING_SCORE_W_DELTA_YAW) * delta_score
-            + float(HEADING_SCORE_W_NUM_WEDGES) * num_wedges_score
-            + float(HEADING_SCORE_W_THETA_ERROR) * theta_score
+        heading_score = float(
+            -float(HEADING_SCORE_W_DELTA_YAW) * float(delta_yaw)
+            + float(HEADING_SCORE_W_NUM_WEDGES) * float(num_wedges)
+            - float(HEADING_SCORE_W_THETA_ERROR) * float(theta_rms)
         )
-
-        return float(heading_score), float(theta_rms)
-
-
+        return heading_score, float(theta_rms)
