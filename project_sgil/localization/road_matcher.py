@@ -45,29 +45,60 @@ class RoadMatcher:
     ROAD_START_LATLON: tuple[float, float] = (35.772922, -78.639484)
     ROAD_END_LATLON: tuple[float, float] = (35.775636, -78.639340)
 
+    # Optional second road segment. Set these to enable snapping across two roads.
+    # If you don't want a second road, leave them as None.
+    ROAD2_START_LATLON: tuple[float, float] = (35.775595, -78.638384)
+    ROAD2_END_LATLON: tuple[float, float] = (35.775773, -78.643686
+
+)
+
     def __init__(
         self,
         converter: Converter,
         road_start_latlon: tuple[float, float] | None = None,
         road_end_latlon: tuple[float, float] | None = None,
+        *,
+        road2_start_latlon: tuple[float, float] | None = None,
+        road2_end_latlon: tuple[float, float] | None = None,
     ) -> None:
         self._converter = converter
+
+        # Road 1 endpoints
         self._road_start_latlon = road_start_latlon or self.ROAD_START_LATLON
         self._road_end_latlon = road_end_latlon or self.ROAD_END_LATLON
 
+        # Road 2 endpoints (optional)
+        self._road2_start_latlon = road2_start_latlon or self.ROAD2_START_LATLON
+        self._road2_end_latlon = road2_end_latlon or self.ROAD2_END_LATLON
+
+        # Convert road 1 to XY
         self._ax, self._ay = self._converter.latlon_to_xy(self._road_start_latlon)
         self._bx, self._by = self._converter.latlon_to_xy(self._road_end_latlon)
-
-        dx = self._bx - self._ax
-        dy = self._by - self._ay
-        if abs(dx) < 1e-9 and abs(dy) < 1e-9:
+        dx1 = self._bx - self._ax
+        dy1 = self._by - self._ay
+        if abs(dx1) < 1e-9 and abs(dy1) < 1e-9:
             raise ValueError(
                 "RoadMatcher road endpoints are identical (degenerate segment). "
                 "Set ROAD_START_LATLON/ROAD_END_LATLON or pass endpoints to the constructor."
             )
+        self._yaw_ab = math.degrees(math.atan2(dy1, dx1))
 
-        # "Forward" yaw along A->B in ENU degrees (0°=East, CCW positive)
-        self._yaw_ab = math.degrees(math.atan2(dy, dx))
+        # Convert road 2 to XY if provided
+        self._has_road2 = self._road2_start_latlon is not None and self._road2_end_latlon is not None
+        if self._has_road2:
+            self._a2x, self._a2y = self._converter.latlon_to_xy(self._road2_start_latlon)
+            self._b2x, self._b2y = self._converter.latlon_to_xy(self._road2_end_latlon)
+            dx2 = self._b2x - self._a2x
+            dy2 = self._b2y - self._a2y
+            if abs(dx2) < 1e-9 and abs(dy2) < 1e-9:
+                raise ValueError(
+                    "RoadMatcher road2 endpoints are identical (degenerate segment). "
+                    "Set ROAD2_START_LATLON/ROAD2_END_LATLON or pass road2 endpoints to the constructor."
+                )
+            self._yaw2_ab = math.degrees(math.atan2(dy2, dx2))
+        else:
+            self._a2x = self._a2y = self._b2x = self._b2y = 0.0
+            self._yaw2_ab = 0.0
 
     @staticmethod
     def _wrap_deg(angle: float) -> float:
@@ -110,22 +141,47 @@ class RoadMatcher:
         gps_latlon: tuple[float, float],
         gps_yaw_deg: float,
     ) -> RoadMatch:
-        """Snap the GPS position to the road and pick a road yaw closest to gps yaw."""
+        """Snap the GPS position to the closest configured road and pick road yaw."""
         px, py = self._converter.latlon_to_xy(gps_latlon)
-        cx, cy, _t = self._closest_point_on_segment(px, py)
-        snap_dist = float(math.hypot(px - cx, py - cy))
 
-        # Two candidate headings: along A->B and B->A
-        yaw1 = float(self._yaw_ab)
+        # Snap to road 1
+        cx1, cy1, _t1 = self._closest_point_on_segment(px, py)
+        d1 = float(math.hypot(px - cx1, py - cy1))
+
+        best_cx, best_cy, best_yaw_ab, best_dist = cx1, cy1, float(self._yaw_ab), d1
+
+        # Optionally snap to road 2 and pick whichever is closer
+        if self._has_road2:
+            # Temporarily compute closest point to road2 segment using local helper math
+            ax, ay, bx, by = self._a2x, self._a2y, self._b2x, self._b2y
+            abx = bx - ax
+            aby = by - ay
+            apx = px - ax
+            apy = py - ay
+            denom = abx * abx + aby * aby
+            t = 0.0 if denom <= 0.0 else (apx * abx + apy * aby) / denom
+            if t < 0.0:
+                t = 0.0
+            elif t > 1.0:
+                t = 1.0
+            cx2 = ax + t * abx
+            cy2 = ay + t * aby
+            d2 = float(math.hypot(px - cx2, py - cy2))
+
+            if d2 < best_dist:
+                best_cx, best_cy, best_yaw_ab, best_dist = float(cx2), float(cy2), float(self._yaw2_ab), d2
+
+        # Two candidate headings: along A->B and B->A for the chosen road
+        yaw1 = float(best_yaw_ab)
         yaw2 = self._wrap_deg(yaw1 + 180.0)
 
         diff1 = abs(self._ang_diff_deg(gps_yaw_deg, yaw1))
         diff2 = abs(self._ang_diff_deg(gps_yaw_deg, yaw2))
         chosen_yaw = yaw1 if diff1 <= diff2 else yaw2
 
-        snapped_pose = Pose2d(x=float(cx), y=float(cy), yaw=float(chosen_yaw))
+        snapped_pose = Pose2d(x=float(best_cx), y=float(best_cy), yaw=float(chosen_yaw))
         return RoadMatch(
             snapped_pose=snapped_pose,
-            snap_distance_m=snap_dist,
+            snap_distance_m=float(best_dist),
             road_yaw_deg=float(chosen_yaw),
         )

@@ -61,7 +61,7 @@ HEADING_SWEEP_ENABLED = False
 HEADING_SWEEP_RANGE_DEG = 2  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
-POSITION_SWEEP_RANGE = 10
+POSITION_SWEEP_RANGE = 20
 POSITION_SWEEP_STEP_SIZE = 1
 
 # Hard gate: reject any pose estimate too far from the snapped/current pose.
@@ -96,8 +96,8 @@ THETA_MATCHING_TOLERANCE = 0.8  # degrees
 # --- Automated SGIL image skipping ---
 # List of (start_inclusive, end_exclusive) frame index ranges to skip.
 # Example: IMAGES_TO_SKIP = [(200, 250), (1200, 1400)]
-IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 3633), (5036, 6500)]
-# IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 2119), (2878, 3633), (5036, 6500)]
+# IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 3633), (5036, 6500)]
+IMAGES_TO_SKIP: list[tuple[int, int]] = [(318, 605), (786, 1790), (5036, 6500)]
 
 # If True, skipped frames still appear in the results table with their
 # GPS-delta-propagated position (no tree matching is performed).
@@ -106,7 +106,7 @@ INCLUDE_SKIPPED_FRAMES = True
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
 AUTOMATED_FRAME_START = 140 # 288
-AUTOMATED_FRAME_END = 771 # 4000
+AUTOMATED_FRAME_END = 2047 # 771 # 4000
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
