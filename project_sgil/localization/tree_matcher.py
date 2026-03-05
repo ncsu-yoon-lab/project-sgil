@@ -36,6 +36,7 @@ from project_sgil.constants import (
     HEADING_SCORE_W_THETA_ERROR,
     POSITION_SWEEP_RANGE,
     POSITION_SWEEP_STEP_SIZE,
+    MAX_ESTIMATE_DIST_FROM_SNAPPED_M,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
@@ -739,10 +740,6 @@ class TreeMatcher:
 
         # Optional plotting gate for partial combos
         do_partial_plot = bool(self.plot_wedges and PLOT_WEDGES_PARTIAL)
-
-        # Hard gate: reject any pose estimate too far from the snapped/current pose.
-        # (Prevents weird intersections from dominating scoring.)
-        MAX_ESTIMATE_DIST_FROM_SNAPPED_M = 20.0
 
         for combo_index, wedge_map in enumerate(combos, start=1):
             # Build lines: each selected tree + its observed bearing implies the vehicle lies on

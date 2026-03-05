@@ -49,7 +49,7 @@ PLOT_RANGE = (300, 1000)
 RANDOM = False
 
 # The error from the heading on the GPS
-HEADING_ERROR_DEG = 4
+HEADING_ERROR_DEG = 3
 
 # JSON field name to read the heading from for tree matching.
 # Common options: "rtk_heading", "gps_heading", "rtk_heading_filtered",
@@ -61,8 +61,12 @@ HEADING_SWEEP_ENABLED = False
 HEADING_SWEEP_RANGE_DEG = 2  # search yaw ± this many degrees
 HEADING_SWEEP_STEP_DEG = 1  # step size in degrees
 
-POSITION_SWEEP_RANGE = 5
+POSITION_SWEEP_RANGE = 10
 POSITION_SWEEP_STEP_SIZE = 1
+
+# Hard gate: reject any pose estimate too far from the snapped/current pose.
+# (Prevents weird intersections from dominating scoring.)
+MAX_ESTIMATE_DIST_FROM_SNAPPED_M = 30
 
 # Vertical and Horizontal FOV
 H_FOV_DEG = 110  # [degrees]
@@ -72,7 +76,7 @@ V_FOV_DEG = 70  # [degrees]
 IMAGE_SHAPE = (1242, 2208, 3)
 
 # Radius of area of interest (AOI)
-AOI_RADIUS_M = 70  # [m]
+AOI_RADIUS_M = 75  # [m]
 
 # Angle of area of interest (AOI)
 AOI_ANGLE_DEG = (H_FOV_DEG + HEADING_ERROR_DEG) / 2
@@ -102,7 +106,7 @@ INCLUDE_SKIPPED_FRAMES = True
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
 AUTOMATED_FRAME_START = 140 # 288
-AUTOMATED_FRAME_END = 771 #4000
+AUTOMATED_FRAME_END = 771 # 4000
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
