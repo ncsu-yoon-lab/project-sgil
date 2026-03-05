@@ -48,9 +48,11 @@ class RoadMatcher:
     # Optional second road segment. Set these to enable snapping across two roads.
     # If you don't want a second road, leave them as None.
     ROAD2_START_LATLON: tuple[float, float] = (35.775595, -78.638384)
-    ROAD2_END_LATLON: tuple[float, float] = (35.775773, -78.643686
+    ROAD2_END_LATLON: tuple[float, float] = (35.775773, -78.643686)
 
-)
+    # Optional third road segment.
+    ROAD3_START_LATLON: tuple[float, float] = (35.774395, -78.643981)
+    ROAD3_END_LATLON: tuple[float, float] = (35.774324, -78.641864)
 
     def __init__(
         self,
@@ -60,6 +62,8 @@ class RoadMatcher:
         *,
         road2_start_latlon: tuple[float, float] | None = None,
         road2_end_latlon: tuple[float, float] | None = None,
+        road3_start_latlon: tuple[float, float] | None = None,
+        road3_end_latlon: tuple[float, float] | None = None,
     ) -> None:
         self._converter = converter
 
@@ -70,6 +74,10 @@ class RoadMatcher:
         # Road 2 endpoints (optional)
         self._road2_start_latlon = road2_start_latlon or self.ROAD2_START_LATLON
         self._road2_end_latlon = road2_end_latlon or self.ROAD2_END_LATLON
+
+        # Road 3 endpoints (optional)
+        self._road3_start_latlon = road3_start_latlon or self.ROAD3_START_LATLON
+        self._road3_end_latlon = road3_end_latlon or self.ROAD3_END_LATLON
 
         # Convert road 1 to XY
         self._ax, self._ay = self._converter.latlon_to_xy(self._road_start_latlon)
@@ -103,6 +111,26 @@ class RoadMatcher:
             self._a2x = self._a2y = self._b2x = self._b2y = 0.0
             self._yaw2_ab = 0.0
 
+        # Convert road 3 to XY if provided
+        self._has_road3 = (
+            self._road3_start_latlon is not None and self._road3_end_latlon is not None
+        )
+        if self._has_road3:
+            self._a3x, self._a3y = self._converter.latlon_to_xy(self._road3_start_latlon)
+            self._b3x, self._b3y = self._converter.latlon_to_xy(self._road3_end_latlon)
+            dx3 = self._b3x - self._a3x
+            dy3 = self._b3y - self._a3y
+            if abs(dx3) < 1e-9 and abs(dy3) < 1e-9:
+                raise ValueError(
+                    "RoadMatcher road3 endpoints are identical (degenerate segment). "
+                    "Set ROAD3_START_LATLON/ROAD3_END_LATLON or pass road3 endpoints "
+                    "to the constructor."
+                )
+            self._yaw3_ab = math.degrees(math.atan2(dy3, dx3))
+        else:
+            self._a3x = self._a3y = self._b3x = self._b3y = 0.0
+            self._yaw3_ab = 0.0
+
     @staticmethod
     def _wrap_deg(angle: float) -> float:
         """Wrap angle to (-180, 180]."""
@@ -115,21 +143,21 @@ class RoadMatcher:
         """Smallest signed difference a-b in degrees in (-180, 180]."""
         return cls._wrap_deg(float(a) - float(b))
 
-    def _closest_point_on_segment(
-        self, px: float, py: float
+    @staticmethod
+    def _closest_point_on_segment_xy(
+        px: float, py: float, ax: float, ay: float, bx: float, by: float
     ) -> tuple[float, float, float]:
         """Return (cx, cy, t) where C is closest point on segment AB to P.
 
         t is the clamped projection parameter in [0, 1].
         """
-        ax, ay, bx, by = self._ax, self._ay, self._bx, self._by
         abx = bx - ax
         aby = by - ay
         apx = px - ax
         apy = py - ay
         denom = abx * abx + aby * aby
 
-        # denom can't be 0 (checked in __init__), but keep it safe
+        # denom can't be 0 (checked by callers), but keep it safe
         t = 0.0 if denom <= 0.0 else (apx * abx + apy * aby) / denom
         if t < 0.0:
             t = 0.0
@@ -138,6 +166,10 @@ class RoadMatcher:
         cx = ax + t * abx
         cy = ay + t * aby
         return cx, cy, t
+
+    def _closest_point_on_segment(self, px: float, py: float) -> tuple[float, float, float]:
+        """Backward-compatible helper for road 1."""
+        return self._closest_point_on_segment_xy(px, py, self._ax, self._ay, self._bx, self._by)
 
     def match_gps(
         self,
@@ -148,33 +180,32 @@ class RoadMatcher:
         px, py = self._converter.latlon_to_xy(gps_latlon)
 
         # Snap to road 1
-        cx1, cy1, _t1 = self._closest_point_on_segment(px, py)
+        cx1, cy1, _t1 = self._closest_point_on_segment_xy(px, py, self._ax, self._ay, self._bx, self._by)
         d1 = float(math.hypot(px - cx1, py - cy1))
 
         best_cx, best_cy, best_yaw_ab, best_dist = cx1, cy1, float(self._yaw_ab), d1
 
         # Optionally snap to road 2 and pick whichever is closer
         if self._has_road2:
-            # Temporarily compute closest point to road2 segment using local helper math
-            ax, ay, bx, by = self._a2x, self._a2y, self._b2x, self._b2y
-            abx = bx - ax
-            aby = by - ay
-            apx = px - ax
-            apy = py - ay
-            denom = abx * abx + aby * aby
-            t = 0.0 if denom <= 0.0 else (apx * abx + apy * aby) / denom
-            if t < 0.0:
-                t = 0.0
-            elif t > 1.0:
-                t = 1.0
-            cx2 = ax + t * abx
-            cy2 = ay + t * aby
+            cx2, cy2, _t2 = self._closest_point_on_segment_xy(
+                px, py, self._a2x, self._a2y, self._b2x, self._b2y
+            )
             d2 = float(math.hypot(px - cx2, py - cy2))
-
             if d2 < best_dist:
                 best_cx, best_cy = float(cx2), float(cy2)
                 best_yaw_ab = float(self._yaw2_ab)
                 best_dist = d2
+
+        # Optionally snap to road 3
+        if self._has_road3:
+            cx3, cy3, _t3 = self._closest_point_on_segment_xy(
+                px, py, self._a3x, self._a3y, self._b3x, self._b3y
+            )
+            d3 = float(math.hypot(px - cx3, py - cy3))
+            if d3 < best_dist:
+                best_cx, best_cy = float(cx3), float(cy3)
+                best_yaw_ab = float(self._yaw3_ab)
+                best_dist = d3
 
         # Two candidate headings: along A->B and B->A for the chosen road
         yaw1 = float(best_yaw_ab)
