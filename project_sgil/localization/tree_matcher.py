@@ -8,7 +8,6 @@ author: Cole Malinchock and Jack Elia
 import collections
 import csv
 import math
-import os
 
 from project_sgil.constants import (
     AOI_ANGLE_DEG,
@@ -37,11 +36,16 @@ from project_sgil.constants import (
     MAX_POSITION_SWEEP_RANGE,
     POSITION_SWEEP_STEP_SIZE,
     MAX_ESTIMATE_DIST_FROM_SNAPPED_POSITION_SWEEP,
+    MAX_ESTIMATE_DIST_FROM_GPS_M,
 )
 from project_sgil.data_structs import Point, Pose2d, PoseEstimate, Tree, Wedge
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.utils.converter import Converter
-from project_sgil.utils.utils import _segment_intersects_circle, distance, get_relative_angle, normalize_deg
+from project_sgil.utils.utils import (
+    _segment_intersects_circle,
+    get_relative_angle,
+    normalize_deg,
+)
 
 
 class TreeMatcher:
@@ -320,7 +324,6 @@ class TreeMatcher:
         except Exception as e:
             print(f"[TreeMatcher] Failed to plot NO_POSE debug: {e}")
 
-
     def match_trees(
         self,
         current_pose: Pose2d,
@@ -329,6 +332,7 @@ class TreeMatcher:
         image_name: str = None,
         *,
         snap_distance_m: float = 0.0,
+        gps_pose: Pose2d | None = None,
     ) -> Pose2d:
         """Match trees based on current position and ground view angles.
 
@@ -344,6 +348,8 @@ class TreeMatcher:
         :param image_name: Name of the image for debugging purposes
         :param snap_distance_m: Distance (m) between raw GPS position and the road-snapped
             position used to form current_pose. Used to adapt the position sweep range.
+        :param gps_pose: Raw GPS pose (in the same XY frame). If provided, pose estimates
+            farther than MAX_ESTIMATE_DIST_FROM_GPS_M from this location are rejected.
         :return: Estimated location of the vehicle as Point.
         """
         
@@ -369,8 +375,9 @@ class TreeMatcher:
         if image_name is not None:
             try:
                 print(
-                    f"[TreeMatcher] sweep_m=±{sweep_m} (base={base_sweep_m}, k={k_sweep_per_snap_m}, "
-                    f"snap_distance_m={float(snap_distance_m):.2f}, cap={max_sweep_m})"
+                    f"[TreeMatcher] sweep_m=±{sweep_m} (base={base_sweep_m}, "
+                    f"k={k_sweep_per_snap_m}, snap_distance_m={float(snap_distance_m):.2f}, "
+                    f"cap={max_sweep_m})"
                 )
             except Exception:
                 pass
@@ -437,7 +444,11 @@ class TreeMatcher:
 
                 # Estimate location by matching wedges to trees
                 pose_estimates = self._wedge_matching(
-                    self.wedges, candidate_pose, rtk_pose, image_name=image_name
+                    self.wedges,
+                    candidate_pose,
+                    rtk_pose,
+                    image_name=image_name,
+                    gps_pose=gps_pose,
                 )
 
                 # Snapshot wedges & aoi for later plotting
@@ -474,15 +485,26 @@ class TreeMatcher:
             if len(ground_thetas) < 2:
                 print("[TreeMatcher] No pose estimates: need at least 2 wedges for matching.")
             else:
-                print("[TreeMatcher] No pose estimates: no valid intersections across all candidate headings.")
+                print(
+                    "[TreeMatcher] No pose estimates: no valid intersections across all candidate "
+                    "headings."
+                )
             raise ValueError("No pose estimates found")
         
         # --- Pick best per candidate yaw & plot -------------------------
-        best_per_key: dict[tuple[float, float], tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d, float]] = {}
+        best_per_key: dict[
+            tuple[float, float],
+            tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d, float],
+        ] = {}
 
         if sweep_active:
-            # Group entries by (offset_m, candidate_yaw) and keep only the best pose-score entry per key
-            by_key: dict[tuple[float, float], list[tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d, float]]] = collections.defaultdict(list)
+            # Group entries by (offset_m, candidate_yaw) and keep only the best
+            # pose-score entry per key.
+            by_key: dict[
+                tuple[float, float],
+                list[tuple[PoseEstimate, list[Wedge], list[Tree], Pose2d, float]],
+            ] = collections.defaultdict(list)
+
             for entry in all_entries:
                 pe, w, a, cand_pose, offset_m = entry
                 by_key[(offset_m, cand_pose.yaw)].append(entry)
@@ -546,9 +568,13 @@ class TreeMatcher:
                     best_per_offset[offset_m] = (pe, cand_yaw, heading_score, theta_rms, cpose)
 
             # Second: choose the best position offset by PoseEstimate.score (your request).
-            chosen_offset_m, (final_estimate, chosen_yaw, heading_score, theta_rms, chosen_cpose) = max(
-                best_per_offset.items(), key=lambda kv: kv[1][0].score
-            )
+            chosen_offset_m, (
+                final_estimate,
+                chosen_yaw,
+                heading_score,
+                theta_rms,
+                chosen_cpose,
+            ) = max(best_per_offset.items(), key=lambda kv: kv[1][0].score)
 
             # IMPORTANT: PoseEstimate.pose is XY. Ensure returned pose carries the selected yaw.
             final_pose = Pose2d(final_estimate.pose.x, final_estimate.pose.y, chosen_yaw)
@@ -556,7 +582,8 @@ class TreeMatcher:
             print(
                 f"[TreeMatcher] Position sweep selected offset={chosen_offset_m:+.0f}m "
                 f"pose_score={final_estimate.score:.2f} "
-                f"(chosen_yaw={chosen_yaw:.2f}, input_yaw={current_pose.yaw:.2f}, delta_yaw={normalize_deg(chosen_yaw - current_pose.yaw):+.2f}) "
+                f"(chosen_yaw={chosen_yaw:.2f}, input_yaw={current_pose.yaw:.2f}) "
+                f"delta_yaw={normalize_deg(chosen_yaw - current_pose.yaw):+.2f} "
                 f"theta_rms={theta_rms:.2f} heading_score={heading_score:.2f}"
             )
 
@@ -569,7 +596,11 @@ class TreeMatcher:
                         _pe, wedges_snap, aoi_snap, cand_pose, _off = chosen_entry
                     else:
                         # Fallback: plot with the chosen candidate pose but without snapshots
-                        wedges_snap, aoi_snap, cand_pose = list(self.wedges), list(self.aoi_trees), chosen_cpose
+                        wedges_snap, aoi_snap, cand_pose = (
+                            list(self.wedges),
+                            list(self.aoi_trees),
+                            chosen_cpose,
+                        )
 
                     for w, t in final_estimate.wedge_combinations.items():
                         w.matched_tree = t
@@ -637,18 +668,24 @@ class TreeMatcher:
         try:
             if getattr(final_estimate, "combo_index", None) is not None:
                 print(
-                    f"[TreeMatcher] Chosen combo_index={final_estimate.combo_index} for {image_name if image_name else 'image'}"
+                    f"[TreeMatcher] Chosen combo_index={final_estimate.combo_index} for "
+                    f"{image_name if image_name else 'image'}"
                 )
+
             combo_items = sorted(
                 final_estimate.wedge_combinations.items(),
                 key=lambda wt: wt[0].theta_degrees,
             )
             combo_str = ", ".join(
-                f"(θ={w.theta_degrees:+.1f}° -> tree_id={getattr(t,'id',None)} @ ({t.x:.2f},{t.y:.2f}))"
+                (
+                    f"(θ={w.theta_degrees:+.1f}° -> tree_id={getattr(t, 'id', None)} "
+                    f"@ ({t.x:.2f},{t.y:.2f}))"
+                )
                 for w, t in combo_items
             )
             print(
-                f"[TreeMatcher] Picked combo for {image_name if image_name else 'image'}: {combo_str}"
+                f"[TreeMatcher] Picked combo for {image_name if image_name else 'image'}: "
+                f"{combo_str}"
             )
         except Exception as e:
             print(f"[TreeMatcher] Failed to print picked combo: {e}")
@@ -755,6 +792,7 @@ class TreeMatcher:
         rtk_pose: Pose2d,
         *,
         image_name: str | None = None,
+        gps_pose: Pose2d | None = None,
     ) -> list[PoseEstimate]:
         """Try matching wedges to satellite trees and return PoseEstimates."""
         # Only consider wedges that have at least one candidate
@@ -796,6 +834,13 @@ class TreeMatcher:
 
             est_pose = Pose2d(est_x, est_y, current_pose.yaw)
 
+            # ---- distance gate vs raw GPS pose (if available) ----
+            if gps_pose is not None and float(MAX_ESTIMATE_DIST_FROM_GPS_M) > 0:
+                if math.hypot(est_x - float(gps_pose.x), est_y - float(gps_pose.y)) > float(
+                    MAX_ESTIMATE_DIST_FROM_GPS_M
+                ):
+                    continue
+
             score = self._calculate_pose_estimate_score(wedge_map, est_pose, rms)
             confidence = max(0.0, min(1.0, score / 200.0))
 
@@ -824,7 +869,8 @@ class TreeMatcher:
                         estimated_location=Point(est_x, est_y),
                         save_name=(
                             f"combo_{combo_index}_img_{image_name[7:-4]}"
-                            f"_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}_conf_{confidence:.2f}"
+                            f"_dist_{dist:.2f}_wedges_{len(wedge_map)}_score_{score:.2f}"
+                            f"_conf_{confidence:.2f}"
                         ),
                     )
                 except Exception:

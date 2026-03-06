@@ -53,10 +53,24 @@ from project_sgil.localization.tree_matcher import TreeMatcher  # noqa: E402
 from project_sgil.automated_sgil import AutomatedSGIL  # noqa: E402
 
 
-def _square_zoom(ax: plt.Axes, xs: np.ndarray, ys: np.ndarray) -> None:
-    """Set square axis limits around the provided points."""
+def _square_zoom(ax: plt.Axes, xs: np.ndarray, ys: np.ndarray, *, zoom: float = 1.0) -> None:
+    """Set square axis limits around the provided points.
+
+    Parameters
+    ----------
+    zoom:
+        Multiplier applied to the computed (padded) half-span.
+        - 1.0 keeps the current behavior.
+        - <1.0 zooms in (shows a smaller area).
+        - >1.0 zooms out.
+
+    This leaves the padding logic unchanged; it only scales the final window.
+    """
     if xs.size == 0 or ys.size == 0:
         return
+
+    if not np.isfinite(zoom) or zoom <= 0:
+        raise ValueError(f"zoom must be a positive finite number, got {zoom!r}")
 
     xmin, xmax = float(xs.min()), float(xs.max())
     ymin, ymax = float(ys.min()), float(ys.max())
@@ -67,6 +81,8 @@ def _square_zoom(ax: plt.Axes, xs: np.ndarray, ys: np.ndarray) -> None:
 
     pad = max(0.15 * span, 5.0)
     half = span / 2.0 + pad
+
+    half *= float(zoom)
 
     ax.set_xlim(cx - half, cx + half)
     ax.set_ylim(cy - half, cy + half)
@@ -215,7 +231,8 @@ def run_and_plot() -> None:
         show_hollow_skip=True,
     )
 
-    # Plot TreeLoc: for no-tree zone frames estimated_pose is snapped pose; render hollow for no-tree zone
+    # Plot TreeLoc: for no-tree zone frames estimated_pose is snapped pose;
+    # render hollow for no-tree zone
     est_xs, est_ys = _plot_pose_series(
         est,
         get_xy=lambda r: (r.estimated_pose.x, r.estimated_pose.y),
@@ -226,7 +243,12 @@ def run_and_plot() -> None:
 
     all_x = np.concatenate([a for a in (rtk_xs, gps_xs, est_xs) if a.size])
     all_y = np.concatenate([a for a in (rtk_ys, gps_ys, est_ys) if a.size])
-    _square_zoom(ax, all_x, all_y)
+    _square_zoom(
+        ax,
+        all_x,
+        all_y,
+        zoom=0.85,  # <1.0 zooms in slightly; try 0.9/0.8/0.7
+    )
 
     ax.set_title("RTK vs GPS vs TreeLoc — Satellite Overlay")
     ax.set_xlabel("X (m)")
@@ -247,7 +269,10 @@ def run_and_plot() -> None:
         color: str,
         label: str,
     ) -> None:
-        """Plot continuous error line + filled markers, with hollow markers for no-tree zone frames."""
+        """Plot continuous error line + filled markers.
+
+        Hollow markers denote no-tree zone frames.
+        """
         if y_values.size == 0:
             return
 
@@ -284,15 +309,37 @@ def run_and_plot() -> None:
             )
 
     # Use the same frame order as `results`
-    matched_mask_full = np.array([bool(getattr(r, "matched", True)) for r in results], dtype=bool)
+    matched_mask_full = np.array(
+        [bool(getattr(r, "matched", True)) for r in results],
+        dtype=bool,
+    )
 
-    gps_err = np.array([float(getattr(r, "gps_err_m", float("nan"))) for r in results], dtype=float)
-    snapped_err = np.array([float(getattr(r, "snapped_err_m", float("nan"))) for r in results], dtype=float)
-    sgil_err = np.array([float(getattr(r, "sgil_err_m", float("nan"))) for r in results], dtype=float)
+    gps_err = np.array(
+        [float(getattr(r, "gps_err_m", float("nan"))) for r in results],
+        dtype=float,
+    )
+    snapped_err = np.array(
+        [float(getattr(r, "snapped_err_m", float("nan"))) for r in results],
+        dtype=float,
+    )
+    sgil_err = np.array(
+        [float(getattr(r, "sgil_err_m", float("nan"))) for r in results],
+        dtype=float,
+    )
 
     _plot_error(y_values=gps_err, matched_mask=matched_mask_full, color="blue", label="GPS Error")
-    _plot_error(y_values=snapped_err, matched_mask=matched_mask_full, color="green", label="Snapped Error")
-    _plot_error(y_values=sgil_err, matched_mask=matched_mask_full, color="purple", label="TreeLoc/SGIL Error")
+    _plot_error(
+        y_values=snapped_err,
+        matched_mask=matched_mask_full,
+        color="green",
+        label="Snapped Error",
+    )
+    _plot_error(
+        y_values=sgil_err,
+        matched_mask=matched_mask_full,
+        color="purple",
+        label="TreeLoc/SGIL Error",
+    )
 
     ax2.set_title("Error Magnitude Over Time (Relative to RTK)")
     ax2.set_xlabel("Sample Index")
@@ -309,8 +356,10 @@ def run_and_plot() -> None:
     else:
         out_path1 = os.path.join(os.getcwd(), "automated_sgil_overlay.png")
         out_path2 = os.path.join(os.getcwd(), "automated_sgil_errors.png")
-        fig.savefig(out_path1, dpi=150, bbox_inches="tight")
-        fig2.savefig(out_path2, dpi=150, bbox_inches="tight")
+        # bbox_inches='tight' can crop right up to titles/legends; add a small
+        # pad so there's always visible whitespace on the top/top-right.
+        fig.savefig(out_path1, dpi=150, bbox_inches="tight", pad_inches=0.25)
+        fig2.savefig(out_path2, dpi=150, bbox_inches="tight", pad_inches=0.25)
         print(
             f"Matplotlib backend '{matplotlib.get_backend()}' is non-interactive; "
             f"saved plots to: {out_path1} and {out_path2}"

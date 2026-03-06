@@ -97,7 +97,16 @@ class DebugVisualizer:
         # exact artist extents. For debug plots, disabling it is much faster.
         bbox = "tight" if WEDGE_PLOT_TIGHT_BBOX else None
 
-        fig.savefig(filepath, dpi=int(WEDGE_PLOT_DPI), bbox_inches=bbox)
+        # When using a tight bbox, Matplotlib can crop right up to titles/legends.
+        # A small pad keeps consistent whitespace without changing axis limits.
+        pad_inches = 0.25 if bbox == "tight" else None
+
+        fig.savefig(
+            filepath,
+            dpi=int(WEDGE_PLOT_DPI),
+            bbox_inches=bbox,
+            pad_inches=pad_inches,
+        )
         plt.close(fig)
 
         return filepath

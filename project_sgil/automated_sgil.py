@@ -25,7 +25,6 @@ from project_sgil.constants import (
     AUTOMATED_MIN_SEGMENT_CONFIDENCE,
     AUTOMATED_SKIP_IF_NO_TREES,
     DATA_LOGGER_PATH,
-    HEADING_JSON_FIELD,
     HEADING_SWEEP_ENABLED,
     IMAGE_SHAPE,
     IMAGES_TO_SKIP,
@@ -402,6 +401,7 @@ class AutomatedSGIL:
                     rtk_pose,
                     image_name=frame_name,
                     snap_distance_m=snap_distance_m,
+                    gps_pose=gps_pose,
                 )
                 est_pose: Pose2d | None = Pose2d(
                     est_pose_from_matcher.x,
@@ -435,6 +435,9 @@ class AutomatedSGIL:
 
             if PLOT and idx:
                 save_stub = f"frame_{idx:06d}"
+
+                # AOI for plotting (TreeMatcher also computes this internally during matching).
+                aoi_trees_for_plot = self.tree_matcher._get_area_of_interest(pose_for_match)
 
                 if PLOT_THETAS:
                     DebugVisualizer.plot_thetas(
@@ -492,8 +495,9 @@ class AutomatedSGIL:
             return float(sum(finite) / len(finite)) if finite else float("nan")
 
         print(
-            f"\n{'frame':40s} | {'matched':10s} | {'sgil_err_m':10s} | {'snapped_err_m':13s} | {'gps_err_m':10s} | "
-            f"{'gps_pose':32s} | {'rtk_pose':32s} | {'current_pose':32s} | {'estimated_pose':32s}"
+            f"\n{'frame':40s} | {'matched':10s} | {'sgil_err_m':10s} | {'snapped_err_m':13s} | "
+            f"{'gps_err_m':10s} | {'gps_pose':32s} | {'rtk_pose':32s} | {'current_pose':32s} | "
+            f"{'estimated_pose':32s}"
         )
         print(
             "-" * 40
@@ -523,7 +527,8 @@ class AutomatedSGIL:
 
             # no-tree skip path is also matched=False but not in the explicit IMAGES_TO_SKIP ranges
             if AUTOMATED_SKIP_IF_NO_TREES and (not r.matched):
-                # Mark as skipped when estimated_pose == snapped_pose and we didn't attempt matching.
+                # Mark as skipped when estimated_pose == snapped_pose and we didn't attempt
+                # matching.
                 # (Conservative: avoids counting failed matches as "skipped".)
                 if r.estimated_pose is not None and r.current_pose is not None:
                     if (

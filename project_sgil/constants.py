@@ -4,7 +4,10 @@ IMAGE_TOP_LEFT = Point(35.776006, -78.644325)
 IMAGE_BOTTOM_RIGHT = Point(35.772600, -78.637597)
 
 # Origin of the plot
-ORIGIN = ((IMAGE_TOP_LEFT.x + IMAGE_BOTTOM_RIGHT.x) / 2.0, (IMAGE_TOP_LEFT.y + IMAGE_BOTTOM_RIGHT.y) / 2.0)
+ORIGIN = (
+    (IMAGE_TOP_LEFT.x + IMAGE_BOTTOM_RIGHT.x) / 2.0,
+    (IMAGE_TOP_LEFT.y + IMAGE_BOTTOM_RIGHT.y) / 2.0,
+)
 
 # Earth radius
 EARTH_RADIUS_M = 6378137  # [m]
@@ -32,7 +35,7 @@ BACKGROUND_EXTENT = ()
 PLOT = False
 
 # Boolean to plot wedge debug visuals
-PLOT_WEDGES = False #True
+PLOT_WEDGES = False  # True
 
 PLOT_THETAS = False
 
@@ -41,7 +44,7 @@ PLOT_THETAS = False
 PLOT_WEDGES_SAT_BACKGROUND = False
 
 # If True, allow wedge debug plots even when not all wedges are matched
-PLOT_WEDGES_PARTIAL = True # True
+PLOT_WEDGES_PARTIAL = True  # True
 
 PLOT_RANGE = (300, 1000)
 
@@ -64,6 +67,11 @@ POSITION_SWEEP_STEP_SIZE = 1
 # Hard gate: reject any pose estimate too far from the snapped/current pose.
 # (Prevents weird intersections from dominating scoring.)
 MAX_ESTIMATE_DIST_FROM_SNAPPED_POSITION_SWEEP = 2.5
+
+# Hard gate: reject any pose estimate too far from the raw GPS position.
+# This is different from MAX_ESTIMATE_DIST_FROM_SNAPPED_POSITION_SWEEP, which gates vs the
+# road-snapped/current pose during the position sweep.
+MAX_ESTIMATE_DIST_FROM_GPS_M = 50.0
 
 # Vertical and Horizontal FOV
 H_FOV_DEG = 110  # [degrees]
@@ -102,8 +110,8 @@ INCLUDE_SKIPPED_FRAMES = True
 
 # --- Automated SGIL (results.json) filtering ---
 # Process only frames whose numeric index is in [start, end] with a fixed step.
-AUTOMATED_FRAME_START = 140 # 288
-AUTOMATED_FRAME_END = 2047 # 771 # 4000
+AUTOMATED_FRAME_START = 140  # 288
+AUTOMATED_FRAME_END = 2047  # 771 # 4000
 
 # Minimum segmentation confidence for using a tree centroid
 AUTOMATED_MIN_SEGMENT_CONFIDENCE = 0.0
@@ -166,4 +174,3 @@ DEBUG_WEDGE_COMBOS_FILTER_TREE_IDS: list[int] | None = None
 # Prevents combinatorial explosion when many wedges / candidate trees exist.
 # Set to None for unlimited (original behaviour — may hang on dense scenes).
 MAX_WEDGE_COMBINATIONS: int | None = 50_000
-

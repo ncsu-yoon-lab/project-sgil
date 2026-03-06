@@ -29,8 +29,6 @@ from project_sgil.constants import (
 )
 from project_sgil.data_structs import Point, Pose2d
 
-from matplotlib import pyplot as plt
-
 from project_sgil.graphics.debug_visualizer import DebugVisualizer
 from project_sgil.localization.tree_matcher import TreeMatcher
 from project_sgil.utils.converter import Converter
@@ -229,7 +227,11 @@ class ManualSGIL:
         if scale < 1.0:
             display_w = int(round(img_w * scale))
             display_h = int(round(img_h * scale))
-            displayed_image = cv2.resize(image, (display_w, display_h), interpolation=cv2.INTER_AREA)
+            displayed_image = cv2.resize(
+                image,
+                (display_w, display_h),
+                interpolation=cv2.INTER_AREA,
+            )
         else:
             display_w = img_w
             display_h = img_h
@@ -277,7 +279,6 @@ class ManualSGIL:
         cv2.waitKey(1)
 
         return image_name, selected_points, pose
-
 
     def run(self) -> None:
         """
@@ -329,7 +330,7 @@ class ManualSGIL:
                     f"{save_name}_thetas",
                 )
 
-            est_xy = self.tree_matcher.match_trees(pose, ground_thetas)
+            est_xy = self.tree_matcher.match_trees(pose, ground_thetas, pose)
 
             print("Estimated location xy: ", est_xy)
 
