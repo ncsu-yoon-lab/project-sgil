@@ -53,3 +53,5 @@ uv run python -m project_sgil.automated_sgil | Out-File -FilePath "dataset\table
 ```
 
 This overwrites `RaleighSatellite_manual_trees.csv` with lat/lon values and writes a backup at `RaleighSatellite_manual_trees.csv.bak`.
+
+uv run python .\scripts\grid_search_automated_sgil_configs.py

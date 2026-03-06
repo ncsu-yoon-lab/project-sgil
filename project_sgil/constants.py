@@ -126,8 +126,8 @@ AUTOMATED_USE_RTK_POSE_EACH_FRAME = False
 #   +x_body = forward
 #   +y_body = left
 
-RTK_TO_CAMERA_OFFSET_X_FWD_M = -0.53
-RTK_TO_CAMERA_OFFSET_Y_LEFT_M = -(1.06 / 2.0 - 0.06)
+RTK_TO_CAMERA_OFFSET_X_FWD_M = 0.53
+RTK_TO_CAMERA_OFFSET_Y_LEFT_M = (1.06 / 2.0 - 0.06)
 
 # Backwards-compatible aliases (deprecated)
 RTK_TO_CAMERA_OFFSET_X_M = RTK_TO_CAMERA_OFFSET_X_FWD_M
