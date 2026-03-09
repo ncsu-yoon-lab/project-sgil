@@ -10,7 +10,7 @@ import pandas as pd
 # ============================================================
 
 # Input
-IMAGE_PATH = "../dataset/satellite_trees/RaleighSatellite.png"
+IMAGE_PATH = "../../dataset/satellite_trees/RaleighSatellite.png"
 
 # DeepForest inference
 SCORE_THRESH = 0.1           # model confidence threshold (lower = more boxes; was 0.12)

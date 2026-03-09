@@ -1,7 +1,10 @@
 import math
 
-from project_sgil.constants import EARTH_RADIUS_M, H_FOV_DEG
+import cv2
+
+from project_sgil.constants import EARTH_RADIUS_M, H_FOV_DEG, IMAGE_BOTTOM_RIGHT, IMAGE_TOP_LEFT, SATELLITE_IMAGE_PATH
 from project_sgil.data_structs import Point
+from project_sgil.utils.utils import normalize_deg
 
 # TODO: make this class use our data classes, and organize methods by private, static, and public
 
@@ -21,6 +24,24 @@ class Converter:
         :param lon_origin: Longitude of the origin in degrees.
         """
         self.origin: tuple[float, float] = (lat_origin, lon_origin)
+
+        self.set_image_bounds(IMAGE_TOP_LEFT, IMAGE_BOTTOM_RIGHT, SATELLITE_IMAGE_PATH)
+
+    def set_image_bounds(self, top_left: Point, bottom_right: Point, image_path: str) -> None:
+        """Set the geographic bounds and image dimensions for coordinate conversions.
+
+        This should be called before using world_to_px or px_to_world.
+
+        :param top_left: Geographic coordinates of the top-left corner of the image.
+        :param bottom_right: Geographic coordinates of the bottom-right corner of the image.
+        :param image_path: Path to the satellite image file (used to get dimensions).
+        """
+        self.x_min, self.y_max = self.latlon_to_xy((top_left.x, top_left.y))
+        self.x_max, self.y_min = self.latlon_to_xy((bottom_right.x, bottom_right.y))
+
+        img = cv2.imread(image_path)
+        self.img_w = img.shape[1]
+        self.img_h = img.shape[0]
 
     @staticmethod
     def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
@@ -51,6 +72,7 @@ class Converter:
         :param point: Tuple of (latitude, longitude) in degrees.
         :return: Tuple of (x, y) in meters relative to the origin.
         """
+        
         lat = math.radians(float(point[0]))
         lon = math.radians(float(point[1]))
         origin_lat = math.radians(self.origin[0])
@@ -82,9 +104,19 @@ class Converter:
         lon: float = self.origin[1] + math.degrees(delta_lon)
 
         return (lat, lon)
+    
+    def world_to_px(self, x: float, y: float) -> tuple[float, float]:
+        u = (x - self.x_min) / (self.x_max - self.x_min) * self.img_w
+        v = (self.y_max - y) / (self.y_max - self.y_min) * self.img_h
+        return u, v
+    
+    def px_to_world(self, u: float, v: float) -> tuple[float, float]:
+        x = self.x_min + (u / self.img_w) * (self.x_max - self.x_min)
+        y = self.y_max - (v / self.img_h) * (self.y_max - self.y_min)
+        return x, y
 
     @staticmethod
-    def image_x_to_theta(x: float, image_width: int = 1280) -> float:
+    def image_x_to_theta(x: float, image_width: int) -> float:
         """Map an image pixel x-coordinate to a viewing angle theta.
 
         Converts horizontal pixel offset to an angle using half the
@@ -101,13 +133,17 @@ class Converter:
         return -half_fov * offset_x / center_x
 
     @staticmethod
-    def heading_to_yaw(heading: float) -> float:
-        """Convert a compass heading to a yaw angle.
+    def rtk_heading_to_yaw(rtk_heading: float) -> float:
+        """Convert RTK heading to yaw.
 
-        Yaw is measured by finding heading pointing the x direction
-        (parallel to vector from EB1 to EB3).
+        Project convention for RTK heading (as logged):
+          - 0° = East
+          - 90° = North
 
-        :param heading: Compass heading in degrees (0=N, 90=E).
-        :return: Yaw angle in degrees where 0 is +x axis.
+        This matches the yaw convention used throughout the project where
+        yaw=0 points along +x (East) and yaw=90 points along +y (North).
+
+        :param rtk_heading: RTK heading in degrees.
+        :return: yaw in degrees normalized to [-180, 180).
         """
-        return (450 - heading) % 360
+        return normalize_deg(float(rtk_heading))

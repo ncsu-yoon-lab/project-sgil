@@ -1,18 +1,26 @@
 import csv
 import os
-import math
+import sys
 from typing import List, Tuple
 
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
+import numpy as np  # Added for safe Matplotlib array handling
 
 # ============================================================
-# Manual tree center labeling for RaleighSatellite.png
+# Manual tree center labeling on the satellite image
 # ============================================================
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_ROOT = os.path.normpath(os.path.join(SCRIPT_DIR, "..", ".."))
+if REPO_ROOT not in sys.path:
+    sys.path.insert(0, REPO_ROOT)
+
+# Assuming these exist in your project_sgil.constants
+from project_sgil.constants import IMAGE_BOTTOM_RIGHT, IMAGE_TOP_LEFT
+
 IMAGE_PATH = os.path.normpath(
-    os.path.join(SCRIPT_DIR, "..", "dataset", "satellite_images", "RaleighSatellite.png")
+    os.path.join(SCRIPT_DIR, "../..", "dataset", "satellite_trees", "RaleighSatellite.png")
 )
 CSV_PATH = os.path.join(os.path.dirname(IMAGE_PATH), "RaleighSatellite_manual_trees.csv")
 
@@ -23,32 +31,31 @@ REMOVE_RADIUS_PX = 12
 SAVE_EVERY_N = 10
 
 
-def _load_points(csv_path: str) -> List[Tuple[int, int]]:
+def _load_points(csv_path: str) -> List[Tuple[float, float]]:
     if not os.path.exists(csv_path):
         return []
 
-    points: List[Tuple[int, int]] = []
+    points: List[Tuple[float, float]] = []
     with open(csv_path, "r", newline="", encoding="utf-8") as f:
         reader = csv.reader(f)
-        header = next(reader, None)
         for row in reader:
             if len(row) < 2:
                 continue
             try:
-                x = int(float(row[0]))
-                y = int(float(row[1]))
+                # First line is a coord, no header skipping required
+                lat = float(row[0])
+                lon = float(row[1])
             except ValueError:
                 continue
-            points.append((x, y))
+            points.append((lat, lon))
 
     return points
 
 
-def _save_points(csv_path: str, points: List[Tuple[int, int]]) -> None:
+def _save_points(csv_path: str, points: List[Tuple[float, float]]) -> None:
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
     with open(csv_path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["x", "y"])
         writer.writerows(points)
 
 
@@ -60,20 +67,31 @@ class TreeClicker:
         self.img_path = img_path
         self.csv_path = csv_path
 
+        # --- NEW: Print the absolute path to the console ---
+        abs_csv = os.path.abspath(self.csv_path)
+        print(f"Logging tree coordinates to: {abs_csv}")
+
         self.img = mpimg.imread(img_path)
+        self.image_height = int(self.img.shape[0])
+        self.image_width = int(self.img.shape[1])
+
+        self.lat_top = float(IMAGE_TOP_LEFT.x)
+        self.lon_left = float(IMAGE_TOP_LEFT.y)
+        self.lat_bottom = float(IMAGE_BOTTOM_RIGHT.x)
+        self.lon_right = float(IMAGE_BOTTOM_RIGHT.y)
+
         self.points = _load_points(csv_path)
         self._dirty = False
         self._ops_since_save = 0
 
         self.fig, self.ax = plt.subplots()
         self.ax.imshow(self.img, interpolation="nearest")
-        self.ax.set_title(
-            "Click tree centers (left-click). Right-click to remove. Scroll to zoom."
-        )
+        self._set_title()
 
+        initial_pixels = self._points_pixel()
         self.scatter = self.ax.scatter(
-            [p[0] for p in self.points],
-            [p[1] for p in self.points],
+            [p[0] for p in initial_pixels],
+            [p[1] for p in initial_pixels],
             s=POINT_SIZE,
             c=POINT_COLOR,
             marker="o",
@@ -83,42 +101,100 @@ class TreeClicker:
         self.fig.canvas.mpl_connect("scroll_event", self._on_scroll)
         self.fig.canvas.mpl_connect("close_event", self._on_close)
 
+    def _set_title(self, *, lat: float | None = None, lon: float | None = None) -> None:
+        if lat is None or lon is None:
+            title = "Click tree centers (left-click). Right-click to remove. Scroll to zoom."
+        else:
+            title = (
+                "Click tree centers (left-click). Right-click to remove. Scroll to zoom. "
+                f"Last: {lat:.6f}, {lon:.6f}"
+            )
+        self.ax.set_title(title)
+
+    def _pixel_to_latlon(self, x_px: float, y_px: float) -> Tuple[float, float]:
+        if self.image_width <= 1 or self.image_height <= 1:
+            return self.lat_top, self.lon_left
+        lon = self.lon_left + (x_px / (self.image_width - 1)) * (self.lon_right - self.lon_left)
+        lat = self.lat_top + (y_px / (self.image_height - 1)) * (self.lat_bottom - self.lat_top)
+        return lat, lon
+
+    def _latlon_to_pixel(self, lat: float, lon: float) -> Tuple[int, int] | None:
+        if self.image_width <= 1 or self.image_height <= 1:
+            return None
+        if self.lon_right == self.lon_left or self.lat_bottom == self.lat_top:
+            return None
+        x = (lon - self.lon_left) / (self.lon_right - self.lon_left) * (self.image_width - 1)
+        y = (lat - self.lat_top) / (self.lat_bottom - self.lat_top) * (self.image_height - 1)
+        x_int = int(round(x))
+        y_int = int(round(y))
+        if not (0 <= x_int < self.image_width and 0 <= y_int < self.image_height):
+            return None
+        return x_int, y_int
+
+    def _points_pixel(self) -> List[Tuple[int, int]]:
+        pixels: List[Tuple[int, int]] = []
+        for lat, lon in self.points:
+            pixel = self._latlon_to_pixel(lat, lon)
+            if pixel is not None:
+                pixels.append(pixel)
+        return pixels
+
     def _save_if_needed(self, *, force: bool = False) -> None:
         if force or (self._dirty and self._ops_since_save >= SAVE_EVERY_N):
             _save_points(self.csv_path, self.points)
+            print(f"Saved {len(self.points)} trees to {os.path.abspath(self.csv_path)}")
             self._dirty = False
             self._ops_since_save = 0
+
+    def _update_scatter(self) -> None:
+        """Safely updates the scatter plot, avoiding crashes if the list is empty."""
+        pixels = self._points_pixel()
+        if pixels:
+            self.scatter.set_offsets(np.array(pixels))
+        else:
+            self.scatter.set_offsets(np.empty((0, 2)))
+        self.fig.canvas.draw_idle()
 
     def _on_click(self, event) -> None:
         if event.inaxes != self.ax or event.xdata is None or event.ydata is None:
             return
 
+        # Left-click to add
         if event.button == 1:
             x = int(round(event.xdata))
             y = int(round(event.ydata))
-            self.points.append((x, y))
+            if not (0 <= x < self.image_width and 0 <= y < self.image_height):
+                return
+
+            lat, lon = self._pixel_to_latlon(x, y)
+            self.points.append((lat, lon))
             self._dirty = True
             self._ops_since_save += 1
-            self.scatter.set_offsets(self.points)
+            self._set_title(lat=lat, lon=lon)
+
+            self._update_scatter()
             self._save_if_needed()
-            self.fig.canvas.draw_idle()
             return
 
+        # Right-click to remove
         if event.button == 3:
             if self._remove_nearest_point(event.xdata, event.ydata):
-                self.scatter.set_offsets(self.points)
                 self._dirty = True
                 self._ops_since_save += 1
+                self._update_scatter()
                 self._save_if_needed()
-                self.fig.canvas.draw_idle()
 
     def _remove_nearest_point(self, x: float, y: float) -> bool:
         if not self.points:
             return False
 
+        pixels = self._points_pixel()
+        if not pixels:
+            return False
+
         best_idx = -1
         best_dist2 = float("inf")
-        for idx, (px, py) in enumerate(self.points):
+        for idx, (px, py) in enumerate(pixels):
             dx = px - x
             dy = py - y
             d2 = dx * dx + dy * dy
@@ -172,4 +248,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
